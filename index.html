@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Badminton Rotation Scheduler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --p:#172D2D;--ph:#004C45;--ia:#128BA6;
+  --nav:#E5F0E8;--s0:#FFFFFF;--s1:#F2F2F2;--s2:#E5E5E5;
+  --bd:#D2D2D2;--bdm:#808080;
+  --tx:#121212;--txs:#404040;--txd:#BFBFBF;
+  --ok:#316E68;--oks:#D5EBDB;
+  --wa:#F7C11B;--was:#F6DFA3;
+  --er:#BB363C;--ers:#EDD5D5;
+  --bls:#D9F2F7;--blb:#17AED0;
+}
+body{background:var(--s1);font-family:'Libre Franklin',sans-serif;min-height:100vh;padding:1rem}
+.app{max-width:860px;margin:0 auto}
+.hdr{background:var(--p);border-radius:8px;padding:1rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;gap:14px}
+.hdr-ic{width:38px;height:38px;background:var(--ph);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid var(--ok)}
+.hdr h1{color:#fff;font-size:17px;font-weight:600;margin:0}
+.hdr p{color:rgba(255,255,255,.45);font-size:12px;margin:3px 0 0}
+.tabs{display:flex;gap:4px;margin-bottom:1rem}
+.tab{padding:8px 18px;border-radius:6px;border:1px solid var(--bd);background:var(--s0);font-size:13px;cursor:pointer;color:var(--txs);font-family:'Libre Franklin',sans-serif;font-weight:500}
+.tab.active{background:var(--p);color:#fff;border-color:var(--p)}
+.card{background:var(--s0);border:1px solid var(--bd);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem}
+.slabel{font-size:11px;color:var(--txs);font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.row label{font-size:13px;color:var(--tx);min-width:90px;font-weight:500}
+input[type=number]{width:70px;border:1px solid var(--bd);border-radius:4px;padding:6px 8px;font-size:13px;font-family:'Libre Franklin',sans-serif;color:var(--tx);background:var(--s0)}
+input[type=number]:focus{outline:2px solid var(--ia);outline-offset:1px}
+input[type=text]{border:1px solid var(--bd);border-radius:4px;padding:7px 10px;font-size:13px;font-family:'Libre Franklin',sans-serif;color:var(--tx);background:var(--s0);width:100%}
+input[type=text]:focus{outline:2px solid var(--ia);outline-offset:1px}
+textarea{border:1px solid var(--bd);border-radius:4px;padding:8px 10px;font-size:12px;font-family:'Libre Franklin',monospace;color:var(--tx);background:var(--s1);width:100%;resize:vertical;min-height:110px}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;min-height:24px}
+.pchip{display:inline-flex;align-items:center;gap:3px;padding:4px 9px 4px 10px;border-radius:4px;font-size:12px;font-weight:500;background:var(--nav);border:1px solid #B8D4BC;color:var(--p);line-height:1.4}
+.pchip .rm{cursor:pointer;color:var(--ph);font-size:14px;padding-left:4px;line-height:1}
+.pchip .rm:hover{color:var(--er)}
+.add-row{display:flex;gap:6px;margin-bottom:6px}
+.add-row input{flex:1}
+.hint{font-size:12px;color:var(--txs);margin-top:4px}
+.info-hint{font-size:12px;color:#0E687D;background:var(--bls);border:1px solid var(--blb);border-radius:4px;padding:6px 10px;margin-top:6px;display:block}
+.err-hint{font-size:12px;color:var(--er);font-weight:500}
+.import-area{display:flex;flex-direction:column;gap:7px;margin-top:9px}
+.import-area label{font-size:12px;color:var(--txs)}
+.conflict-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.cx{padding:6px 13px;border-radius:4px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid var(--bd);background:#FFFFFF;color:#121212;font-family:'Libre Franklin',sans-serif;line-height:1.4}
+.cx:hover{border-color:#128BA6;color:#128BA6}
+.cx.on{background:#172D2D;color:#FFFFFF;border-color:#172D2D}
+.conflict-summary{font-size:13px;color:var(--txs);margin-top:6px;min-height:20px}
+.conflict-summary strong{color:var(--p);font-weight:600}
+.btn-p{background:var(--p);color:#fff;border:none;padding:9px 18px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Libre Franklin',sans-serif}
+.btn-p:hover{background:var(--ph)}
+.btn-s{background:var(--s0);color:var(--tx);border:1px solid var(--bd);padding:7px 14px;border-radius:4px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500}
+.btn-s:hover{background:var(--s1);border-color:var(--bdm)}
+.btn-danger{background:var(--s0);color:var(--er);border:1px solid var(--ers);padding:7px 14px;border-radius:4px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500}
+.btn-danger:hover{background:var(--ers);border-color:var(--er)}
+.btn-extend{background:var(--ph);color:#fff;border:none;padding:10px 20px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Libre Franklin',sans-serif;width:100%}
+.btn-extend:hover{background:var(--p)}
+.extend-box{background:var(--s0);border:1px solid var(--bd);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem;text-align:center}
+.extend-box p{font-size:13px;color:var(--txs);margin-bottom:10px}
+.rnav{display:flex;align-items:center;gap:10px;margin-bottom:1rem}
+.rnav .rlabel{flex:1;text-align:center;font-size:15px;font-weight:600;color:var(--tx)}
+.sub-banner{background:var(--was);border:1px solid var(--wa);border-radius:6px;padding:10px 14px;color:var(--tx);font-size:13px;font-weight:600;margin-bottom:.75rem}
+.sub-banner span{font-weight:400}
+.courts-grid{display:grid;gap:10px;margin-bottom:1rem}
+.court-card{border:1px solid var(--bd);border-radius:8px;overflow:hidden;background:var(--s0)}
+.court-card.singles{border-color:var(--blb)}
+.ch{background:var(--p);padding:8px 12px;display:flex;align-items:center;gap:8px}
+.court-card.singles .ch{background:#0E687D}
+.ch .cn{background:var(--ok);color:#fff;font-size:11px;font-weight:600;padding:2px 9px;border-radius:3px}
+.court-card.singles .ch .cn{background:var(--blb)}
+.ch .tag-s{background:rgba(255,255,255,.2);color:#fff;font-size:10px;font-weight:600;padding:2px 7px;border-radius:3px;margin-left:2px}
+.cb{padding:12px;display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center}
+.team{display:flex;flex-direction:column;gap:4px}
+.tlabel{font-size:10px;color:var(--txs);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.vs{font-size:12px;color:var(--txs);text-align:center;font-weight:600}
+.pa{display:inline-block;padding:4px 10px;border-radius:3px;font-size:12px;font-weight:600;background:var(--oks);color:var(--ph);margin-bottom:2px}
+.pb{display:inline-block;padding:4px 10px;border-radius:3px;font-size:12px;font-weight:600;background:var(--bls);color:#0E687D;margin-bottom:2px}
+.stats-tbl{width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed}
+.stats-tbl th{font-size:11px;color:var(--txs);font-weight:600;text-align:left;padding:5px 7px;border-bottom:1px solid var(--bd);text-transform:uppercase;letter-spacing:.05em}
+.stats-tbl td{padding:5px 7px;border-bottom:1px solid var(--bd);color:var(--tx);font-size:12px}
+.stats-tbl tr:last-child td{border-bottom:none}
+.stats-tbl tbody tr:hover td{background:var(--s1)}
+.badge-in{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;background:var(--oks);color:var(--ph)}
+.badge-out{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;background:var(--was);color:#7a4e00}
+.vrow{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--bd);font-size:13px;color:var(--tx)}
+.vrow:last-child{border-bottom:none}
+.dok{width:8px;height:8px;border-radius:50%;background:var(--ok);flex-shrink:0}
+.derr{width:8px;height:8px;border-radius:50%;background:var(--er);flex-shrink:0}
+details summary{font-size:13px;color:var(--txs);cursor:pointer;user-select:none;padding:2px 0;font-weight:500}
+details summary:hover{color:var(--ia)}
+@media(max-width:600px){.courts-grid{grid-template-columns:1fr !important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr">
+    <div class="hdr-ic"><i class="ti ti-tournament" style="color:#A4DCB4;font-size:20px"></i></div>
+    <div>
+      <h1>Badminton Rotation Scheduler</h1>
+      <p>Fair rotation · 2v2 doubles · 1v1 singles overflow · extendable</p>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('setup')" id="tab-setup">Setup</button>
+    <button class="tab" onclick="switchTab('schedule')" id="tab-sched">Schedule</button>
+  </div>
+  <div id="pane-setup">
+    <div class="card">
+      <div class="slabel">Courts</div>
+      <div class="row">
+        <label>Number of courts</label>
+        <input type="number" id="num-courts" min="1" max="10" placeholder="e.g. 3" oninput="updateHint()">
+      </div>
+    </div>
+    <div class="card">
+      <div class="slabel">Players</div>
+      <div class="chip-wrap" id="player-grid"></div>
+      <div class="add-row">
+        <input type="text" id="add-inp" placeholder="Type a name and press Enter…" onkeydown="if(event.key==='Enter')addOne()">
+        <button class="btn-s" onclick="addOne()">Add</button>
+        <button class="btn-danger" id="clear-all-btn" onclick="clearAllPlayers()" style="display:none">
+          <i class="ti ti-trash" style="font-size:13px;vertical-align:-2px;margin-right:3px"></i>Remove all
+        </button>
+      </div>
+      <details style="margin-top:8px">
+        <summary>Bulk import from list</summary>
+        <div class="import-area">
+          <label>Paste names or emails — one per line. Emails and role suffixes like "- Organizer" are stripped automatically.</label>
+          <textarea id="bulk-txt" placeholder="Man Sun - Organizer&#10;man.sun@trulioo.com&#10;Tim Lee&#10;tim.lee@trulioo.com"></textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
+            <button class="btn-s" onclick="parseBulk()">Import</button>
+            <button class="btn-s" onclick="clearBulk()">Clear</button>
+            <span id="import-msg" style="font-size:12px;color:var(--txs)"></span>
+          </div>
+        </div>
+      </details>
+      <div id="player-hint" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <div class="slabel">Team conflict rules <span style="font-weight:400;text-transform:none;font-size:11px;color:var(--txs)">(optional)</span></div>
+      <p style="font-size:13px;color:var(--txs);margin-bottom:10px">Click players who should never share a team.</p>
+      <div class="conflict-chips" id="conflict-chips"></div>
+      <div class="conflict-summary" id="conflict-summary"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-bottom:2rem">
+      <button class="btn-p" onclick="generateFresh()">
+        <i class="ti ti-player-play" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i>Generate schedule
+      </button>
+      <span id="setup-err" class="err-hint"></span>
+    </div>
+  </div>
+  <div id="pane-schedule" style="display:none">
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      <button class="btn-s" onclick="switchTab('setup')"><i class="ti ti-arrow-left" style="font-size:13px;vertical-align:-2px"></i> Setup</button>
+      <button class="btn-s" onclick="generateFresh()"><i class="ti ti-refresh" style="font-size:13px;vertical-align:-2px"></i> New rotation</button>
+    </div>
+    <div class="rnav">
+      <button class="btn-s" id="prev-btn" onclick="changeRound(-1)"><i class="ti ti-chevron-left" style="font-size:15px"></i></button>
+      <div class="rlabel" id="rlabel">Round 1 of 10</div>
+      <button class="btn-s" id="next-btn" onclick="changeRound(1)"><i class="ti ti-chevron-right" style="font-size:15px"></i></button>
+    </div>
+    <div id="sub-banner-wrap"></div>
+    <div class="courts-grid" id="courts-grid"></div>
+    <div id="extend-box" class="extend-box" style="display:none">
+      <p>End of schedule — still going? Add 5 more rounds.</p>
+      <button class="btn-extend" onclick="extendSchedule()">
+        <i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i>Add 5 more rounds
+      </button>
+    </div>
+    <div class="card">
+      <div class="slabel" style="margin-bottom:8px">Player stats</div>
+      <div style="overflow-x:auto"><table class="stats-tbl" id="stats-tbl"></table></div>
+    </div>
+    <div class="card">
+      <div class="slabel" style="margin-bottom:8px">Constraint validation</div>
+      <div id="val-list"></div>
+    </div>
+  </div>
+</div>
+<script>
+const BASE_ROUNDS=10,EXTEND_ROUNDS=5;
+let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0;
+let sitC={},usedTeams=new Set(),currentLayout=null,currentNc=0;
+
+function computeDisplayNames(list){
+  const fc={};
+  list.forEach(r=>{const f=r.split(/\s+/)[0];fc[f]=(fc[f]||0)+1;});
+  const map={};
+  list.forEach(r=>{const p=r.split(/\s+/);map[r]=(fc[p[0]]>1&&p.length>1)?p[0]+' '+p[1][0]+'.':p[0];});
+  return map;
+}
+
+function getLayout(n,nc){
+  if(n<nc*2)return null;
+  for(let s=0;s<=3;s++){
+    const a=n-s;if(a<nc*2)break;
+    const r=a%4;
+    if(r===0){const d=a/4;if(d===nc)return{doubles:nc,singles:0,subs:s};if(d>nc)return{doubles:nc,singles:0,subs:s+(d-nc)*4};}
+    if(r===2){const d=Math.floor(a/4);if(d+1<=nc)return{doubles:d,singles:1,subs:s};}
+  }
+  if(n>=nc*4)return{doubles:nc,singles:0,subs:n-nc*4};
+  for(let s=0;s<=n-nc*2;s++){const a=n-s,r=a%4;if(r===0||r===2){return{doubles:Math.floor(a/4),singles:r===2?1:0,subs:s};}}
+  return{doubles:0,singles:nc,subs:n-nc*2};
+}
+
+function isEmail(s){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());}
+function parseRawName(line){
+  let s=line.trim();if(!s||isEmail(s))return null;
+  s=s.replace(/\s*[-–]\s*(organizer|admin|host|co-host|guest|player|lead|manager|owner)\s*$/i,'').trim();
+  return s.split(/\s+/).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(' ')||null;
+}
+
+function parseBulk(){
+  const lines=document.getElementById('bulk-txt').value.split(/\r?\n/);
+  let added=0,skipped=0;
+  lines.forEach(l=>{const raw=parseRawName(l);if(!raw){if(l.trim())skipped++;return;}if(!rawPlayers.includes(raw)){rawPlayers.push(raw);added++;}else skipped++;});
+  document.getElementById('import-msg').textContent=`Added ${added}, skipped ${skipped}`;renderAll();
+}
+function clearBulk(){document.getElementById('bulk-txt').value='';document.getElementById('import-msg').textContent='';}
+function addOne(){
+  const inp=document.getElementById('add-inp');const raw=parseRawName(inp.value)||inp.value.trim();if(!raw)return;
+  const norm=raw.split(/\s+/).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(' ');
+  if(!rawPlayers.includes(norm)){rawPlayers.push(norm);renderAll();}inp.value='';
+}
+function removePlayer(i){const r=rawPlayers[i];rawPlayers.splice(i,1);conflictGroup.delete(r);renderAll();}
+function clearAllPlayers(){rawPlayers=[];conflictGroup=new Set();renderAll();}
+function renderAll(){renderPlayers();renderConflictPicker();updateHint();}
+function renderPlayers(){
+  const dn=computeDisplayNames(rawPlayers);
+  document.getElementById('player-grid').innerHTML=rawPlayers.map((r,i)=>`<span class="pchip">${dn[r]}<span class="rm" onclick="removePlayer(${i})">×</span></span>`).join('');
+  document.getElementById('clear-all-btn').style.display=rawPlayers.length>0?'inline-flex':'none';
+}
+function updateHint(){
+  const nc=parseInt(document.getElementById('num-courts').value);const n=rawPlayers.length;
+  const el=document.getElementById('player-hint');
+  if(!nc||n===0){el.innerHTML='';return;}
+  if(n<nc*2){el.innerHTML=`<span class="err-hint">${n} player${n!==1?'s':''} — need at least ${nc*2} for ${nc} court${nc>1?'s':''}</span>`;return;}
+  const layout=getLayout(n,nc);if(!layout){el.innerHTML=`<span class="err-hint">Cannot create a valid layout</span>`;return;}
+  const parts=[];if(layout.doubles>0)parts.push(`${layout.doubles} doubles (2v2)`);if(layout.singles>0)parts.push(`${layout.singles} singles (1v1)`);
+  let html=`${n} players · ${parts.join(' + ')}`;if(layout.subs>0)html+=` · <strong>${layout.subs}</strong> sit${layout.subs===1?'s':''} out per round`;
+  el.innerHTML=`<span class="info-hint">${html}</span>`;
+}
+function renderConflictPicker(){
+  const dn=computeDisplayNames(rawPlayers);
+  document.getElementById('conflict-chips').innerHTML=rawPlayers.map(r=>{const on=conflictGroup.has(r);const safe=r.replace(/\\/g,'\\\\').replace(/'/g,"\\'");return `<button class="cx${on?' on':''}" onclick="toggleConflict('${safe}')"><span style="pointer-events:none">${dn[r]}</span></button>`;}).join('');
+  renderConflictSummary();
+}
+function toggleConflict(raw){if(conflictGroup.has(raw))conflictGroup.delete(raw);else conflictGroup.add(raw);renderConflictPicker();}
+function renderConflictSummary(){
+  const dn=computeDisplayNames(rawPlayers);const sel=[...conflictGroup].filter(r=>rawPlayers.includes(r));const el=document.getElementById('conflict-summary');
+  if(sel.length===0){el.textContent='No conflict rules set.';return;}if(sel.length===1){el.innerHTML=`<strong>${dn[sel[0]]}</strong> selected — pick at least one more.`;return;}
+  el.innerHTML=`<strong>${sel.length} players</strong> in conflict group: ${sel.map(r=>dn[r]).join(', ')}.`;
+}
+function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;}
+function conflictPair(a,b){const act=[...conflictGroup].filter(r=>rawPlayers.includes(r));return act.length>=2&&conflictGroup.has(a)&&conflictGroup.has(b);}
+function teamOk(t){for(let i=0;i<t.length;i++)for(let j=i+1;j<t.length;j++)if(conflictPair(t[i],t[j]))return false;return true;}
+function teamKey(t){return [...t].sort().join('|');}
+function assignCourts(pl,layout){
+  const courts=[];let idx=0;
+  for(let c=0;c<layout.doubles;c++){courts.push({a:[pl[idx],pl[idx+1]],b:[pl[idx+2],pl[idx+3]],singles:false});idx+=4;}
+  for(let c=0;c<layout.singles;c++){courts.push({a:[pl[idx]],b:[pl[idx+1]],singles:true});idx+=2;}
+  return courts;
+}
+function makeTeams(activePl,layout,used){
+  let best=null,bestScore=Infinity;
+  for(let att=0;att<600;att++){
+    const s=shuffle(activePl);const courts=assignCourts(s,layout);let cv=0,rv=0;
+    courts.forEach(ct=>{if(!teamOk(ct.a))cv++;if(!teamOk(ct.b))cv++;if(used.has(teamKey(ct.a)))rv++;if(used.has(teamKey(ct.b)))rv++;});
+    const score=cv*1000+rv;if(score<bestScore){bestScore=score;best=courts;if(!score)break;}
+  }
+  return best;
+}
+function generateRounds(count){
+  const rounds=[];
+  for(let r=0;r<count;r++){
+    const sorted=shuffle(rawPlayers).sort((a,b)=>sitC[a]-sitC[b]);const subs=sorted.slice(0,currentLayout.subs);
+    subs.forEach(p=>sitC[p]++);const activePl=rawPlayers.filter(p=>!subs.includes(p));
+    const courts=makeTeams(activePl,currentLayout,usedTeams);
+    courts.forEach(ct=>{usedTeams.add(teamKey(ct.a));usedTeams.add(teamKey(ct.b));});
+    rounds.push({subs,courts});
+  }
+  return rounds;
+}
+function generateFresh(){
+  const nc=parseInt(document.getElementById('num-courts').value);const err=document.getElementById('setup-err');
+  if(!nc||nc<1){err.textContent='Enter a number of courts';return;}const n=rawPlayers.length;
+  if(n<nc*2){err.textContent=`Need at least ${nc*2} players for ${nc} court${nc>1?'s':''}`;return;}
+  const layout=getLayout(n,nc);if(!layout){err.textContent='Cannot create a valid layout';return;}
+  err.textContent='';currentNc=nc;currentLayout=layout;sitC=Object.fromEntries(rawPlayers.map(p=>[p,0]));usedTeams=new Set();
+  schedule=generateRounds(BASE_ROUNDS);currentRound=0;switchTab('schedule');renderSchedule();
+}
+function extendSchedule(){
+  const newRounds=generateRounds(EXTEND_ROUNDS);schedule=[...schedule,...newRounds];currentRound=schedule.length-EXTEND_ROUNDS;renderSchedule();
+}
+function renderSchedule(){
+  const R=schedule.length;
+  document.getElementById('rlabel').textContent=`Round ${currentRound+1} of ${R}`;
+  document.getElementById('prev-btn').disabled=currentRound===0;document.getElementById('next-btn').disabled=currentRound===R-1;
+  const rnd=schedule[currentRound];const dn=computeDisplayNames(rawPlayers);const nc=rnd.courts.length;
+  document.getElementById('sub-banner-wrap').innerHTML=rnd.subs.length>0?`<div class="sub-banner"><i class="ti ti-armchair" style="font-size:14px;vertical-align:-2px;margin-right:6px"></i>Sitting out: <span>${rnd.subs.map(p=>dn[p]||p).join(', ')}</span></div>`:'';
+  const cg=document.getElementById('courts-grid');
+  cg.style.gridTemplateColumns=nc<=1?'1fr':nc===2?'1fr 1fr':'repeat(3,1fr)';
+  cg.innerHTML=rnd.courts.map((ct,i)=>`<div class="court-card${ct.singles?' singles':''}"><div class="ch"><span class="cn">Court ${i+1}</span>${ct.singles?'<span class="tag-s">1v1 singles</span>':''}</div><div class="cb"><div class="team"><div class="tlabel">Team A</div>${ct.a.map(p=>`<span class="pa">${dn[p]||p}</span>`).join('')}</div><div class="vs">vs</div><div class="team" style="align-items:flex-end;text-align:right"><div class="tlabel" style="text-align:right">Team B</div>${ct.b.map(p=>`<span class="pb">${dn[p]||p}</span>`).join('')}</div></div></div>`).join('');
+  document.getElementById('extend-box').style.display=currentRound===R-1?'block':'none';
+  renderStats();renderValidation();
+}
+function renderStats(){
+  const dn=computeDisplayNames(rawPlayers);
+  const gp=Object.fromEntries(rawPlayers.map(p=>[p,0]));const so=Object.fromEntries(rawPlayers.map(p=>[p,0]));
+  const pt=Object.fromEntries(rawPlayers.map(p=>[p,new Set()]));const op=Object.fromEntries(rawPlayers.map(p=>[p,new Set()]));
+  schedule.forEach(rnd=>{rnd.subs.forEach(p=>so[p]++);rnd.courts.forEach(ct=>{ct.a.forEach(p=>{gp[p]++;ct.a.filter(q=>q!==p).forEach(q=>pt[p].add(q));ct.b.forEach(q=>op[p].add(q));});ct.b.forEach(p=>{gp[p]++;ct.b.filter(q=>q!==p).forEach(q=>pt[p].add(q));ct.a.forEach(q=>op[p].add(q));});});});
+  document.getElementById('stats-tbl').innerHTML=`<thead><tr><th style="width:22%">Player</th><th>Played</th><th>Sat out</th><th>Partners</th><th>Opponents</th></tr></thead><tbody>`+rawPlayers.map(p=>`<tr><td style="font-weight:600">${dn[p]||p}</td><td><span class="badge-in">${gp[p]}</span></td><td>${so[p]?`<span class="badge-out">${so[p]}</span>`:'—'}</td><td>${pt[p].size}</td><td>${op[p].size}</td></tr>`).join('')+`</tbody>`;
+}
+function renderValidation(){
+  const dn=computeDisplayNames(rawPlayers);const viols=[],rpts=[],seen=new Set();
+  schedule.forEach((rnd,ri)=>{rnd.courts.forEach((ct,ci)=>{[ct.a,ct.b].forEach((t,ti)=>{for(let i=0;i<t.length;i++)for(let j=i+1;j<t.length;j++)if(conflictPair(t[i],t[j]))viols.push(`R${ri+1} C${ci+1} ${ti?'B':'A'}: ${dn[t[i]]||t[i]} & ${dn[t[j]]||t[j]}`);const k=teamKey(t);if(seen.has(k))rpts.push(`R${ri+1}`);seen.add(k);});});});
+  const so=Object.fromEntries(rawPlayers.map(p=>[p,0]));schedule.forEach(r=>r.subs.forEach(p=>so[p]++));
+  const vals=Object.values(so),mn=vals.length?Math.min(...vals):0,mx=vals.length?Math.max(...vals):0;
+  const R=schedule.length;const dc=schedule[0].courts.filter(c=>!c.singles).length;const sc=schedule[0].courts.filter(c=>c.singles).length;
+  const fmt=[dc>0?`${dc}×2v2`:'',sc>0?`${sc}×1v1`:''].filter(Boolean).join(' + ');
+  const nc=schedule[0].courts.length;
+  document.getElementById('val-list').innerHTML=[
+    {ok:viols.length===0,label:viols.length===0?'No team conflict violations':'Violations: '+viols.join('; ')},
+    {ok:rpts.length===0,label:rpts.length===0?'No repeated team pairings':`${rpts.length} repeated pairing${rpts.length!==1?'s':''} (rounds: ${rpts.join(', ')})`},
+    {ok:mx-mn<=1,label:mx-mn<=1?`Sub rotation fair — ${mn}–${mx} sits per player`:`Uneven sub rotation (range ${mn}–${mx})`},
+    {ok:true,label:`${R} round${R!==1?'s':''} · ${nc} court${nc!==1?'s':''} · ${fmt}`},
+  ].map(c=>`<div class="vrow"><div class="${c.ok?'dok':'derr'}"></div><span>${c.label}</span></div>`).join('');
+}
+function changeRound(d){currentRound=Math.max(0,Math.min(schedule.length-1,currentRound+d));renderSchedule();}
+function switchTab(t){
+  document.getElementById('pane-setup').style.display=t==='setup'?'block':'none';
+  document.getElementById('pane-schedule').style.display=t==='schedule'?'block':'none';
+  document.getElementById('tab-setup').className='tab'+(t==='setup'?' active':'');
+  document.getElementById('tab-sched').className='tab'+(t==='schedule'?' active':'');
+}
+renderAll();
+</script>
+</body>
+</html>
