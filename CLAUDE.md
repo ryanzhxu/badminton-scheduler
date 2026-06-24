@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Badminton Rotation Scheduler** is a single-page application (all code in `index.html`) that generates fair rotation schedules for badminton matches. Players are assigned to courts in 2v2 doubles matches, with 1v1 singles for overflow, ensuring:
+**Badminton Rotation Scheduler** is a single-page scheduler UI in `index.html` plus a small Express API in `server.js`. It generates fair rotation schedules for badminton matches, then immediately publishes a shareable QR/code through the backend. Players are assigned to courts in 2v2 doubles matches, with 1v1 singles for overflow, ensuring:
 - Fair sit-out rotation (minimizing variance in who sits out)
 - No repeated team pairings across rounds
 - Respect for team conflict rules (players who shouldn't be on the same team)
@@ -12,15 +12,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Running the App
 
-There's no build process. Simply open `index.html` directly in a browser:
+Open `index.html` directly for the UI, or run the API when you want QR/share persistence:
 ```bash
 open index.html
-```
-
-Or serve it locally if you prefer:
-```bash
 python3 -m http.server 8000
 # Then visit http://localhost:8000
+node server.js
 ```
 
 ## Architecture
@@ -37,7 +34,7 @@ The app is a **single-file, self-contained web application** with three integrat
 - Grid-based layout for courts (responsive: 1–3 columns)
 - Reusable component classes (`.card`, `.btn-p`, `.btn-s`, `.pchip`, `.cx`, etc.)
 
-### 3. JavaScript Logic (lines 188–343)
+### 3. JavaScript Logic (lines 198–420)
 - **State**: `rawPlayers`, `conflictGroup`, `schedule`, `sitC` (sit-out counts), `usedTeams` (team keys to avoid repeats)
 - **Input processing**: 
   - `parseRawName()` — clean bulk imports (strip emails, titles)
@@ -52,6 +49,7 @@ The app is a **single-file, self-contained web application** with three integrat
   - Use `makeTeams()` to generate court assignments: 600 shuffled attempts, score by conflict violations (1000×) + team repeats
   - Track `usedTeams` (team keys) to prevent pairings across rounds
 - **Display**: `renderSchedule()`, `renderStats()`, `renderValidation()` update the UI based on current round and schedule state
+- **Share QR**: `syncShareQr()` publishes the exact generated schedule to `/api/schedule` and immediately shows the returned QR/code card
 - **Conflict rules**: `conflictPair()` checks if two players both in `conflictGroup`; `teamOk()` rejects teams with conflicts
 
 ## Key Algorithms
@@ -77,6 +75,7 @@ The app is a **single-file, self-contained web application** with three integrat
 - **Responsive**: grid layout adapts to 1–3 court columns depending on court count and screen width
 - **Conflict rules**: optional; designed for avoiding same-team pairings (e.g., prevent conflicts of interest)
 - **Extensibility**: schedules are stored in memory; "Add 5 more rounds" extends the current schedule (calls `extendSchedule()`)
+- **Sharing**: schedule generation also archives the exact rounds through the Node API so the QR can reload the same schedule later
 - **Display names**: auto-abbreviated (e.g., "John Doe" → "J." when another John exists) to save space in the UI
 
 ## Testing

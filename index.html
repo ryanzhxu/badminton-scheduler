@@ -186,6 +186,17 @@ details summary:hover{color:var(--ia)}
       </button>
     </div>
     <div class="card">
+      <div class="slabel" style="margin-bottom:8px">Share QR</div>
+      <div id="qr-status" class="hint">Generate a rotation to create a QR code immediately.</div>
+      <div id="qr-block" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        <img id="qr-img" alt="Schedule QR code" style="display:none;width:180px;height:180px;background:#fff;padding:8px;border:1px solid var(--bd);border-radius:8px">
+        <div style="min-width:220px;flex:1">
+          <div id="qr-code" style="font-size:13px;font-weight:600;color:var(--p);margin-bottom:4px"></div>
+          <div id="qr-url" style="font-size:12px;color:var(--txs);word-break:break-all"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
       <div class="slabel" style="margin-bottom:8px">Player stats</div>
       <div style="overflow-x:auto"><table class="stats-tbl" id="stats-tbl"></table></div>
     </div>
@@ -199,6 +210,9 @@ details summary:hover{color:var(--ia)}
 const BASE_ROUNDS=10,EXTEND_ROUNDS=5;
 let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0;
 let sitC={},usedTeams=new Set(),currentLayout=null,currentNc=0;
+let currentShareCode='',currentShareUrl='',currentQrDataUrl='',qrSyncToken=0;
+const API_BASE=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'http://localhost:3000':'https://badminton-scheduler-api.onrender.com';
+function getShareBaseUrl(){return location.protocol==='file:'?'https://trulioo-badminton.onrender.com':location.origin;}
 
 function computeDisplayNames(list){
   const fc={};
@@ -273,6 +287,79 @@ function addOne(){
 function removePlayer(i){const r=rawPlayers[i];rawPlayers.splice(i,1);conflictGroup.delete(r);renderAll();}
 function clearAllPlayers(){rawPlayers=[];conflictGroup=new Set();renderAll();}
 function renderAll(){renderPlayers();renderConflictPicker();updateHint();}
+function resetShareQr(){
+  currentShareCode='';currentShareUrl='';currentQrDataUrl='';
+  const status=document.getElementById('qr-status');
+  const img=document.getElementById('qr-img');
+  const code=document.getElementById('qr-code');
+  const url=document.getElementById('qr-url');
+  if(status)status.textContent='Generate a rotation to create a QR code immediately.';
+  if(img){img.src='';img.style.display='none';}
+  if(code)code.textContent='';
+  if(url)url.textContent='';
+}
+function showShareQrPending(){
+  const status=document.getElementById('qr-status');
+  const img=document.getElementById('qr-img');
+  const code=document.getElementById('qr-code');
+  const url=document.getElementById('qr-url');
+  if(status)status.textContent='Generating QR for this schedule...';
+  if(img)img.style.display='none';
+  if(code)code.textContent='';
+  if(url)url.textContent='';
+}
+function showShareQr(payload){
+  currentShareCode=payload.scheduleCode||'';
+  currentShareUrl=payload.shareUrl||'';
+  currentQrDataUrl=payload.qrDataUrl||'';
+  const status=document.getElementById('qr-status');
+  const img=document.getElementById('qr-img');
+  const code=document.getElementById('qr-code');
+  const url=document.getElementById('qr-url');
+  if(status)status.textContent='QR ready. Scan it to open this exact rotation.';
+  if(img&&currentQrDataUrl){img.src=currentQrDataUrl;img.style.display='block';}
+  if(code)code.textContent=currentShareCode?`Code: ${currentShareCode}`:'';
+  if(url)url.textContent=currentShareUrl||'';
+}
+function rebuildSchedulingState(){
+  sitC=Object.fromEntries(rawPlayers.map(p=>[p,0]));
+  usedTeams=new Set();
+  schedule.forEach(rnd=>{
+    rnd.subs.forEach(p=>{if(p in sitC)sitC[p]++;});
+    rnd.courts.forEach(ct=>{usedTeams.add(teamKey(ct.a));usedTeams.add(teamKey(ct.b));});
+  });
+}
+async function syncShareQr(){
+  if(!schedule.length||!currentLayout||!currentNc){
+    resetShareQr();
+    return;
+  }
+  const token=++qrSyncToken;
+  showShareQrPending();
+  try{
+    const res=await fetch(`${API_BASE}/api/schedule`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        courtLocation:'',
+        numCourts:currentNc,
+        players:rawPlayers.map(name=>({name})),
+        conflictGroup:[...conflictGroup],
+        layout:currentLayout,
+        rounds:schedule,
+        shareBaseUrl:getShareBaseUrl(),
+      }),
+    });
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const data=await res.json();
+    if(token!==qrSyncToken)return;
+    showShareQr(data);
+  }catch(err){
+    if(token!==qrSyncToken)return;
+    const status=document.getElementById('qr-status');
+    if(status)status.textContent='QR temporarily unavailable. The rotation is still generated.';
+  }
+}
 function renderPlayers(){
   const dn=computeDisplayNames(rawPlayers);
   document.getElementById('player-grid').innerHTML=rawPlayers.map((r,i)=>`<span class="pchip">${dn[r]}<span class="rm" onclick="removePlayer(${i})">×</span></span>`).join('');
@@ -335,10 +422,11 @@ function generateFresh(){
   if(n<nc*2){err.textContent=`Need at least ${nc*2} players for ${nc} court${nc>1?'s':''}`;return;}
   const layout=getLayout(n,nc);if(!layout){err.textContent='Cannot create a valid layout';return;}
   err.textContent='';currentNc=nc;currentLayout=layout;sitC=Object.fromEntries(rawPlayers.map(p=>[p,0]));usedTeams=new Set();
-  schedule=generateRounds(BASE_ROUNDS);currentRound=0;switchTab('schedule');renderSchedule();
+  resetShareQr();
+  schedule=generateRounds(BASE_ROUNDS);currentRound=0;switchTab('schedule');renderSchedule();syncShareQr();
 }
 function extendSchedule(){
-  const newRounds=generateRounds(EXTEND_ROUNDS);schedule=[...schedule,...newRounds];currentRound=schedule.length-EXTEND_ROUNDS;renderSchedule();
+  const newRounds=generateRounds(EXTEND_ROUNDS);schedule=[...schedule,...newRounds];currentRound=schedule.length-EXTEND_ROUNDS;renderSchedule();syncShareQr();
 }
 function renderSchedule(){
   const R=schedule.length;
@@ -381,7 +469,45 @@ function switchTab(t){
   document.getElementById('tab-setup').className='tab'+(t==='setup'?' active':'');
   document.getElementById('tab-sched').className='tab'+(t==='schedule'?' active':'');
 }
-renderAll();
+async function loadScheduleFromCode(code){
+  const err=document.getElementById('setup-err');
+  try{
+    const res=await fetch(`${API_BASE}/api/schedule/${encodeURIComponent(code)}`);
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const data=await res.json();
+    const sch=data.schedule||{};
+    rawPlayers=(sch.players||[]).map(p=>typeof p==='string'?p:p.name).filter(Boolean);
+    conflictGroup=new Set(sch.conflictGroup||[]);
+    schedule=Array.isArray(sch.rounds)?sch.rounds:[];
+    currentLayout=sch.layout||null;
+    currentNc=sch.numCourts||((currentLayout&&typeof currentLayout.doubles==='number')?(currentLayout.doubles+currentLayout.singles):0);
+    document.getElementById('num-courts').value=currentNc||'';
+    rebuildSchedulingState();
+    renderAll();
+    renderSchedule();
+    currentShareCode=sch.code||code;
+    currentShareUrl=sch.shareUrl||`${location.origin}/?scheduleCode=${encodeURIComponent(currentShareCode)}`;
+    currentQrDataUrl='';
+    const status=document.getElementById('qr-status');
+    const codeEl=document.getElementById('qr-code');
+    const urlEl=document.getElementById('qr-url');
+    if(status)status.textContent='Loaded from a shared schedule link.';
+    if(codeEl)codeEl.textContent=`Code: ${currentShareCode}`;
+    if(urlEl)urlEl.textContent=currentShareUrl;
+    switchTab('schedule');
+  }catch(e){
+    if(err)err.textContent=`Could not load shared schedule: ${e.message}`;
+    renderAll();
+    resetShareQr();
+  }
+}
+const initialCode=new URLSearchParams(location.search).get('scheduleCode');
+if(initialCode){
+  loadScheduleFromCode(initialCode);
+}else{
+  renderAll();
+  resetShareQr();
+}
 </script>
 </body>
 </html>

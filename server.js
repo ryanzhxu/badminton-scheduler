@@ -34,6 +34,12 @@ function generateScheduleCode() {
   return code;
 }
 
+function buildShareUrl(baseUrl, scheduleCode) {
+  const root = (baseUrl || '').trim().replace(/\/$/, '');
+  if (!root) return scheduleCode;
+  return `${root}/?scheduleCode=${encodeURIComponent(scheduleCode)}`;
+}
+
 function getLayout(n, nc) {
   if (n < nc * 2) return null;
   for (let s = 0; s <= 3; s++) {
@@ -155,28 +161,35 @@ function generateRounds(rawPlayers, layout, conflictGroup, count) {
 
 app.post('/api/schedule', async (req, res) => {
   try {
-    const { courtLocation, numCourts, players, conflictGroup } = req.body;
+    const { courtLocation, numCourts, players, conflictGroup, layout, rounds, shareBaseUrl } = req.body;
 
     if (!numCourts || !players || !Array.isArray(players)) {
       return res.status(400).json({ error: 'Invalid input' });
     }
 
-    const playerNames = players.map(p => p.name);
-    const layout = getLayout(playerNames.length, numCourts);
+    const playerNames = players.map(p => (typeof p === 'string' ? p : p.name)).filter(Boolean);
+    const computedLayout = layout || getLayout(playerNames.length, numCourts);
 
-    if (!layout) {
+    if (!computedLayout) {
       return res.status(400).json({ error: 'Cannot create valid layout' });
     }
 
     const scheduleCode = generateScheduleCode();
-    const rounds = generateRounds(playerNames, layout, conflictGroup || [], 10);
+    const roundData = Array.isArray(rounds) ? rounds : generateRounds(playerNames, computedLayout, conflictGroup || [], 10);
+    const shareUrl = buildShareUrl(shareBaseUrl || req.get('origin'), scheduleCode);
 
-    const qrDataUrl = await QRCode.toDataURL(scheduleCode);
+    const qrDataUrl = await QRCode.toDataURL(shareUrl);
 
     const schedule = {
       code: scheduleCode,
       generatedAt: new Date().toISOString(),
-      rounds: rounds
+      rounds: roundData,
+      players: playerNames,
+      numCourts,
+      courtLocation: courtLocation || '',
+      conflictGroup: Array.isArray(conflictGroup) ? conflictGroup : [],
+      layout: computedLayout,
+      shareUrl
     };
 
     const data = loadData();
@@ -185,6 +198,7 @@ app.post('/api/schedule', async (req, res) => {
 
     res.json({
       scheduleCode,
+      shareUrl,
       qrDataUrl,
       schedule
     });
