@@ -34,6 +34,7 @@
 
 - The scheduler UI is self-contained in one file, including CSS and JavaScript.
 - The core behaviors are fair sit-out rotation, 2v2 doubles with 1v1 singles overflow, conflict-group avoidance for same-team pairings, and schedule extension by 5 rounds.
+- There is a demo helper in the UI that can append fake players for presentations or screen recordings.
 - The main state lives in browser memory, so refreshes reset the UI state.
 
 ## Verification

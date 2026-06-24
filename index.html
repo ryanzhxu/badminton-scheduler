@@ -141,6 +141,17 @@ details summary:hover{color:var(--ia)}
           </div>
         </div>
       </details>
+      <details style="margin-top:8px">
+        <summary>Demo helper</summary>
+        <div class="import-area">
+          <label>Append fake players for demos or screen recordings. This keeps any real names already entered.</label>
+          <div class="add-row">
+            <input type="number" id="demo-count" min="1" max="50" value="12" placeholder="Count">
+            <button class="btn-s" onclick="injectDemoPlayers()">Inject demo players</button>
+          </div>
+          <span id="demo-msg" style="font-size:12px;color:var(--txs)"></span>
+        </div>
+      </details>
       <div id="player-hint" style="margin-top:8px"></div>
     </div>
     <div class="card">
@@ -224,6 +235,36 @@ function parseBulk(){
   document.getElementById('import-msg').textContent=`Added ${added}, skipped ${skipped}`;renderAll();
 }
 function clearBulk(){document.getElementById('bulk-txt').value='';document.getElementById('import-msg').textContent='';}
+const DEMO_FIRST_NAMES=['Avery','Jordan','Casey','Taylor','Morgan','Riley','Quinn','Cameron','Harper','Parker','Reese','Sydney','Jamie','Robin','Drew','Noah','Emerson','Logan','Finley','Kai','Rowan','Blake','Elliot','Sawyer'];
+const DEMO_LAST_NAMES=['Chen','Patel','Nguyen','Khan','Lopez','Wong','Kim','Carter','Singh','Miller','Bennett','Reed','Turner','Walker','Bell','Ross','Young','Diaz','Baker','Shaw','Cruz','Foster','Gray','Hayes'];
+function randFrom(list){return list[Math.floor(Math.random()*list.length)];}
+function makeDemoName(existing,attempt){
+  const base=`${randFrom(DEMO_FIRST_NAMES)} ${randFrom(DEMO_LAST_NAMES)}`;
+  if(!existing.has(base))return base;
+  return `${base} ${attempt+1}`;
+}
+function injectDemoPlayers(){
+  const inp=document.getElementById('demo-count');
+  const msg=document.getElementById('demo-msg');
+  const count=Math.max(1,Math.min(50,parseInt(inp.value,10)||0));
+  if(!count){msg.textContent='Enter a count between 1 and 50';return;}
+  const existing=new Set(rawPlayers);
+  const added=[];let attempts=0;
+  while(added.length<count&&attempts<count*25){
+    const candidate=makeDemoName(existing,attempts++);
+    if(existing.has(candidate)||added.includes(candidate))continue;
+    existing.add(candidate);added.push(candidate);
+  }
+  let fallback=1;
+  while(added.length<count){
+    const candidate=`Demo Player ${fallback++}`;
+    if(existing.has(candidate)||added.includes(candidate))continue;
+    existing.add(candidate);added.push(candidate);
+  }
+  rawPlayers.push(...added);
+  renderAll();
+  msg.textContent=`Injected ${added.length} demo player${added.length===1?'':'s'} for demo use.`;
+}
 function addOne(){
   const inp=document.getElementById('add-inp');const raw=parseRawName(inp.value)||inp.value.trim();if(!raw)return;
   const norm=raw.split(/\s+/).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(' ');
