@@ -24,6 +24,7 @@
 
 ## Backend Endpoints
 
+- `GET /health` and `GET /api/health` return a simple live status payload.
 - `POST /api/schedule` generates a schedule, QR code, and archive entry.
 - `POST /api/schedule/share` marks an archived schedule as current.
 - `GET /api/data` returns current schedule, players, and court location.

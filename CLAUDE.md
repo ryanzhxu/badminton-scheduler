@@ -78,6 +78,9 @@ The app is a **single-file, self-contained web application** with three integrat
 - **Sharing**: schedule generation also archives the exact rounds through the Node API so the QR can reload the same schedule later
 - **Display names**: auto-abbreviated (e.g., "John Doe" → "J." when another John exists) to save space in the UI
 
+### 4. Health Check
+- `GET /health` and `GET /api/health` return a simple JSON payload for Render or other uptime checks.
+
 ## Testing
 
 No automated test suite. Validation is built into the UI:

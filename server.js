@@ -14,6 +14,15 @@ const DATA_FILE = path.join(__dirname, 'shared-data.json');
 app.use(cors());
 app.use(express.json());
 
+function healthPayload() {
+  return {
+    ok: true,
+    service: 'badminton-scheduler-api',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  };
+}
+
 function loadData() {
   if (fs.existsSync(DATA_FILE)) {
     return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
@@ -205,6 +214,10 @@ app.post('/api/schedule', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get(['/health', '/api/health'], (req, res) => {
+  res.status(200).json(healthPayload());
 });
 
 app.post('/api/schedule/share', (req, res) => {
