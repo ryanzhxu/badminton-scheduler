@@ -95,17 +95,46 @@ textarea{border:1px solid var(--bd);border-radius:4px;padding:8px 10px;font-size
 .derr{width:8px;height:8px;border-radius:50%;background:var(--er);flex-shrink:0}
 details summary{font-size:13px;color:var(--txs);cursor:pointer;user-select:none;padding:2px 0;font-weight:500}
 details summary:hover{color:var(--ia)}
-@media(max-width:600px){.courts-grid{grid-template-columns:1fr !important}}
+.btn-settings{background:none;border:none;font-size:20px;cursor:pointer;padding:8px;border-radius:4px;opacity:.7;transition:opacity .2s}
+.btn-settings:hover{opacity:1;background:rgba(255,255,255,.1)}
+.modal{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4)}
+.modal-content{position:relative;background:var(--s0);border-radius:8px;padding:0;width:90%;max-width:400px;box-shadow:0 10px 40px rgba(0,0,0,.2);max-height:80vh;overflow-y:auto}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:1.25rem;border-bottom:1px solid var(--bd)}
+.modal-hdr h2{margin:0;font-size:16px;font-weight:600;color:var(--tx)}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--txs);padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{color:var(--tx)}
+.modal-tabs{display:flex;border-bottom:1px solid var(--bd);background:var(--s1)}
+.modal-tab{flex:1;padding:12px;border:none;background:none;font-size:13px;font-weight:500;color:var(--txs);cursor:pointer;border-bottom:2px solid transparent;font-family:'Libre Franklin',sans-serif}
+.modal-tab.active{color:var(--p);border-bottom-color:var(--p)}
+.modal-tab:hover{background:rgba(0,0,0,.03)}
+.modal-pane{padding:1.25rem}
+.setting-group{margin-bottom:16px}
+.theme-btn{padding:10px 16px;border:1.5px solid var(--bd);border-radius:4px;background:var(--s0);color:var(--tx);font-size:13px;font-weight:500;cursor:pointer;font-family:'Libre Franklin',sans-serif;transition:all .2s}
+.theme-btn:hover{border-color:var(--ia);color:var(--ia)}
+.theme-btn.active{background:var(--p);color:#fff;border-color:var(--p)}
+body.dark-mode{
+  --p:#A4DCB4;--ph:#B4E1C1;--ia:#17AED0;
+  --nav:#004C45;--s0:#0F1A19;--s1:#141F1E;--s2:#1A2524;
+  --bd:#334542;--bdm:#5A7570;
+  --tx:#FFFFFF;--txs:#E5E5E5;--txd:#999999;
+  --ok:#6BC699;--oks:#1A3A2E;
+  --wa:#FFD700;--was:#332200;
+  --er:#FF8A8F;--ers:#4D2A2D;
+  --bls:#0F3A45;--blb:#4CB8D4;
+}
+@media(max-width:600px){.courts-grid{grid-template-columns:1fr !important}.modal-content{width:95%}}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="hdr">
     <div class="hdr-ic"><i class="ti ti-tournament" style="color:#A4DCB4;font-size:20px"></i></div>
-    <div>
+    <div style="flex:1">
       <h1>Badminton Rotation Scheduler</h1>
       <p>Fair rotation · 2v2 doubles · 1v1 singles overflow · extendable</p>
     </div>
+    <button class="btn-settings" onclick="openSettings()" title="Settings">⚙️</button>
   </div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('setup')" id="tab-setup">Setup</button>
@@ -185,9 +214,17 @@ details summary:hover{color:var(--ia)}
         <i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i>Add 5 more rounds
       </button>
     </div>
+    <div id="shared-banner" class="sub-banner" style="display:none;background:var(--oks);border-color:var(--ok);color:var(--ok)">
+      <i class="ti ti-circle-check" style="font-size:14px;vertical-align:-2px;margin-right:6px;color:var(--ok)"></i><strong>ACTIVE SCHEDULE</strong> <span id="shared-time"></span>
+    </div>
     <div class="card">
       <div class="slabel" style="margin-bottom:8px">Share QR</div>
       <div id="qr-status" class="hint">Generate a rotation to create a QR code immediately.</div>
+      <div id="share-actions" style="display:none;gap:8px;margin-bottom:12px;flex-wrap:wrap" class="row">
+        <button class="btn-p" onclick="shareSchedule()" id="share-btn">
+          <i class="ti ti-share-2" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i>Share with group
+        </button>
+      </div>
       <div id="qr-block" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px">
         <img id="qr-img" alt="Schedule QR code" style="display:none;width:180px;height:180px;background:#fff;padding:8px;border:1px solid var(--bd);border-radius:8px">
         <div style="min-width:220px;flex:1">
@@ -205,14 +242,99 @@ details summary:hover{color:var(--ia)}
       <div id="val-list"></div>
     </div>
   </div>
+  <div id="settings-modal" class="modal" style="display:none">
+    <div class="modal-overlay" onclick="closeSettings()"></div>
+    <div class="modal-content">
+      <div class="modal-hdr">
+        <h2>Settings</h2>
+        <button class="modal-close" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="modal-tabs">
+        <button class="modal-tab active" onclick="switchModalTab('appearance',this)">Appearance</button>
+        <button class="modal-tab" onclick="switchModalTab('language',this)">Language</button>
+      </div>
+      <div id="tab-appearance" class="modal-pane" style="display:block">
+        <div class="setting-group">
+          <label style="display:block;margin-bottom:12px;font-weight:600;color:var(--tx)">Theme</label>
+          <div style="display:flex;gap:8px">
+            <button class="theme-btn active" id="theme-light" onclick="setTheme('light')">☀️ Light</button>
+            <button class="theme-btn" id="theme-dark" onclick="setTheme('dark')">🌙 Dark</button>
+          </div>
+        </div>
+      </div>
+      <div id="tab-language" class="modal-pane" style="display:none">
+        <div class="setting-group">
+          <label for="lang-select" style="display:block;margin-bottom:8px;font-weight:600;color:var(--tx)">Language</label>
+          <select id="lang-select" onchange="setLanguage(this.value)" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:4px;font-family:'Libre Franklin',sans-serif;font-size:13px;background:var(--s0);color:var(--tx)">
+            <option value="en">English</option>
+            <option value="zh-s">中文 (简体 - Simplified Chinese)</option>
+            <option value="zh-t">繁體中文 (Traditional Chinese)</option>
+            <option value="ko">한국어 (Korean)</option>
+            <option value="hi">हिन्दी (Hindi)</option>
+          </select>
+          <span class="hint" style="margin-top:8px;display:block">Language switching coming in next phase</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 <script>
-const BASE_ROUNDS=10,EXTEND_ROUNDS=5;
+const BASE_ROUNDS=15,EXTEND_ROUNDS=5;
 let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0;
 let sitC={},usedTeams=new Set(),currentLayout=null,currentNc=0;
 let currentShareCode='',currentShareUrl='',currentQrDataUrl='',qrSyncToken=0;
-const API_BASE=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'http://localhost:3000':'https://badminton-scheduler-api.onrender.com';
+let isScheduleShared=false,sharedByOrganizerName='Ryan Xu';
+const API_BASE=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'http://localhost:5000':'https://badminton-scheduler-api.onrender.com';
 function getShareBaseUrl(){return location.protocol==='file:'?'https://trulioo-badminton.onrender.com':location.origin;}
+function openSettings(){document.getElementById('settings-modal').style.display='flex';}
+function closeSettings(){document.getElementById('settings-modal').style.display='none';}
+function switchModalTab(tab,btn){
+  document.querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.modal-pane').forEach(p=>p.style.display='none');
+  if(btn)btn.classList.add('active');
+  document.getElementById('tab-'+tab).style.display='block';
+}
+function setTheme(t){
+  localStorage.setItem('theme',t);
+  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('theme-'+t).classList.add('active');
+  if(t==='dark'){document.body.classList.add('dark-mode');}else{document.body.classList.remove('dark-mode');}
+}
+function setLanguage(lang){localStorage.setItem('language',lang);}
+function loadSettings(){
+  const theme=localStorage.getItem('theme')||'light';
+  const lang=localStorage.getItem('language')||'en';
+  setTheme(theme);
+  document.getElementById('lang-select').value=lang;
+}
+function markScheduleAsShared(){
+  isScheduleShared=true;
+  document.getElementById('shared-banner').style.display='block';
+  const now=new Date().toLocaleTimeString();
+  document.getElementById('shared-time').textContent=`at ${now}`;
+  document.getElementById('extend-box').style.display='none';
+}
+async function shareSchedule(){
+  if(!currentShareCode){alert('No schedule to share');return;}
+  const shareBtn=document.getElementById('share-btn');
+  shareBtn.disabled=true;
+  shareBtn.textContent='Sharing...';
+  try{
+    const res=await fetch(`${API_BASE}/api/schedule/share`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({scheduleCode:currentShareCode,organizer:sharedByOrganizerName}),
+    });
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    markScheduleAsShared();
+    shareBtn.textContent='✓ Shared';
+    setTimeout(()=>{shareBtn.textContent='Share with group';shareBtn.disabled=false;},2000);
+  }catch(err){
+    alert('Error sharing schedule: '+err.message);
+    shareBtn.disabled=false;
+    shareBtn.textContent='Share with group';
+  }
+}
 
 function computeDisplayNames(list){
   const fc={};
@@ -288,25 +410,31 @@ function removePlayer(i){const r=rawPlayers[i];rawPlayers.splice(i,1);conflictGr
 function clearAllPlayers(){rawPlayers=[];conflictGroup=new Set();renderAll();}
 function renderAll(){renderPlayers();renderConflictPicker();updateHint();}
 function resetShareQr(){
-  currentShareCode='';currentShareUrl='';currentQrDataUrl='';
+  currentShareCode='';currentShareUrl='';currentQrDataUrl='';isScheduleShared=false;
   const status=document.getElementById('qr-status');
   const img=document.getElementById('qr-img');
   const code=document.getElementById('qr-code');
   const url=document.getElementById('qr-url');
+  const actions=document.getElementById('share-actions');
+  const banner=document.getElementById('shared-banner');
   if(status)status.textContent='Generate a rotation to create a QR code immediately.';
   if(img){img.src='';img.style.display='none';}
   if(code)code.textContent='';
   if(url)url.textContent='';
+  if(actions)actions.style.display='none';
+  if(banner)banner.style.display='none';
 }
 function showShareQrPending(){
   const status=document.getElementById('qr-status');
   const img=document.getElementById('qr-img');
   const code=document.getElementById('qr-code');
   const url=document.getElementById('qr-url');
+  const actions=document.getElementById('share-actions');
   if(status)status.textContent='Generating QR for this schedule...';
   if(img)img.style.display='none';
   if(code)code.textContent='';
   if(url)url.textContent='';
+  if(actions)actions.style.display='none';
 }
 function showShareQr(payload){
   currentShareCode=payload.scheduleCode||'';
@@ -316,10 +444,12 @@ function showShareQr(payload){
   const img=document.getElementById('qr-img');
   const code=document.getElementById('qr-code');
   const url=document.getElementById('qr-url');
+  const actions=document.getElementById('share-actions');
   if(status)status.textContent='QR ready. Scan it to open this exact rotation.';
   if(img&&currentQrDataUrl){img.src=currentQrDataUrl;img.style.display='block';}
   if(code)code.textContent=currentShareCode?`Code: ${currentShareCode}`:'';
   if(url)url.textContent=currentShareUrl||'';
+  if(actions)actions.style.display='flex';
 }
 function rebuildSchedulingState(){
   sitC=Object.fromEntries(rawPlayers.map(p=>[p,0]));
@@ -501,6 +631,7 @@ async function loadScheduleFromCode(code){
     resetShareQr();
   }
 }
+loadSettings();
 const initialCode=new URLSearchParams(location.search).get('scheduleCode');
 if(initialCode){
   loadScheduleFromCode(initialCode);
