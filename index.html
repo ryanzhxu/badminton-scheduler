@@ -131,52 +131,52 @@ body.dark-mode{
   <div class="hdr">
     <div class="hdr-ic"><i class="ti ti-tournament" style="color:#A4DCB4;font-size:20px"></i></div>
     <div style="flex:1">
-      <h1>Badminton Rotation Scheduler</h1>
-      <p>Fair rotation · 2v2 doubles · 1v1 singles overflow · extendable</p>
+      <h1 data-i18n="appTitle"></h1>
+      <p data-i18n="appDesc"></p>
     </div>
-    <button class="btn-settings" onclick="openSettings()" title="Settings">⚙️</button>
+    <button class="btn-settings" onclick="openSettings()" data-i18n="settings" data-i18n-type="title"></button>
   </div>
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('setup')" id="tab-setup">Setup</button>
-    <button class="tab" onclick="switchTab('schedule')" id="tab-sched">Schedule</button>
+    <button class="tab active" onclick="switchTab('setup')" id="tab-setup" data-i18n="setupTab"></button>
+    <button class="tab" onclick="switchTab('schedule')" id="tab-sched" data-i18n="scheduleTab"></button>
   </div>
   <div id="pane-setup">
     <div class="card">
-      <div class="slabel">Courts</div>
+      <div class="slabel" data-i18n="courts"></div>
       <div class="row">
-        <label>Number of courts</label>
-        <input type="number" id="num-courts" min="1" max="10" placeholder="e.g. 3" oninput="updateHint()">
+        <label data-i18n="numCourts"></label>
+        <input type="number" id="num-courts" min="1" max="10" data-i18n="courtPlaceholder" data-i18n-type="placeholder" oninput="updateHint()">
       </div>
     </div>
     <div class="card">
-      <div class="slabel">Players</div>
+      <div class="slabel" data-i18n="players"></div>
       <div class="chip-wrap" id="player-grid"></div>
       <div class="add-row">
-        <input type="text" id="add-inp" placeholder="Type a name and press Enter…" onkeydown="if(event.key==='Enter')addOne()">
-        <button class="btn-s" onclick="addOne()">Add</button>
+        <input type="text" id="add-inp" data-i18n="typeName" data-i18n-type="placeholder" onkeydown="if(event.key==='Enter')addOne()">
+        <button class="btn-s" onclick="addOne()" data-i18n="addPlayer"></button>
         <button class="btn-danger" id="clear-all-btn" onclick="clearAllPlayers()" style="display:none">
-          <i class="ti ti-trash" style="font-size:13px;vertical-align:-2px;margin-right:3px"></i>Remove all
+          <i class="ti ti-trash" style="font-size:13px;vertical-align:-2px;margin-right:3px"></i><span data-i18n="removeAll"></span>
         </button>
       </div>
       <details style="margin-top:8px">
-        <summary>Bulk import from list</summary>
+        <summary data-i18n="bulkImport"></summary>
         <div class="import-area">
-          <label>Paste names or emails — one per line. Emails and role suffixes like "- Organizer" are stripped automatically.</label>
+          <label data-i18n="bulkDesc"></label>
           <textarea id="bulk-txt" placeholder="Man Sun - Organizer&#10;man.sun@trulioo.com&#10;Tim Lee&#10;tim.lee@trulioo.com"></textarea>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
-            <button class="btn-s" onclick="parseBulk()">Import</button>
-            <button class="btn-s" onclick="clearBulk()">Clear</button>
+            <button class="btn-s" onclick="parseBulk()" data-i18n="import"></button>
+            <button class="btn-s" onclick="clearBulk()" data-i18n="clear"></button>
             <span id="import-msg" style="font-size:12px;color:var(--txs)"></span>
           </div>
         </div>
       </details>
       <details style="margin-top:8px">
-        <summary>Demo helper</summary>
+        <summary data-i18n="demoHelper"></summary>
         <div class="import-area">
-          <label>Append fake players for demos or screen recordings. This keeps any real names already entered.</label>
+          <label data-i18n="demoDesc"></label>
           <div class="add-row">
-            <input type="number" id="demo-count" min="1" max="50" value="12" placeholder="Count">
-            <button class="btn-s" onclick="injectDemoPlayers()">Inject demo players</button>
+            <input type="number" id="demo-count" min="1" max="50" value="12" data-i18n="demoCount" data-i18n-type="placeholder">
+            <button class="btn-s" onclick="injectDemoPlayers()" data-i18n="injectDemo"></button>
           </div>
           <span id="demo-msg" style="font-size:12px;color:var(--txs)"></span>
         </div>
@@ -184,22 +184,22 @@ body.dark-mode{
       <div id="player-hint" style="margin-top:8px"></div>
     </div>
     <div class="card">
-      <div class="slabel">Team conflict rules <span style="font-weight:400;text-transform:none;font-size:11px;color:var(--txs)">(optional)</span></div>
-      <p style="font-size:13px;color:var(--txs);margin-bottom:10px">Click players who should never share a team.</p>
+      <div class="slabel"><span data-i18n="conflicts"></span> <span style="font-weight:400;text-transform:none;font-size:11px;color:var(--txs)">(optional)</span></div>
+      <p style="font-size:13px;color:var(--txs);margin-bottom:10px" data-i18n="conflictsDesc"></p>
       <div class="conflict-chips" id="conflict-chips"></div>
       <div class="conflict-summary" id="conflict-summary"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-bottom:2rem">
       <button class="btn-p" onclick="generateFresh()">
-        <i class="ti ti-player-play" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i>Generate schedule
+        <i class="ti ti-player-play" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i><span data-i18n="generateBtn"></span>
       </button>
       <span id="setup-err" class="err-hint"></span>
     </div>
   </div>
   <div id="pane-schedule" style="display:none">
     <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
-      <button class="btn-s" onclick="switchTab('setup')"><i class="ti ti-arrow-left" style="font-size:13px;vertical-align:-2px"></i> Setup</button>
-      <button class="btn-s" onclick="generateFresh()"><i class="ti ti-refresh" style="font-size:13px;vertical-align:-2px"></i> New rotation</button>
+      <button class="btn-s" onclick="switchTab('setup')"><i class="ti ti-arrow-left" style="font-size:13px;vertical-align:-2px"></i> <span data-i18n="setupTab"></span></button>
+      <button class="btn-s" onclick="generateFresh()"><i class="ti ti-refresh" style="font-size:13px;vertical-align:-2px"></i> <span>New rotation</span></button>
     </div>
     <div class="rnav">
       <button class="btn-s" id="prev-btn" onclick="changeRound(-1)"><i class="ti ti-chevron-left" style="font-size:15px"></i></button>
@@ -209,19 +209,19 @@ body.dark-mode{
     <div id="sub-banner-wrap"></div>
     <div class="courts-grid" id="courts-grid"></div>
     <div id="extend-box" class="extend-box" style="display:none">
-      <p>End of schedule — still going? Add 5 more rounds.</p>
+      <p data-i18n="extendMsg"></p>
       <button class="btn-extend" onclick="extendSchedule()">
-        <i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i>Add 5 more rounds
+        <i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i><span data-i18n="extendBtn"></span>
       </button>
     </div>
     <div id="shared-banner" class="sub-banner" style="display:none;background:var(--oks);border-color:var(--ok);color:var(--ok)">
-      <i class="ti ti-circle-check" style="font-size:14px;vertical-align:-2px;margin-right:6px;color:var(--ok)"></i><strong>ACTIVE SCHEDULE</strong> <span id="shared-time"></span>
+      <i class="ti ti-circle-check" style="font-size:14px;vertical-align:-2px;margin-right:6px;color:var(--ok)"></i><strong data-i18n="activeSchedule"></strong> <span id="shared-time"></span>
     </div>
     <div class="card">
       <div class="slabel" style="margin-bottom:8px">Share QR</div>
-      <div id="qr-status" class="hint">Generate a rotation to create a QR code immediately.</div>
+      <div id="qr-status" class="hint" data-i18n="generateDesc"></div>
       <div id="share-actions" style="display:none;gap:8px;margin-bottom:12px;flex-wrap:wrap" class="row">
-        <button class="btn-p" onclick="shareSchedule()" id="share-btn">
+        <button class="btn-p" onclick="shareSchedule()" id="share-btn" data-i18n="shareBtn">
           <i class="ti ti-share-2" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i>Share with group
         </button>
       </div>
@@ -234,11 +234,11 @@ body.dark-mode{
       </div>
     </div>
     <div class="card">
-      <div class="slabel" style="margin-bottom:8px">Player stats</div>
+      <div class="slabel" style="margin-bottom:8px" data-i18n="playerStats"></div>
       <div style="overflow-x:auto"><table class="stats-tbl" id="stats-tbl"></table></div>
     </div>
     <div class="card">
-      <div class="slabel" style="margin-bottom:8px">Constraint validation</div>
+      <div class="slabel" style="margin-bottom:8px" data-i18n="validation"></div>
       <div id="val-list"></div>
     </div>
   </div>
@@ -246,25 +246,25 @@ body.dark-mode{
     <div class="modal-overlay" onclick="closeSettings()"></div>
     <div class="modal-content">
       <div class="modal-hdr">
-        <h2>Settings</h2>
+        <h2 data-i18n="settings"></h2>
         <button class="modal-close" onclick="closeSettings()">✕</button>
       </div>
       <div class="modal-tabs">
-        <button class="modal-tab active" onclick="switchModalTab('appearance',this)">Appearance</button>
-        <button class="modal-tab" onclick="switchModalTab('language',this)">Language</button>
+        <button class="modal-tab active" onclick="switchModalTab('appearance',this)" data-i18n="appearance"></button>
+        <button class="modal-tab" onclick="switchModalTab('language',this)" data-i18n="language"></button>
       </div>
       <div id="tab-appearance" class="modal-pane" style="display:block">
         <div class="setting-group">
           <label style="display:block;margin-bottom:12px;font-weight:600;color:var(--tx)">Theme</label>
           <div style="display:flex;gap:8px">
-            <button class="theme-btn active" id="theme-light" onclick="setTheme('light')">☀️ Light</button>
-            <button class="theme-btn" id="theme-dark" onclick="setTheme('dark')">🌙 Dark</button>
+            <button class="theme-btn active" id="theme-light" onclick="setTheme('light')" data-i18n="lightTheme"></button>
+            <button class="theme-btn" id="theme-dark" onclick="setTheme('dark')" data-i18n="darkTheme"></button>
           </div>
         </div>
       </div>
       <div id="tab-language" class="modal-pane" style="display:none">
         <div class="setting-group">
-          <label for="lang-select" style="display:block;margin-bottom:8px;font-weight:600;color:var(--tx)">Language</label>
+          <label for="lang-select" style="display:block;margin-bottom:8px;font-weight:600;color:var(--tx)" data-i18n="language"></label>
           <select id="lang-select" onchange="setLanguage(this.value)" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:4px;font-family:'Libre Franklin',sans-serif;font-size:13px;background:var(--s0);color:var(--tx)">
             <option value="en">English</option>
             <option value="zh-s">中文 (简体 - Simplified Chinese)</option>
@@ -272,7 +272,7 @@ body.dark-mode{
             <option value="ko">한국어 (Korean)</option>
             <option value="hi">हिन्दी (Hindi)</option>
           </select>
-          <span class="hint" style="margin-top:8px;display:block">Language switching coming in next phase</span>
+          <span class="hint" style="margin-top:8px;display:block;color:var(--ok)">✓ Languages are now available!</span>
         </div>
       </div>
     </div>
@@ -284,7 +284,15 @@ let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0;
 let sitC={},usedTeams=new Set(),currentLayout=null,currentNc=0;
 let currentShareCode='',currentShareUrl='',currentQrDataUrl='',qrSyncToken=0;
 let isScheduleShared=false,sharedByOrganizerName='Ryan Xu';
+let currentLanguage='en';
 const API_BASE=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'http://localhost:5000':'https://badminton-scheduler-api.onrender.com';
+const i18n={en:{appTitle:'Badminton Rotation Scheduler',appDesc:'Fair rotation · 2v2 doubles · 1v1 singles overflow · extendable',setupTab:'Setup',scheduleTab:'Schedule',settings:'Settings',courts:'Courts',numCourts:'Number of courts',courtPlaceholder:'e.g. 3',players:'Players',addPlayer:'Add',removeAll:'Remove all',typeName:'Type a name and press Enter…',bulkImport:'Bulk import from list',bulkDesc:'Paste names or emails — one per line. Emails and role suffixes like "- Organizer" are stripped automatically.',import:'Import',clear:'Clear',demoHelper:'Demo helper',demoDesc:'Append fake players for demos or screen recordings. This keeps any real names already entered.',injectDemo:'Inject demo players',demoCount:'Count',conflicts:'Team conflicts (optional)',conflictsDesc:'Click players who should never share a team.',generateDesc:'Generate a rotation to create a QR code immediately.',generateBtn:'Generate Schedule',playerStats:'Player stats',validation:'Constraint validation',roundOf:'Round {round} of {total}',singles:'1v1 singles',courtLabel:'Court {num}',activeSchedule:'ACTIVE SCHEDULE',extendMsg:'End of schedule — still going? Add 5 more rounds.',extendBtn:'Add 5 more rounds',shareBtn:'Share with group',appearance:'Appearance',language:'Language',lightTheme:'☀️ Light',darkTheme:'🌙 Dark',errorNeedMore:'{n} player{plural} — need at least {min} for {nc} court{courtPlural}',errorLayout:'Cannot create a valid layout',errorNoSchedule:'No schedule to share',errorShare:'Error sharing schedule: {error}',sharing:'Sharing...',shared:'✓ Shared'},
+'zh-s':{appTitle:'羽毛球轮转调度器',appDesc:'公平轮转 · 2v2双打 · 1v1单打替补 · 可扩展',setupTab:'设置',scheduleTab:'日程',settings:'设置',courts:'球场',numCourts:'球场数量',courtPlaceholder:'例如 3',players:'运动员',addPlayer:'添加',removeAll:'全部删除',typeName:'输入名字然后按Enter…',bulkImport:'从列表批量导入',bulkDesc:'粘贴姓名或电子邮件 — 每行一个。电子邮件和角色后缀如"- 组织者"会自动删除。',import:'导入',clear:'清除',demoHelper:'演示助手',demoDesc:'添加虚拟运动员进行演示或屏幕录制。这会保留已输入的任何真实名字。',injectDemo:'注入演示运动员',demoCount:'数量',conflicts:'团队冲突（可选）',conflictsDesc:'点击不应该在同一队的运动员。',generateDesc:'生成轮转以立即创建二维码。',generateBtn:'生成日程',playerStats:'运动员统计',validation:'约束验证',roundOf:'第{round}轮，共{total}轮',singles:'1v1单打',courtLabel:'球场{num}',activeSchedule:'日程已激活',extendMsg:'日程已结束 — 还想继续？添加5轮。',extendBtn:'添加5轮',shareBtn:'与小组分享',appearance:'外观',language:'语言',lightTheme:'☀️ 浅色',darkTheme:'🌙 深色',errorNeedMore:'{n}个运动员{plural} — 需要至少{min}个来进行{nc}个球场{courtPlural}',errorLayout:'无法创建有效的布局',errorNoSchedule:'没有日程可分享',errorShare:'分享日程出错：{error}',sharing:'分享中...',shared:'✓ 已分享'},
+'zh-t':{appTitle:'羽毛球輪轉調度器',appDesc:'公平輪轉 · 2v2雙打 · 1v1單打替補 · 可擴展',setupTab:'設置',scheduleTab:'日程',settings:'設置',courts:'球場',numCourts:'球場數量',courtPlaceholder:'例如 3',players:'運動員',addPlayer:'添加',removeAll:'全部刪除',typeName:'輸入名字然後按Enter…',bulkImport:'從列表批量導入',bulkDesc:'粘貼姓名或電子郵件 — 每行一個。電子郵件和角色後綴如"- 組織者"會自動刪除。',import:'導入',clear:'清除',demoHelper:'演示助手',demoDesc:'添加虛擬運動員進行演示或屏幕錄製。這會保留已輸入的任何真實名字。',injectDemo:'注入演示運動員',demoCount:'數量',conflicts:'團隊衝突（可選）',conflictsDesc:'點擊不應該在同一隊的運動員。',generateDesc:'生成輪轉以立即創建二維碼。',generateBtn:'生成日程',playerStats:'運動員統計',validation:'約束驗證',roundOf:'第{round}輪，共{total}輪',singles:'1v1單打',courtLabel:'球場{num}',activeSchedule:'日程已激活',extendMsg:'日程已結束 — 還想繼續？添加5輪。',extendBtn:'添加5輪',shareBtn:'與小組分享',appearance:'外觀',language:'語言',lightTheme:'☀️ 淺色',darkTheme:'🌙 深色',errorNeedMore:'{n}個運動員{plural} — 需要至少{min}個來進行{nc}個球場{courtPlural}',errorLayout:'無法創建有效的佈局',errorNoSchedule:'沒有日程可分享',errorShare:'分享日程出錯：{error}',sharing:'分享中...',shared:'✓ 已分享'},
+'ko':{appTitle:'배드민턴 로테이션 스케줄러',appDesc:'공정한 로테이션 · 2v2 복식 · 1v1 단식 오버플로우 · 확장 가능',setupTab:'설정',scheduleTab:'일정',settings:'설정',courts:'코트',numCourts:'코트 수',courtPlaceholder:'예: 3',players:'선수',addPlayer:'추가',removeAll:'모두 제거',typeName:'이름을 입력하고 Enter를 누르세요…',bulkImport:'목록에서 일괄 가져오기',bulkDesc:'이름 또는 이메일을 붙여넣으세요 — 한 줄에 하나씩. "- 주최자"와 같은 이메일 및 역할 접미사는 자동으로 제거됩니다.',import:'가져오기',clear:'지우기',demoHelper:'데모 도우미',demoDesc:'데모 또는 화면 녹화용 가짜 선수를 추가합니다. 이미 입력한 실제 이름은 유지됩니다.',injectDemo:'데모 선수 주입',demoCount:'개수',conflicts:'팀 충돌 (선택 사항)',conflictsDesc:'같은 팀에 있으면 안 되는 선수를 클릭합니다.',generateDesc:'로테이션을 생성하여 즉시 QR 코드를 만듭니다.',generateBtn:'일정 생성',playerStats:'선수 통계',validation:'제약 조건 검증',roundOf:'{round}라운드 / {total}',singles:'1v1 단식',courtLabel:'코트 {num}',activeSchedule:'활성 일정',extendMsg:'일정이 끝났습니다 — 계속하시겠습니까? 5 라운드 추가.',extendBtn:'5라운드 추가',shareBtn:'그룹과 공유',appearance:'모양',language:'언어',lightTheme:'☀️ 밝음',darkTheme:'🌙 어두움',errorNeedMore:'{n}명의 선수{plural} — {nc}개 코트{courtPlural}에 최소 {min}명 필요',errorLayout:'유효한 레이아웃을 만들 수 없습니다',errorNoSchedule:'공유할 일정이 없습니다',errorShare:'일정 공유 오류: {error}',sharing:'공유 중...',shared:'✓ 공유됨'},
+'hi':{appTitle:'बैडमिंटन रोटेशन शेड्यूलर',appDesc:'निष्पक्ष रोटेशन · 2v2 डबल्स · 1v1 सिंगल्स ओवरफ़्लो · विस्तार योग्य',setupTab:'सेटअप',scheduleTab:'शेड्यूल',settings:'सेटिंग्स',courts:'कोर्ट',numCourts:'कोर्ट की संख्या',courtPlaceholder:'जैसे 3',players:'खिलाड़ी',addPlayer:'जोड़ें',removeAll:'सभी हटाएं',typeName:'नाम टाइप करें और Enter दबाएं…',bulkImport:'सूची से बल्क आयात',bulkDesc:'नाम या ईमेल पेस्ट करें — एक प्रति पंक्ति। "- आयोजक" जैसे ईमेल और भूमिका प्रत्यय स्वचालित रूप से हटा दिए जाते हैं।',import:'आयात',clear:'साफ करें',demoHelper:'डेमो सहायक',demoDesc:'डेमो या स्क्रीन रिकॉर्डिंग के लिए नकली खिलाड़ी जोड़ें। पहले से दर्ज कोई भी वास्तविक नाम संरक्षित रहता है।',injectDemo:'डेमो खिलाड़ी इंजेक्ट करें',demoCount:'गिनती',conflicts:'टीम संघर्ष (वैकल्पिक)',conflictsDesc:'उन खिलाड़ियों पर क्लिक करें जो एक ही टीम में नहीं होने चाहिए।',generateDesc:'एक रोटेशन जेनरेट करें और तुरंत QR कोड बनाएं।',generateBtn:'शेड्यूल जेनरेट करें',playerStats:'खिलाड़ी सांख्यिकी',validation:'बाधा सत्यापन',roundOf:'राउंड {round} का {total}',singles:'1v1 सिंगल्स',courtLabel:'कोर्ट {num}',activeSchedule:'सक्रिय शेड्यूल',extendMsg:'शेड्यूल समाप्त — अभी भी जा रहे हैं? 5 और राउंड जोड़ें।',extendBtn:'5 और राउंड जोड़ें',shareBtn:'समूह के साथ साझा करें',appearance:'दिखावट',language:'भाषा',lightTheme:'☀️ हल्का',darkTheme:'🌙 गहरा',errorNeedMore:'{n} खिलाड़ी{plural} — {nc} कोर्ट{courtPlural} के लिए कम से कम {min} की आवश्यकता है',errorLayout:'एक मान्य लेआउट नहीं बना सकते',errorNoSchedule:'साझा करने के लिए कोई शेड्यूल नहीं',errorShare:'शेड्यूल साझा करने में त्रुटि: {error}',sharing:'साझा कर रहे हैं...',shared:'✓ साझा'}};
+function t(key,vars={}){const str=i18n[currentLanguage]?.[key]||i18n.en[key]||key;let result=str;Object.entries(vars).forEach(([k,v])=>{result=result.replace(`{${k}}`,v);});return result;}
+function translateUI(){document.querySelectorAll('[data-i18n]').forEach(el=>{const key=el.getAttribute('data-i18n');const type=el.getAttribute('data-i18n-type')||'text';if(type==='text'){el.textContent=t(key);}else if(type==='placeholder'){el.placeholder=t(key);}else if(type==='title'){el.title=t(key);}});}
 function getShareBaseUrl(){return location.protocol==='file:'?'https://trulioo-badminton.onrender.com':location.origin;}
 function openSettings(){document.getElementById('settings-modal').style.display='flex';}
 function closeSettings(){document.getElementById('settings-modal').style.display='none';}
@@ -300,12 +308,17 @@ function setTheme(t){
   document.getElementById('theme-'+t).classList.add('active');
   if(t==='dark'){document.body.classList.add('dark-mode');}else{document.body.classList.remove('dark-mode');}
 }
-function setLanguage(lang){localStorage.setItem('language',lang);}
+function setLanguage(lang){
+  currentLanguage=lang;
+  localStorage.setItem('language',lang);
+  translateUI();
+}
 function loadSettings(){
   const theme=localStorage.getItem('theme')||'light';
   const lang=localStorage.getItem('language')||'en';
   setTheme(theme);
   document.getElementById('lang-select').value=lang;
+  setLanguage(lang);
 }
 function markScheduleAsShared(){
   isScheduleShared=true;
@@ -315,10 +328,10 @@ function markScheduleAsShared(){
   document.getElementById('extend-box').style.display='none';
 }
 async function shareSchedule(){
-  if(!currentShareCode){alert('No schedule to share');return;}
+  if(!currentShareCode){alert(t('errorNoSchedule'));return;}
   const shareBtn=document.getElementById('share-btn');
   shareBtn.disabled=true;
-  shareBtn.textContent='Sharing...';
+  shareBtn.textContent=t('sharing');
   try{
     const res=await fetch(`${API_BASE}/api/schedule/share`,{
       method:'POST',
@@ -327,12 +340,12 @@ async function shareSchedule(){
     });
     if(!res.ok)throw new Error(`HTTP ${res.status}`);
     markScheduleAsShared();
-    shareBtn.textContent='✓ Shared';
-    setTimeout(()=>{shareBtn.textContent='Share with group';shareBtn.disabled=false;},2000);
+    shareBtn.textContent=t('shared');
+    setTimeout(()=>{shareBtn.textContent=t('shareBtn');shareBtn.disabled=false;},2000);
   }catch(err){
-    alert('Error sharing schedule: '+err.message);
+    alert(t('errorShare',{error:err.message}));
     shareBtn.disabled=false;
-    shareBtn.textContent='Share with group';
+    shareBtn.textContent=t('shareBtn');
   }
 }
 
@@ -499,8 +512,8 @@ function updateHint(){
   const nc=parseInt(document.getElementById('num-courts').value);const n=rawPlayers.length;
   const el=document.getElementById('player-hint');
   if(!nc||n===0){el.innerHTML='';return;}
-  if(n<nc*2){el.innerHTML=`<span class="err-hint">${n} player${n!==1?'s':''} — need at least ${nc*2} for ${nc} court${nc>1?'s':''}</span>`;return;}
-  const layout=getLayout(n,nc);if(!layout){el.innerHTML=`<span class="err-hint">Cannot create a valid layout</span>`;return;}
+  if(n<nc*2){const msg=t('errorNeedMore',{n:n,plural:n!==1?'s':'',min:nc*2,nc:nc,courtPlural:nc>1?'s':''});el.innerHTML=`<span class="err-hint">${msg}</span>`;return;}
+  const layout=getLayout(n,nc);if(!layout){el.innerHTML=`<span class="err-hint">${t('errorLayout')}</span>`;return;}
   const parts=[];if(layout.doubles>0)parts.push(`${layout.doubles} doubles (2v2)`);if(layout.singles>0)parts.push(`${layout.singles} singles (1v1)`);
   let html=`${n} players · ${parts.join(' + ')}`;if(layout.subs>0)html+=` · <strong>${layout.subs}</strong> sit${layout.subs===1?'s':''} out per round`;
   el.innerHTML=`<span class="info-hint">${html}</span>`;
@@ -560,13 +573,13 @@ function extendSchedule(){
 }
 function renderSchedule(){
   const R=schedule.length;
-  document.getElementById('rlabel').textContent=`Round ${currentRound+1} of ${R}`;
+  document.getElementById('rlabel').textContent=t('roundOf',{round:currentRound+1,total:R});
   document.getElementById('prev-btn').disabled=currentRound===0;document.getElementById('next-btn').disabled=currentRound===R-1;
   const rnd=schedule[currentRound];const dn=computeDisplayNames(rawPlayers);const nc=rnd.courts.length;
   document.getElementById('sub-banner-wrap').innerHTML=rnd.subs.length>0?`<div class="sub-banner"><i class="ti ti-armchair" style="font-size:14px;vertical-align:-2px;margin-right:6px"></i>Sitting out: <span>${rnd.subs.map(p=>dn[p]||p).join(', ')}</span></div>`:'';
   const cg=document.getElementById('courts-grid');
   cg.style.gridTemplateColumns=nc<=1?'1fr':nc===2?'1fr 1fr':'repeat(3,1fr)';
-  cg.innerHTML=rnd.courts.map((ct,i)=>`<div class="court-card${ct.singles?' singles':''}"><div class="ch"><span class="cn">Court ${i+1}</span>${ct.singles?'<span class="tag-s">1v1 singles</span>':''}</div><div class="cb"><div class="team"><div class="tlabel">Team A</div>${ct.a.map(p=>`<span class="pa">${dn[p]||p}</span>`).join('')}</div><div class="vs">vs</div><div class="team" style="align-items:flex-end;text-align:right"><div class="tlabel" style="text-align:right">Team B</div>${ct.b.map(p=>`<span class="pb">${dn[p]||p}</span>`).join('')}</div></div></div>`).join('');
+  cg.innerHTML=rnd.courts.map((ct,i)=>`<div class="court-card${ct.singles?' singles':''}"><div class="ch"><span class="cn">${t('courtLabel',{num:i+1})}</span>${ct.singles?`<span class="tag-s">${t('singles')}</span>`:''}</div><div class="cb"><div class="team"><div class="tlabel">Team A</div>${ct.a.map(p=>`<span class="pa">${dn[p]||p}</span>`).join('')}</div><div class="vs">vs</div><div class="team" style="align-items:flex-end;text-align:right"><div class="tlabel" style="text-align:right">Team B</div>${ct.b.map(p=>`<span class="pb">${dn[p]||p}</span>`).join('')}</div></div></div>`).join('');
   document.getElementById('extend-box').style.display=currentRound===R-1?'block':'none';
   renderStats();renderValidation();
 }
