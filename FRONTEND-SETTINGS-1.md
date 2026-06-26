@@ -211,18 +211,76 @@ Once merged and tested, create PR to main:
 
 ## Testing Checklist
 
-- [ ] Settings modal opens/closes
-- [ ] Theme toggle works and persists
-- [ ] Language dropdown works and persists
-- [ ] Dark mode applies correct colors
-- [ ] **PRIMARY COLOR CONTRAST ACCEPTABLE**
-- [ ] Schedule share button appears after generation
-- [ ] Active schedule banner shows when shared
-- [ ] "Add 5 more rounds" hides when shared
-- [ ] QR auto-generates on schedule creation
-- [ ] 15 rounds generate by default
-- [ ] Port 5000 works (API calls succeed)
-- [ ] No console errors
+### Settings Modal & Appearance
+- [ ] Gear icon visible in header
+- [ ] Click gear icon opens modal
+- [ ] Click X button closes modal
+- [ ] Click overlay background closes modal
+- [ ] Tab switching works (Appearance ↔ Language)
+- [ ] Theme buttons: Light/Dark toggle correctly
+- [ ] Theme preference persists after page reload
+- [ ] Appearance tab shows correct active state
+
+### Dark Mode
+- [ ] Dark mode toggle applies `body.dark-mode` class
+- [ ] All CSS variables update correctly
+- [ ] **PRIMARY COLOR (#A4DCB4) CONTRAST ACCEPTABLE** ⚠️
+- [ ] Text readable on all backgrounds
+- [ ] Buttons visible and clickable in dark mode
+- [ ] Borders visible but subtle
+- [ ] Modal looks good in dark mode
+- [ ] Cards and surfaces have proper hierarchy
+
+### Language Settings
+- [ ] Language dropdown has all 5 options (en, zh-s, zh-t, ko, hi)
+- [ ] Language selection persists to localStorage
+- [ ] Language value saved in browser dev tools
+- [ ] No console errors when switching languages
+- [ ] UI doesn't break on language select
+
+### Schedule Sharing Flow
+- [ ] Add players, set courts, generate schedule
+- [ ] QR code appears immediately after generation
+- [ ] QR code displays and is readable
+- [ ] Share code displays (e.g., "Code: BADM-XXXX")
+- [ ] "Share with group" button appears after QR generation
+- [ ] Click "Share with group" sends POST to `/api/schedule/share`
+- [ ] Green "ACTIVE SCHEDULE" banner appears with timestamp
+- [ ] "Add 5 more rounds" button is hidden when schedule is shared
+- [ ] Banner persists while on Schedule tab
+- [ ] Banner disappears if you navigate to Setup and back
+
+### Schedule Generation
+- [ ] 15 rounds generate by default (not 10)
+- [ ] Court assignments are valid (no player in multiple courts same round)
+- [ ] Sit-out rotation is fair
+- [ ] Team pairings don't repeat across rounds
+- [ ] Player stats calculate correctly
+- [ ] Constraint validation shows no unexpected errors
+
+### Port & API Connectivity
+- [ ] Backend runs on port 5000 (not 3000)
+- [ ] Frontend at localhost:8000 calls localhost:5000 for API
+- [ ] GET /api/health succeeds
+- [ ] POST /api/schedule succeeds (returns QR)
+- [ ] POST /api/schedule/share succeeds
+- [ ] No CORS errors in browser console
+- [ ] No "Cannot reach API" errors
+
+### UI/UX & Responsiveness
+- [ ] Modal responsive on mobile (narrows to 95% width)
+- [ ] Settings modal doesn't break on small screens
+- [ ] All buttons clickable (not overlapping or cut off)
+- [ ] Text doesn't overflow in settings pane
+- [ ] Language dropdown accessible and usable
+- [ ] No layout shifts when toggling dark mode
+
+### Browser & Console
+- [ ] No JavaScript errors in console
+- [ ] No warnings about deprecated APIs
+- [ ] localStorage accessible and saving data
+- [ ] Page loads without warnings
+- [ ] No network errors (check Network tab)
 
 ---
 
@@ -235,8 +293,85 @@ All CSS color variables mapped to official Trulioo palette (as of 2026-06-25).
 
 ---
 
+## Known Issues & Edge Cases
+
+### Things to Watch For
+
+**1. Dark Mode Primary Color Contrast**
+- Current color #A4DCB4 may not have sufficient contrast
+- Check white text readability on buttons
+- Test with different monitors/brightness levels
+- This is the blocker — must resolve before merge
+
+**2. localStorage Behavior**
+- Theme and language stored in localStorage
+- Clearing site data will reset settings
+- Test: Open DevTools → Application → Storage → localStorage → Clear
+- Verify defaults return (light mode, English)
+
+**3. Modal Stacking with Other Modals**
+- If other modals added later, z-index: 1000 may conflict
+- Currently highest z-index in app
+- Watch if future features add overlays
+
+**4. Theme Transition**
+- No CSS transition on color change (instant flip)
+- If colors feel jarring, consider adding `transition: all 0.2s` to root elements
+- Not required but could improve UX
+
+**5. Language Switching Not Implemented Yet**
+- Dropdown UI works but doesn't actually translate content
+- Shows placeholder text: "Language switching coming in next phase"
+- Don't add actual i18n yet — that's future work
+
+**6. Schedule Share State Persistence**
+- Active schedule banner only shows during current session
+- Refreshing page loses shared state (expected, not a bug)
+- Shared schedule code persists if you load via URL parameter
+
+### Testing Edge Cases
+
+- [ ] **Fresh browser:** No localStorage — verify defaults work
+- [ ] **Settings modal:** Open modal, toggle dark mode, close modal — theme persists
+- [ ] **Generate → Share → Switch theme:** Verify active banner stays visible in dark mode
+- [ ] **Multiple tabs:** Open app in 2 tabs, toggle dark mode in one — does other tab update? (No, localStorage doesn't sync cross-tab auto)
+- [ ] **Schedule generation edge case:** 13 players, 3 courts → verify valid layout
+- [ ] **QR generation fails:** API unreachable → verify error message shows gracefully
+- [ ] **Mobile landscape:** Verify modal fits on 5-inch phone in landscape
+
+### Potential Regressions to Check
+
+Since we modified core CSS, check that existing features still work:
+- [ ] Player list rendering (bulk import, demo players)
+- [ ] Court assignment display (court grid layout)
+- [ ] Player stats table formatting
+- [ ] Constraint validation panel
+- [ ] All existing buttons and forms
+- [ ] Header and tab navigation
+- [ ] Schedule round navigation (prev/next buttons)
+
+---
+
+## Merge Checklist
+
+Before creating PR to main:
+
+- [ ] All testing checklist items pass
+- [ ] Dark mode primary color decided and tested
+- [ ] No console errors or warnings
+- [ ] Code follows no-formatting, no-unrelated-changes rule
+- [ ] Commit message is clear and includes ticket reference
+- [ ] Changes only to: index.html, server.js (not package.json, not unnecessary files)
+- [ ] Tested on at least Chrome (or your primary browser)
+- [ ] QR code generation works (requires backend running)
+- [ ] Schedule sharing works (requires backend running)
+
+---
+
 ## Notes
 
 - Language i18n implementation deferred to next phase
 - All color values from official Trulioo design system
-- Ready to merge once primary color decision is made and tested
+- Dark mode colors complete except primary (awaiting decision)
+- Ready to merge once primary color decision is made and all tests pass
+- **Do NOT merge to main until color blocker is resolved** (triggers Render deployment)
