@@ -367,13 +367,14 @@ function parseBulk(){
   document.getElementById('import-msg').textContent=`Added ${added}, skipped ${skipped}`;renderAll();
 }
 function clearBulk(){document.getElementById('bulk-txt').value='';document.getElementById('import-msg').textContent='';}
-const DEMO_FIRST_NAMES=['Avery','Jordan','Casey','Taylor','Morgan','Riley','Quinn','Cameron','Harper','Parker','Reese','Sydney','Jamie','Robin','Drew','Noah','Emerson','Logan','Finley','Kai','Rowan','Blake','Elliot','Sawyer'];
-const DEMO_LAST_NAMES=['Chen','Patel','Nguyen','Khan','Lopez','Wong','Kim','Carter','Singh','Miller','Bennett','Reed','Turner','Walker','Bell','Ross','Young','Diaz','Baker','Shaw','Cruz','Foster','Gray','Hayes'];
+const DEMO_NAMES={en:{first:['Avery','Jordan','Casey','Taylor','Morgan','Riley','Quinn','Cameron','Harper','Parker','Reese','Sydney','Jamie','Robin','Drew','Noah','Emerson','Logan','Finley','Kai','Rowan','Blake','Elliot','Sawyer'],last:['Chen','Patel','Nguyen','Khan','Lopez','Wong','Kim','Carter','Singh','Miller','Bennett','Reed','Turner','Walker','Bell','Ross','Young','Diaz','Baker','Shaw'],fmt:'fl'},'zh-s':{first:['伟','芳','敏','磊','静','洋','燕','涛','勇','娜','文','飞','军','力','桂','峰','超','霞','华','丽','强','红','晶','颖'],last:['王','李','张','刘','陈','杨','黄','赵','吴','周','徐','孙','马','朱','胡','郭','何','高','林','郑'],fmt:'lf'},'zh-t':{first:['偉','芳','敏','磊','靜','洋','燕','濤','勇','娜','文','飛','軍','力','桂','峰','超','霞','華','麗','強','紅','晶','穎'],last:['王','李','張','劉','陳','楊','黃','趙','吳','周','徐','孫','馬','朱','胡','郭','何','高','林','鄭'],fmt:'lf'},ko:{first:['민준','서연','지훈','수아','준혁','지아','현우','채원','동현','서윤','정우','하은','승민','지우','예준','나은','시우','다은','태양','유나'],last:['김','이','박','최','정','강','조','윤','장','임','한','오','서','신','권','황','안','송','홍','류'],fmt:'lf'},hi:{first:['Aarav','Priya','Arjun','Ananya','Vivek','Kavya','Rohan','Pooja','Rahul','Neha','Aditya','Sneha','Kiran','Divya','Suresh','Meera','Rajan','Lakshmi','Vijay','Sanjay'],last:['Sharma','Singh','Verma','Kumar','Gupta','Patel','Joshi','Rao','Mehta','Mishra','Nair','Reddy','Shah','Pillai','Iyer','Chatterjee','Bose','Das','Sinha','Chopra'],fmt:'fl'},fil:{first:['Jose','Maria','Juan','Ana','Miguel','Rosa','Carlos','Luisa','Manuel','Elena','Pedro','Isabel','Antonio','Cristina','Rafael','Sofia','Eduardo','Diana','Ricardo','Patricia'],last:['Santos','Reyes','Cruz','Bautista','Garcia','Gonzales','Ramos','Flores','Fernandez','Torres','Aquino','Lopez','Mendoza','Macaraeg','Villanueva','Dela Cruz','Pascual','Chua','Tan','Lim'],fmt:'fl'},th:{first:['สมชาย','มาลี','วิชัย','สุดา','ชัยวัฒน์','พิมพ์','สุรชัย','นงลักษณ์','อนุชา','กาญจนา','ธนพล','รัตนา','ณัฐพล','สุภาพร','กิตติ','วรรณา','ภาณุ','อุษา','วิทย์','พัชรี'],last:['แสงทอง','ใจดี','มีสุข','รักดี','ทองดี','ศรีสุข','วงศ์ดี','พิทักษ์','รุ่งเรือง','เจริญ','บุญมา','ทองคำ','นาคดี','วีระ','บุญส่ง','ปิ่นแก้ว','ศิริ','สุขสบาย','แสนดี','ฤทธิ์ดี'],fmt:'fl'}};
 function randFrom(list){return list[Math.floor(Math.random()*list.length)];}
 function makeDemoName(existing,attempt){
-  const base=`${randFrom(DEMO_FIRST_NAMES)} ${randFrom(DEMO_LAST_NAMES)}`;
+  const d=DEMO_NAMES[currentLanguage]||DEMO_NAMES.en;
+  const f=randFrom(d.first),l=randFrom(d.last);
+  const base=d.fmt==='lf'?`${l}${f}`:`${f} ${l}`;
   if(!existing.has(base))return base;
-  return `${base} ${attempt+1}`;
+  return d.fmt==='lf'?`${l}${f}${attempt+1}`:`${base} ${attempt+1}`;
 }
 function injectDemoPlayers(){
   const inp=document.getElementById('demo-count');
@@ -389,7 +390,7 @@ function injectDemoPlayers(){
   }
   let fallback=1;
   while(added.length<count){
-    const candidate=`Demo Player ${fallback++}`;
+    const candidate=`${t('demoPlayer')} ${fallback++}`;
     if(existing.has(candidate)||added.includes(candidate))continue;
     existing.add(candidate);added.push(candidate);
   }
@@ -497,8 +498,8 @@ function updateHint(){
   if(!nc||n===0){el.innerHTML='';return;}
   if(n<nc*2){const msg=t('errorNeedMore',{n:n,plural:n!==1?'s':'',min:nc*2,nc:nc,courtPlural:nc>1?'s':''});el.innerHTML=`<span class="err-hint">${msg}</span>`;return;}
   const layout=getLayout(n,nc);if(!layout){el.innerHTML=`<span class="err-hint">${t('errorLayout')}</span>`;return;}
-  const parts=[];if(layout.doubles>0)parts.push(`${layout.doubles} doubles (2v2)`);if(layout.singles>0)parts.push(`${layout.singles} singles (1v1)`);
-  let html=`${n} players · ${parts.join(' + ')}`;if(layout.subs>0)html+=` · <strong>${layout.subs}</strong> sit${layout.subs===1?'s':''} out per round`;
+  const parts=[];if(layout.doubles>0)parts.push(t('hintDoubles',{count:layout.doubles}));if(layout.singles>0)parts.push(t('hintSingles',{count:layout.singles}));
+  let html=t('hintPlayers',{n});if(parts.length)html+=` · ${parts.join(' + ')}`;if(layout.subs>0)html+=` · <strong>${layout.subs}</strong> ${t('hintSitsOut',{n:layout.subs,plural:layout.subs===1?'s':''})}`;
   el.innerHTML=`<span class="info-hint">${html}</span>`;
 }
 function renderConflictPicker(){
