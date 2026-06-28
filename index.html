@@ -95,24 +95,12 @@ textarea{border:1px solid var(--bd);border-radius:4px;padding:8px 10px;font-size
 .derr{width:8px;height:8px;border-radius:50%;background:var(--er);flex-shrink:0}
 details summary{font-size:13px;color:var(--txs);cursor:pointer;user-select:none;padding:2px 0;font-weight:500}
 details summary:hover{color:var(--ia)}
-.btn-settings{background:none;border:none;font-size:20px;cursor:pointer;padding:8px;border-radius:4px;opacity:.7;transition:opacity .2s}
-.btn-settings:hover{opacity:1;background:rgba(255,255,255,.1)}
-.modal{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;z-index:1000}
-.modal-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4)}
-.modal-content{position:relative;background:var(--s0);border-radius:8px;padding:0;width:90%;max-width:400px;box-shadow:0 10px 40px rgba(0,0,0,.2);max-height:80vh;overflow-y:auto}
-.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:1.25rem;border-bottom:1px solid var(--bd)}
-.modal-hdr h2{margin:0;font-size:16px;font-weight:600;color:var(--tx)}
-.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--txs);padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center}
-.modal-close:hover{color:var(--tx)}
-.modal-tabs{display:flex;border-bottom:1px solid var(--bd);background:var(--s1)}
-.modal-tab{flex:1;padding:12px;border:none;background:none;font-size:13px;font-weight:500;color:var(--txs);cursor:pointer;border-bottom:2px solid transparent;font-family:'Libre Franklin',sans-serif}
-.modal-tab.active{color:var(--p);border-bottom-color:var(--p)}
-.modal-tab:hover{background:rgba(0,0,0,.03)}
-.modal-pane{padding:1.25rem}
-.setting-group{margin-bottom:16px}
-.theme-btn{padding:10px 16px;border:1.5px solid var(--bd);border-radius:4px;background:var(--s0);color:var(--tx);font-size:13px;font-weight:500;cursor:pointer;font-family:'Libre Franklin',sans-serif;transition:all .2s}
-.theme-btn:hover{border-color:var(--ia);color:var(--ia)}
-.theme-btn.active{background:var(--p);color:#fff;border-color:var(--p)}
+.btn-icon-hdr{background:none;border:none;color:rgba(255,255,255,.7);font-size:20px;cursor:pointer;padding:7px;border-radius:4px;line-height:1;transition:all .15s}
+.btn-icon-hdr:hover{color:#fff;background:rgba(255,255,255,.15)}
+.lang-menu{position:absolute;right:0;top:calc(100% + 4px);background:var(--s0);border:1px solid var(--bd);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:180px;z-index:200;overflow:hidden}
+.lang-menu button{display:block;width:100%;padding:9px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'Libre Franklin',sans-serif;color:var(--tx);cursor:pointer}
+.lang-menu button:hover{background:var(--s1)}
+.lang-menu button.active{font-weight:600;color:var(--ia)}
 body.dark-mode{
   --p:#17AED0;--ph:#20BAD6;--ia:#62908B;
   --nav:#004C45;--s0:#0F1A19;--s1:#141F1E;--s2:#1A2524;
@@ -134,7 +122,23 @@ body.dark-mode{
       <h1 data-i18n="appTitle"></h1>
       <p data-i18n="appDesc"></p>
     </div>
-    <button class="btn-settings" onclick="openSettings()" data-i18n="settings" data-i18n-type="title"></button>
+    <button id="theme-toggle" class="btn-icon-hdr" onclick="toggleTheme()" title="Toggle theme">
+      <i id="theme-icon" class="ti ti-sun"></i>
+    </button>
+    <div style="position:relative">
+      <button class="btn-icon-hdr" onclick="toggleLangMenu()" title="Language">
+        <i class="ti ti-language"></i>
+      </button>
+      <div id="lang-menu" class="lang-menu" style="display:none">
+        <button onclick="setLanguage('en'); closeLangMenu()" class="lang-option" data-lang="en">English</button>
+        <button onclick="setLanguage('zh-s'); closeLangMenu()" class="lang-option" data-lang="zh-s">中文 (简体)</button>
+        <button onclick="setLanguage('zh-t'); closeLangMenu()" class="lang-option" data-lang="zh-t">繁體中文</button>
+        <button onclick="setLanguage('ko'); closeLangMenu()" class="lang-option" data-lang="ko">한국어</button>
+        <button onclick="setLanguage('hi'); closeLangMenu()" class="lang-option" data-lang="hi">हिन्दी</button>
+        <button onclick="setLanguage('fil'); closeLangMenu()" class="lang-option" data-lang="fil">Filipino (Taglish)</button>
+        <button onclick="setLanguage('th'); closeLangMenu()" class="lang-option" data-lang="th">ภาษาไทย</button>
+      </div>
+    </div>
   </div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('setup')" id="tab-setup" data-i18n="setupTab"></button>
@@ -242,44 +246,9 @@ body.dark-mode{
       <div id="val-list"></div>
     </div>
   </div>
-  <div id="settings-modal" class="modal" style="display:none">
-    <div class="modal-overlay" onclick="closeSettings()"></div>
-    <div class="modal-content">
-      <div class="modal-hdr">
-        <h2 data-i18n="settings"></h2>
-        <button class="modal-close" onclick="closeSettings()">✕</button>
-      </div>
-      <div class="modal-tabs">
-        <button class="modal-tab active" onclick="switchModalTab('appearance',this)" data-i18n="appearance"></button>
-        <button class="modal-tab" onclick="switchModalTab('language',this)" data-i18n="language"></button>
-      </div>
-      <div id="tab-appearance" class="modal-pane" style="display:block">
-        <div class="setting-group">
-          <label style="display:block;margin-bottom:12px;font-weight:600;color:var(--tx)">Theme</label>
-          <div style="display:flex;gap:8px">
-            <button class="theme-btn active" id="theme-light" onclick="setTheme('light')" data-i18n="lightTheme"></button>
-            <button class="theme-btn" id="theme-dark" onclick="setTheme('dark')" data-i18n="darkTheme"></button>
-          </div>
-        </div>
-      </div>
-      <div id="tab-language" class="modal-pane" style="display:none">
-        <div class="setting-group">
-          <label for="lang-select" style="display:block;margin-bottom:8px;font-weight:600;color:var(--tx)" data-i18n="language"></label>
-          <select id="lang-select" onchange="setLanguage(this.value)" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:4px;font-family:'Libre Franklin',sans-serif;font-size:13px;background:var(--s0);color:var(--tx)">
-            <option value="en">English</option>
-            <option value="zh-s">中文 (简体 - Simplified Chinese)</option>
-            <option value="zh-t">繁體中文 (Traditional Chinese)</option>
-            <option value="ko">한국어 (Korean)</option>
-            <option value="hi">हिन्दी (Hindi)</option>
-          </select>
-          <span class="hint" style="margin-top:8px;display:block;color:var(--ok)">✓ Languages are now available!</span>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 <script>
-const BASE_ROUNDS=15,EXTEND_ROUNDS=5;
+const BASE_ROUNDS=10,EXTEND_ROUNDS=5;
 let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0;
 let sitC={},usedTeams=new Set(),currentLayout=null,currentNc=0;
 let currentShareCode='',currentShareUrl='',currentQrDataUrl='',qrSyncToken=0;
@@ -288,36 +257,47 @@ let currentLanguage='en';
 const API_BASE=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'http://localhost:5000':'https://badminton-scheduler-api.onrender.com';
 const i18n={en:{appTitle:'Badminton Rotation Scheduler',appDesc:'Fair rotation · 2v2 doubles · 1v1 singles overflow · extendable',setupTab:'Setup',scheduleTab:'Schedule',settings:'Settings',courts:'Courts',numCourts:'Number of courts',courtPlaceholder:'e.g. 3',players:'Players',addPlayer:'Add',removeAll:'Remove all',typeName:'Type a name and press Enter…',bulkImport:'Bulk import from list',bulkDesc:'Paste names or emails — one per line. Emails and role suffixes like "- Organizer" are stripped automatically.',import:'Import',clear:'Clear',demoHelper:'Demo helper',demoDesc:'Append fake players for demos or screen recordings. This keeps any real names already entered.',injectDemo:'Inject demo players',demoCount:'Count',conflicts:'Team conflicts (optional)',conflictsDesc:'Click players who should never share a team.',generateDesc:'Generate a rotation to create a QR code immediately.',generateBtn:'Generate Schedule',playerStats:'Player stats',validation:'Constraint validation',roundOf:'Round {round} of {total}',singles:'1v1 singles',courtLabel:'Court {num}',activeSchedule:'ACTIVE SCHEDULE',extendMsg:'End of schedule — still going? Add 5 more rounds.',extendBtn:'Add 5 more rounds',shareBtn:'Share with group',appearance:'Appearance',language:'Language',lightTheme:'☀️ Light',darkTheme:'🌙 Dark',errorNeedMore:'{n} player{plural} — need at least {min} for {nc} court{courtPlural}',errorLayout:'Cannot create a valid layout',errorNoSchedule:'No schedule to share',errorShare:'Error sharing schedule: {error}',sharing:'Sharing...',shared:'✓ Shared'},
 'zh-s':{appTitle:'羽毛球轮转调度器',appDesc:'公平轮转 · 2v2双打 · 1v1单打替补 · 可扩展',setupTab:'设置',scheduleTab:'日程',settings:'设置',courts:'球场',numCourts:'球场数量',courtPlaceholder:'例如 3',players:'运动员',addPlayer:'添加',removeAll:'全部删除',typeName:'输入名字然后按Enter…',bulkImport:'从列表批量导入',bulkDesc:'粘贴姓名或电子邮件 — 每行一个。电子邮件和角色后缀如"- 组织者"会自动删除。',import:'导入',clear:'清除',demoHelper:'演示助手',demoDesc:'添加虚拟运动员进行演示或屏幕录制。这会保留已输入的任何真实名字。',injectDemo:'注入演示运动员',demoCount:'数量',conflicts:'团队冲突（可选）',conflictsDesc:'点击不应该在同一队的运动员。',generateDesc:'生成轮转以立即创建二维码。',generateBtn:'生成日程',playerStats:'运动员统计',validation:'约束验证',roundOf:'第{round}轮，共{total}轮',singles:'1v1单打',courtLabel:'球场{num}',activeSchedule:'日程已激活',extendMsg:'日程已结束 — 还想继续？添加5轮。',extendBtn:'添加5轮',shareBtn:'与小组分享',appearance:'外观',language:'语言',lightTheme:'☀️ 浅色',darkTheme:'🌙 深色',errorNeedMore:'{n}个运动员{plural} — 需要至少{min}个来进行{nc}个球场{courtPlural}',errorLayout:'无法创建有效的布局',errorNoSchedule:'没有日程可分享',errorShare:'分享日程出错：{error}',sharing:'分享中...',shared:'✓ 已分享'},
-'zh-t':{appTitle:'羽毛球輪轉調度器',appDesc:'公平輪轉 · 2v2雙打 · 1v1單打替補 · 可擴展',setupTab:'設置',scheduleTab:'日程',settings:'設置',courts:'球場',numCourts:'球場數量',courtPlaceholder:'例如 3',players:'運動員',addPlayer:'添加',removeAll:'全部刪除',typeName:'輸入名字然後按Enter…',bulkImport:'從列表批量導入',bulkDesc:'粘貼姓名或電子郵件 — 每行一個。電子郵件和角色後綴如"- 組織者"會自動刪除。',import:'導入',clear:'清除',demoHelper:'演示助手',demoDesc:'添加虛擬運動員進行演示或屏幕錄製。這會保留已輸入的任何真實名字。',injectDemo:'注入演示運動員',demoCount:'數量',conflicts:'團隊衝突（可選）',conflictsDesc:'點擊不應該在同一隊的運動員。',generateDesc:'生成輪轉以立即創建二維碼。',generateBtn:'生成日程',playerStats:'運動員統計',validation:'約束驗證',roundOf:'第{round}輪，共{total}輪',singles:'1v1單打',courtLabel:'球場{num}',activeSchedule:'日程已激活',extendMsg:'日程已結束 — 還想繼續？添加5輪。',extendBtn:'添加5輪',shareBtn:'與小組分享',appearance:'外觀',language:'語言',lightTheme:'☀️ 淺色',darkTheme:'🌙 深色',errorNeedMore:'{n}個運動員{plural} — 需要至少{min}個來進行{nc}個球場{courtPlural}',errorLayout:'無法創建有效的佈局',errorNoSchedule:'沒有日程可分享',errorShare:'分享日程出錯：{error}',sharing:'分享中...',shared:'✓ 已分享'},
+'zh-t':{appTitle:'羽球輪替排程器',appDesc:'公平輪替 · 2v2雙打 · 1v1單打候補 · 可擴充',setupTab:'設定',scheduleTab:'賽程',settings:'設定',courts:'球場',numCourts:'球場數量',courtPlaceholder:'例如 3',players:'選手',addPlayer:'新增',removeAll:'全部移除',typeName:'輸入姓名後按Enter…',bulkImport:'從清單批次匯入',bulkDesc:'貼上姓名或電子郵件 — 每行一個。電子郵件及角色後綴如「- 主辦人」將自動移除。',import:'匯入',clear:'清除',demoHelper:'示範小幫手',demoDesc:'新增虛擬選手以進行示範或螢幕錄影。已輸入的真實姓名將會保留。',injectDemo:'加入示範選手',demoCount:'數量',conflicts:'隊伍衝突（選填）',conflictsDesc:'點選不應同隊的選手。',generateDesc:'產生輪替並立即建立 QR 碼。',generateBtn:'產生賽程',playerStats:'選手統計',validation:'規則檢查',roundOf:'第{round}輪，共{total}輪',singles:'1v1單打',courtLabel:'球場{num}',activeSchedule:'賽程已啟用',extendMsg:'賽程已結束 — 還要繼續嗎？新增 5 輪。',extendBtn:'新增 5 輪',shareBtn:'與群組分享',appearance:'外觀',language:'語言',lightTheme:'☀️ 淺色',darkTheme:'🌙 深色',errorNeedMore:'{n} 位選手{plural} — {nc} 個球場{courtPlural}至少需要 {min} 位',errorLayout:'無法建立有效的版面配置',errorNoSchedule:'沒有可分享的賽程',errorShare:'分享賽程時發生錯誤：{error}',sharing:'分享中...',shared:'✓ 已分享'},
 'ko':{appTitle:'배드민턴 로테이션 스케줄러',appDesc:'공정한 로테이션 · 2v2 복식 · 1v1 단식 오버플로우 · 확장 가능',setupTab:'설정',scheduleTab:'일정',settings:'설정',courts:'코트',numCourts:'코트 수',courtPlaceholder:'예: 3',players:'선수',addPlayer:'추가',removeAll:'모두 제거',typeName:'이름을 입력하고 Enter를 누르세요…',bulkImport:'목록에서 일괄 가져오기',bulkDesc:'이름 또는 이메일을 붙여넣으세요 — 한 줄에 하나씩. "- 주최자"와 같은 이메일 및 역할 접미사는 자동으로 제거됩니다.',import:'가져오기',clear:'지우기',demoHelper:'데모 도우미',demoDesc:'데모 또는 화면 녹화용 가짜 선수를 추가합니다. 이미 입력한 실제 이름은 유지됩니다.',injectDemo:'데모 선수 주입',demoCount:'개수',conflicts:'팀 충돌 (선택 사항)',conflictsDesc:'같은 팀에 있으면 안 되는 선수를 클릭합니다.',generateDesc:'로테이션을 생성하여 즉시 QR 코드를 만듭니다.',generateBtn:'일정 생성',playerStats:'선수 통계',validation:'제약 조건 검증',roundOf:'{round}라운드 / {total}',singles:'1v1 단식',courtLabel:'코트 {num}',activeSchedule:'활성 일정',extendMsg:'일정이 끝났습니다 — 계속하시겠습니까? 5 라운드 추가.',extendBtn:'5라운드 추가',shareBtn:'그룹과 공유',appearance:'모양',language:'언어',lightTheme:'☀️ 밝음',darkTheme:'🌙 어두움',errorNeedMore:'{n}명의 선수{plural} — {nc}개 코트{courtPlural}에 최소 {min}명 필요',errorLayout:'유효한 레이아웃을 만들 수 없습니다',errorNoSchedule:'공유할 일정이 없습니다',errorShare:'일정 공유 오류: {error}',sharing:'공유 중...',shared:'✓ 공유됨'},
-'hi':{appTitle:'बैडमिंटन रोटेशन शेड्यूलर',appDesc:'निष्पक्ष रोटेशन · 2v2 डबल्स · 1v1 सिंगल्स ओवरफ़्लो · विस्तार योग्य',setupTab:'सेटअप',scheduleTab:'शेड्यूल',settings:'सेटिंग्स',courts:'कोर्ट',numCourts:'कोर्ट की संख्या',courtPlaceholder:'जैसे 3',players:'खिलाड़ी',addPlayer:'जोड़ें',removeAll:'सभी हटाएं',typeName:'नाम टाइप करें और Enter दबाएं…',bulkImport:'सूची से बल्क आयात',bulkDesc:'नाम या ईमेल पेस्ट करें — एक प्रति पंक्ति। "- आयोजक" जैसे ईमेल और भूमिका प्रत्यय स्वचालित रूप से हटा दिए जाते हैं।',import:'आयात',clear:'साफ करें',demoHelper:'डेमो सहायक',demoDesc:'डेमो या स्क्रीन रिकॉर्डिंग के लिए नकली खिलाड़ी जोड़ें। पहले से दर्ज कोई भी वास्तविक नाम संरक्षित रहता है।',injectDemo:'डेमो खिलाड़ी इंजेक्ट करें',demoCount:'गिनती',conflicts:'टीम संघर्ष (वैकल्पिक)',conflictsDesc:'उन खिलाड़ियों पर क्लिक करें जो एक ही टीम में नहीं होने चाहिए।',generateDesc:'एक रोटेशन जेनरेट करें और तुरंत QR कोड बनाएं।',generateBtn:'शेड्यूल जेनरेट करें',playerStats:'खिलाड़ी सांख्यिकी',validation:'बाधा सत्यापन',roundOf:'राउंड {round} का {total}',singles:'1v1 सिंगल्स',courtLabel:'कोर्ट {num}',activeSchedule:'सक्रिय शेड्यूल',extendMsg:'शेड्यूल समाप्त — अभी भी जा रहे हैं? 5 और राउंड जोड़ें।',extendBtn:'5 और राउंड जोड़ें',shareBtn:'समूह के साथ साझा करें',appearance:'दिखावट',language:'भाषा',lightTheme:'☀️ हल्का',darkTheme:'🌙 गहरा',errorNeedMore:'{n} खिलाड़ी{plural} — {nc} कोर्ट{courtPlural} के लिए कम से कम {min} की आवश्यकता है',errorLayout:'एक मान्य लेआउट नहीं बना सकते',errorNoSchedule:'साझा करने के लिए कोई शेड्यूल नहीं',errorShare:'शेड्यूल साझा करने में त्रुटि: {error}',sharing:'साझा कर रहे हैं...',shared:'✓ साझा'}};
+'hi':{appTitle:'बैडमिंटन रोटेशन शेड्यूलर',appDesc:'निष्पक्ष रोटेशन · 2v2 डबल्स · 1v1 सिंगल्स ओवरफ़्लो · विस्तार योग्य',setupTab:'सेटअप',scheduleTab:'शेड्यूल',settings:'सेटिंग्स',courts:'कोर्ट',numCourts:'कोर्ट की संख्या',courtPlaceholder:'जैसे 3',players:'खिलाड़ी',addPlayer:'जोड़ें',removeAll:'सभी हटाएं',typeName:'नाम टाइप करें और Enter दबाएं…',bulkImport:'सूची से बल्क आयात',bulkDesc:'नाम या ईमेल पेस्ट करें — एक प्रति पंक्ति। "- आयोजक" जैसे ईमेल और भूमिका प्रत्यय स्वचालित रूप से हटा दिए जाते हैं।',import:'आयात',clear:'साफ करें',demoHelper:'डेमो सहायक',demoDesc:'डेमो या स्क्रीन रिकॉर्डिंग के लिए नकली खिलाड़ी जोड़ें। पहले से दर्ज कोई भी वास्तविक नाम संरक्षित रहता है।',injectDemo:'डेमो खिलाड़ी इंजेक्ट करें',demoCount:'गिनती',conflicts:'टीम संघर्ष (वैकल्पिक)',conflictsDesc:'उन खिलाड़ियों पर क्लिक करें जो एक ही टीम में नहीं होने चाहिए।',generateDesc:'एक रोटेशन जेनरेट करें और तुरंत QR कोड बनाएं।',generateBtn:'शेड्यूल जेनरेट करें',playerStats:'खिलाड़ी सांख्यिकी',validation:'बाधा सत्यापन',roundOf:'राउंड {round} का {total}',singles:'1v1 सिंगल्स',courtLabel:'कोर्ट {num}',activeSchedule:'सक्रिय शेड्यूल',extendMsg:'शेड्यूल समाप्त — अभी भी जा रहे हैं? 5 और राउंड जोड़ें।',extendBtn:'5 और राउंड जोड़ें',shareBtn:'समूह के साथ साझा करें',appearance:'दिखावट',language:'भाषा',lightTheme:'☀️ हल्का',darkTheme:'🌙 गहरा',errorNeedMore:'{n} खिलाड़ी{plural} — {nc} कोर्ट{courtPlural} के लिए कम से कम {min} की आवश्यकता है',errorLayout:'एक मान्य लेआउट नहीं बना सकते',errorNoSchedule:'साझा करने के लिए कोई शेड्यूल नहीं',errorShare:'शेड्यूल साझा करने में त्रुटि: {error}',sharing:'साझा कर रहे हैं...',shared:'✓ साझा'},
+'fil':{appTitle:'Badminton Rotation Scheduler',appDesc:'Patas na rotation · 2v2 doubles · 1v1 singles overflow · extendable',setupTab:'Setup',scheduleTab:'Schedule',settings:'Settings',courts:'Mga Court',numCourts:'Bilang ng court',courtPlaceholder:'hal. 3',players:'Mga Manlalaro',addPlayer:'Idagdag',removeAll:'Alisin Lahat',typeName:'Mag-type ng pangalan at pindutin ang Enter…',bulkImport:'Mag-import ng marami mula sa listahan',bulkDesc:'I-paste ang mga pangalan o email — isa bawat linya. Mga email at role suffix tulad ng "- Organizer" ay awtomatikong aalisin.',import:'I-import',clear:'I-clear',demoHelper:'Demo helper',demoDesc:'Mag-dagdag ng mga pekeng manlalaro para sa demo o screen recording. Mananatili ang mga tunay na pangalang na-enter na.',injectDemo:'Mag-dagdag ng demo players',demoCount:'Bilang',conflicts:'Mga team conflict (optional)',conflictsDesc:'I-click ang mga manlalarong hindi dapat magka-team.',generateDesc:'Gumawa ng rotation para agad makalikha ng QR code.',generateBtn:'Gumawa ng Schedule',playerStats:'Stats ng Manlalaro',validation:'Pagsusuri ng Patakaran',roundOf:'Round {round} ng {total}',singles:'1v1 singles',courtLabel:'Court {num}',activeSchedule:'AKTIBONG SCHEDULE',extendMsg:'Tapos na ang schedule — tuloy pa rin? Dagdag ng 5 rounds pa.',extendBtn:'Dagdag ng 5 rounds',shareBtn:'I-share sa grupo',appearance:'Hitsura',language:'Wika',lightTheme:'☀️ Light',darkTheme:'🌙 Dark',errorNeedMore:'{n} manlalaro{plural} — kailangan ng hindi bababa sa {min} para sa {nc} court{courtPlural}',errorLayout:'Hindi makalikha ng valid na layout',errorNoSchedule:'Walang schedule para i-share',errorShare:'Error sa pag-share ng schedule: {error}',sharing:'Nag-sha-share...',shared:'✓ Na-share na'},
+'th':{appTitle:'โปรแกรมจัดตารางแบดมินตัน',appDesc:'หมุนเวียนอย่างยุติธรรม · 2v2 ดับเบิลส์ · 1v1 ซิงเกิลส์ · ขยายได้',setupTab:'ตั้งค่า',scheduleTab:'ตาราง',settings:'การตั้งค่า',courts:'สนาม',numCourts:'จำนวนสนาม',courtPlaceholder:'เช่น 3',players:'ผู้เล่น',addPlayer:'เพิ่ม',removeAll:'ลบทั้งหมด',typeName:'พิมพ์ชื่อแล้วกด Enter…',bulkImport:'นำเข้าจากรายการ',bulkDesc:'วางชื่อหรืออีเมล — หนึ่งรายการต่อบรรทัด อีเมลและคำต่อท้ายบทบาท เช่น "- ผู้จัดงาน" จะถูกลบออกโดยอัตโนมัติ',import:'นำเข้า',clear:'ล้าง',demoHelper:'ตัวช่วยสาธิต',demoDesc:'เพิ่มผู้เล่นจำลองสำหรับการสาธิตหรือการบันทึกหน้าจอ ชื่อจริงที่ป้อนไว้จะยังคงอยู่',injectDemo:'เพิ่มผู้เล่นสาธิต',demoCount:'จำนวน',conflicts:'ความขัดแย้งของทีม (ไม่บังคับ)',conflictsDesc:'คลิกผู้เล่นที่ไม่ควรอยู่ในทีมเดียวกัน',generateDesc:'สร้างการหมุนเวียนเพื่อสร้าง QR Code ทันที',generateBtn:'สร้างตาราง',playerStats:'สถิติผู้เล่น',validation:'ตรวจสอบเงื่อนไข',roundOf:'รอบที่ {round} จาก {total}',singles:'1v1 ซิงเกิลส์',courtLabel:'สนาม {num}',activeSchedule:'ตารางที่ใช้งานอยู่',extendMsg:'ตารางสิ้นสุดแล้ว — ยังต้องการต่อไหม? เพิ่มอีก 5 รอบ',extendBtn:'เพิ่มอีก 5 รอบ',shareBtn:'แชร์ให้กลุ่ม',appearance:'รูปแบบ',language:'ภาษา',lightTheme:'☀️ สว่าง',darkTheme:'🌙 มืด',errorNeedMore:'{n} คน{plural} — ต้องการอย่างน้อย {min} คนสำหรับ {nc} สนาม{courtPlural}',errorLayout:'ไม่สามารถสร้างรูปแบบที่ถูกต้องได้',errorNoSchedule:'ไม่มีตารางที่จะแชร์',errorShare:'เกิดข้อผิดพลาดในการแชร์ตาราง: {error}',sharing:'กำลังแชร์...',shared:'✓ แชร์แล้ว'}};
 function t(key,vars={}){const str=i18n[currentLanguage]?.[key]||i18n.en[key]||key;let result=str;Object.entries(vars).forEach(([k,v])=>{result=result.replace(`{${k}}`,v);});return result;}
 function translateUI(){document.querySelectorAll('[data-i18n]').forEach(el=>{const key=el.getAttribute('data-i18n');const type=el.getAttribute('data-i18n-type')||'text';if(type==='text'){el.textContent=t(key);}else if(type==='placeholder'){el.placeholder=t(key);}else if(type==='title'){el.title=t(key);}});}
 function getShareBaseUrl(){return location.protocol==='file:'?'https://trulioo-badminton.onrender.com':location.origin;}
-function openSettings(){document.getElementById('settings-modal').style.display='flex';}
-function closeSettings(){document.getElementById('settings-modal').style.display='none';}
-function switchModalTab(tab,btn){
-  document.querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.modal-pane').forEach(p=>p.style.display='none');
-  if(btn)btn.classList.add('active');
-  document.getElementById('tab-'+tab).style.display='block';
+function toggleTheme(){setTheme(document.body.classList.contains('dark-mode')?'light':'dark');}
+function toggleLangMenu(){
+  const m=document.getElementById('lang-menu');
+  m.style.display=m.style.display==='none'?'block':'none';
 }
+function closeLangMenu(){document.getElementById('lang-menu').style.display='none';}
+document.addEventListener('click',e=>{
+  const langBtn=document.querySelector('.btn-icon-hdr[onclick*="toggleLangMenu"]');
+  if(!e.target.closest('#lang-menu')&&!e.target.closest('.btn-icon-hdr[onclick*="toggleLangMenu"]')){
+    closeLangMenu();
+  }
+});
 function setTheme(t){
   localStorage.setItem('theme',t);
-  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('theme-'+t).classList.add('active');
-  if(t==='dark'){document.body.classList.add('dark-mode');}else{document.body.classList.remove('dark-mode');}
+  const icon=document.getElementById('theme-icon');
+  if(t==='dark'){
+    document.body.classList.add('dark-mode');
+    if(icon)icon.className='ti ti-moon';
+  }else{
+    document.body.classList.remove('dark-mode');
+    if(icon)icon.className='ti ti-sun';
+  }
 }
 function setLanguage(lang){
   currentLanguage=lang;
   localStorage.setItem('language',lang);
+  document.querySelectorAll('.lang-option').forEach(btn=>btn.classList.toggle('active',btn.dataset.lang===lang));
   translateUI();
 }
 function loadSettings(){
   const theme=localStorage.getItem('theme')||'light';
   const lang=localStorage.getItem('language')||'en';
   setTheme(theme);
-  document.getElementById('lang-select').value=lang;
   setLanguage(lang);
 }
 function markScheduleAsShared(){
@@ -568,7 +548,23 @@ function generateFresh(){
   resetShareQr();
   schedule=generateRounds(BASE_ROUNDS);currentRound=0;switchTab('schedule');renderSchedule();syncShareQr();
 }
-function extendSchedule(){
+async function extendSchedule(){
+  if(currentShareCode){
+    try{
+      const res=await fetch(`${API_BASE}/api/schedule/${encodeURIComponent(currentShareCode)}/extend`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({count:EXTEND_ROUNDS}),
+      });
+      if(!res.ok)throw new Error(`HTTP ${res.status}`);
+      const data=await res.json();
+      schedule=data.schedule.rounds;
+      rebuildSchedulingState();
+      currentRound=schedule.length-EXTEND_ROUNDS;
+      renderSchedule();
+      return;
+    }catch(e){}
+  }
   const newRounds=generateRounds(EXTEND_ROUNDS);schedule=[...schedule,...newRounds];currentRound=schedule.length-EXTEND_ROUNDS;renderSchedule();syncShareQr();
 }
 function renderSchedule(){

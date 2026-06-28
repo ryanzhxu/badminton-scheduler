@@ -148,10 +148,14 @@ function makeTeams(activePl, layout, used, conflictGroup) {
   return best;
 }
 
-function generateRounds(rawPlayers, layout, conflictGroup, count) {
-  const sitC = {};
-  rawPlayers.forEach(p => (sitC[p] = 0));
-  const usedTeams = new Set();
+function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, usedTeams = null) {
+  if (sitC === null) {
+    sitC = {};
+    rawPlayers.forEach(p => (sitC[p] = 0));
+  }
+  if (usedTeams === null) {
+    usedTeams = new Set();
+  }
   const rounds = [];
   for (let r = 0; r < count; r++) {
     const sorted = shuffle(rawPlayers).sort((a, b) => sitC[a] - sitC[b]);
@@ -271,6 +275,34 @@ app.get('/api/schedule/:code', (req, res) => {
       return res.status(404).json({ error: 'Schedule not found' });
     }
 
+    res.json({ schedule });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/schedule/:code/extend', (req, res) => {
+  try {
+    const { code } = req.params;
+    const { count = 5 } = req.body;
+
+    const data = loadData();
+    const schedule = data.archivedSchedules.find(s => s.code === code);
+
+    if (!schedule) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+
+    const sitC = Object.fromEntries(schedule.players.map(p => [p, 0]));
+    const usedTeams = new Set();
+    schedule.rounds.forEach(rnd => {
+      rnd.subs.forEach(p => { if (p in sitC) sitC[p]++; });
+      rnd.courts.forEach(ct => { usedTeams.add(teamKey(ct.a)); usedTeams.add(teamKey(ct.b)); });
+    });
+
+    const newRounds = generateRounds(schedule.players, schedule.layout, schedule.conflictGroup, count, sitC, usedTeams);
+    schedule.rounds.push(...newRounds);
+    saveData(data);
     res.json({ schedule });
   } catch (err) {
     res.status(500).json({ error: err.message });
