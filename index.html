@@ -379,7 +379,7 @@ function injectDemoPlayers(){
   const inp=document.getElementById('demo-count');
   const msg=document.getElementById('demo-msg');
   const count=Math.max(1,Math.min(50,parseInt(inp.value,10)||0));
-  if(!count){msg.textContent='Enter a count between 1 and 50';return;}
+  if(!count){msg.textContent=t('demoCountError');return;}
   const existing=new Set(rawPlayers);
   const added=[];let attempts=0;
   while(added.length<count&&attempts<count*25){
@@ -395,7 +395,7 @@ function injectDemoPlayers(){
   }
   rawPlayers.push(...added);
   renderAll();
-  msg.textContent=`Injected ${added.length} demo player${added.length===1?'':'s'} for demo use.`;
+  msg.textContent=t('demoInjected',{n:added.length,plural:added.length===1?'':'s'});
 }
 function addOne(){
   const inp=document.getElementById('add-inp');const raw=parseRawName(inp.value)||inp.value.trim();if(!raw)return;
@@ -509,8 +509,8 @@ function renderConflictPicker(){
 function toggleConflict(raw){if(conflictGroup.has(raw))conflictGroup.delete(raw);else conflictGroup.add(raw);renderConflictPicker();}
 function renderConflictSummary(){
   const dn=computeDisplayNames(rawPlayers);const sel=[...conflictGroup].filter(r=>rawPlayers.includes(r));const el=document.getElementById('conflict-summary');
-  if(sel.length===0){el.textContent='No conflict rules set.';return;}if(sel.length===1){el.innerHTML=`<strong>${dn[sel[0]]}</strong> selected — pick at least one more.`;return;}
-  el.innerHTML=`<strong>${sel.length} players</strong> in conflict group: ${sel.map(r=>dn[r]).join(', ')}.`;
+  if(sel.length===0){el.textContent=t('conflictNone');return;}if(sel.length===1){el.innerHTML=`<strong>${dn[sel[0]]}</strong> ${t('conflictOneMore')}`;return;}
+  el.innerHTML=t('conflictGroupSummary',{count:sel.length,names:sel.map(r=>dn[r]).join(', ')});
 }
 function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;}
 function conflictPair(a,b){const act=[...conflictGroup].filter(r=>rawPlayers.includes(r));return act.length>=2&&conflictGroup.has(a)&&conflictGroup.has(b);}
