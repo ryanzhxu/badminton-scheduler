@@ -1,3 +1,5 @@
+import QRCode from './qrcode-svg.js';
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -390,12 +392,7 @@ async function loadProfiles(env) {
 }
 
 async function createQrDataUrl(text) {
-  const url = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&format=svg&data=${encodeURIComponent(text)}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`QR generation failed: HTTP ${response.status}`);
-  }
-  const svg = await response.text();
+  const svg = await QRCode.toString(text, { type: 'svg' });
   return `data:image/svg+xml;base64,${toBase64(svg)}`;
 }
 
