@@ -7,41 +7,42 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --p:#172D2D;--ph:#004C45;--ia:#128BA6;
-  --nav:#E5F0E8;--s0:#FFFFFF;--s1:#F2F2F2;--s2:#E5E5E5;
+  --nav:#D5EBDB;--s0:#FFFFFF;--s1:#F2F2F2;--s2:#E5E5E5;
   --bd:#D2D2D2;--bdm:#808080;
-  --tx:#121212;--txs:#404040;--txd:#BFBFBF;
-  --ok:#316E68;--oks:#D5EBDB;
-  --wa:#F7C11B;--was:#F6DFA3;
-  --er:#BB363C;--ers:#EDD5D5;
-  --bls:#D9F2F7;--blb:#17AED0;
+  --tx:#121212;--txs:#666666;--txm:#404040;--txd:#BFBFBF;
+  --ok:#004C45;--oks:#D5EBDB;
+  --wa:#F7C11B;--was:#FFE999;
+  --er:#BB363C;--ers:#F1D7D9;
+  --bls:#D3EDF6;--blb:#128BA6;
 }
-body{background:var(--s1);font-family:'Libre Franklin',sans-serif;min-height:100vh;padding:1rem}
-.app{max-width:860px;margin:0 auto}
-.hdr{background:var(--p);border-radius:8px;padding:1rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;gap:14px}
-.hdr-ic{width:38px;height:38px;background:var(--ph);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid var(--ok)}
-.hdr h1{color:#fff;font-size:17px;font-weight:600;margin:0}
-.hdr p{color:rgba(255,255,255,.45);font-size:12px;margin:3px 0 0}
-.tabs{display:flex;gap:4px;margin-bottom:1rem}
-.tab{padding:8px 18px;border-radius:6px;border:1px solid var(--bd);background:var(--s0);font-size:13px;cursor:pointer;color:var(--txs);font-family:'Libre Franklin',sans-serif;font-weight:500}
-.tab.active{background:var(--p);color:#fff;border-color:var(--p)}
-.card{background:var(--s0);border:1px solid var(--bd);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem}
-.slabel{font-size:11px;color:var(--txs);font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px}
+body{background:var(--s1);font-family:'Libre Franklin',sans-serif;min-height:100vh}
+.app{max-width:916px;margin:0 auto;padding:16px}
+.hdr{background:#172D2D;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;z-index:100;height:60px}
+.hdr-inner{max-width:916px;margin:0 auto;padding:0 16px;height:100%;display:flex;align-items:center;gap:14px}
+.tabs{display:flex;background:#FFFFFF;border-radius:8px 8px 0 0;border-bottom:2px solid #E5E5E5;box-shadow:0 1px 3px rgba(18,18,18,0.06);margin-bottom:24px}
+.tab{padding:13px 20px;border:none;background:none;font-size:13px;font-weight:500;color:#666666;cursor:pointer;font-family:'Libre Franklin',sans-serif;line-height:1}
+.tab:hover{color:#121212}
+.tab.active{color:#172D2D;font-weight:600;border-bottom:2px solid #172D2D;margin-bottom:-2px}
+.card{background:var(--s0);border:1px solid var(--bd);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem;box-shadow:0 1px 3px rgba(18,18,18,0.06),0 1px 2px rgba(18,18,18,0.04)}
+.slabel{font-size:11px;color:var(--txs);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:9px}
 .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-.row label{font-size:13px;color:var(--tx);min-width:90px;font-weight:500}
-input[type=number]{width:70px;border:1px solid var(--bd);border-radius:4px;padding:6px 8px;font-size:13px;font-family:'Libre Franklin',sans-serif;color:var(--tx);background:var(--s0)}
-input[type=number]:focus{outline:2px solid var(--ia);outline-offset:1px}
-input[type=text]{border:1px solid var(--bd);border-radius:4px;padding:7px 10px;font-size:13px;font-family:'Libre Franklin',sans-serif;color:var(--tx);background:var(--s0);width:100%}
-input[type=text]:focus{outline:2px solid var(--ia);outline-offset:1px}
-textarea{border:1px solid var(--bd);border-radius:4px;padding:8px 10px;font-size:12px;font-family:'Libre Franklin',monospace;color:var(--tx);background:var(--s1);width:100%;resize:vertical;min-height:110px}
-.chip-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;min-height:24px}
-.pchip{display:inline-flex;align-items:center;gap:3px;padding:4px 9px 4px 10px;border-radius:4px;font-size:12px;font-weight:500;background:var(--nav);border:1px solid #B8D4BC;color:var(--p);line-height:1.4}
-.pchip .rm{cursor:pointer;color:var(--ph);font-size:14px;padding-left:4px;line-height:1}
-.pchip .rm:hover{color:var(--er)}
-.add-row{display:flex;gap:6px;margin-bottom:6px}
+.row label{font-size:13px;color:var(--tx);min-width:130px;font-weight:500}
+input[type=number]{width:78px;border:1px solid var(--bd);border-radius:8px;padding:6px 8px;font-size:13px;font-family:'Libre Franklin',sans-serif;color:var(--tx);background:var(--s0)}
+input[type=number]:focus{outline:none;border-color:#128BA6;box-shadow:0 0 0 3px rgba(18,139,166,0.20)}
+input[type=text]{border:1px solid var(--bd);border-radius:8px;padding:7px 10px;font-size:13px;font-family:'Libre Franklin',sans-serif;color:var(--tx);background:var(--s0);width:100%}
+input[type=text]:focus{outline:none;border-color:#128BA6;box-shadow:0 0 0 3px rgba(18,139,166,0.20)}
+textarea{border:1px solid var(--bd);border-radius:8px;padding:8px 10px;font-size:12px;font-family:'Libre Franklin',monospace;color:var(--tx);background:var(--s1);width:100%;resize:vertical;min-height:110px}
+textarea:focus{outline:none;border-color:#128BA6;box-shadow:0 0 0 3px rgba(18,139,166,0.20)}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:28px}
+.pchip{display:inline-flex;align-items:center;gap:3px;padding:4px 9px 4px 11px;border-radius:4px;font-size:12px;font-weight:500;background:var(--nav);border:1px solid #B4E1C1;color:var(--ph);line-height:1.4}
+.pchip .rm{cursor:pointer;color:#316E68;font-size:14px;padding-left:4px;line-height:1;opacity:0.75}
+.pchip .rm:hover{color:var(--er);opacity:1}
+.add-row{display:flex;gap:8px;margin-bottom:6px}
 .add-row input{flex:1}
 .hint{font-size:12px;color:var(--txs);margin-top:4px}
 .info-hint{font-size:12px;color:#0E687D;background:var(--bls);border:1px solid var(--blb);border-radius:4px;padding:6px 10px;margin-top:6px;display:block}
@@ -53,74 +54,88 @@ textarea{border:1px solid var(--bd);border-radius:4px;padding:8px 10px;font-size
 .cx:hover{border-color:#128BA6;color:#128BA6}
 .cx.on{background:#172D2D;color:#FFFFFF;border-color:#172D2D}
 .conflict-summary{font-size:13px;color:var(--txs);margin-top:6px;min-height:20px}
-.conflict-summary strong{color:var(--p);font-weight:600}
-.btn-p{background:var(--p);color:#fff;border:none;padding:9px 18px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Libre Franklin',sans-serif}
-.btn-p:hover{background:var(--ph)}
-.btn-s{background:var(--s0);color:var(--tx);border:1px solid var(--bd);padding:7px 14px;border-radius:4px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500}
-.btn-s:hover{background:var(--s1);border-color:var(--bdm)}
-.btn-danger{background:var(--s0);color:var(--er);border:1px solid var(--ers);padding:7px 14px;border-radius:4px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500}
+.conflict-summary strong{color:var(--tx);font-weight:600}
+.btn-p{background:#172D2D;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Libre Franklin',sans-serif}
+.btn-p:hover{background:#253C3C}
+.btn-s{background:var(--s0);color:var(--tx);border:1px solid var(--bdm);padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500}
+.btn-s:hover{background:var(--s1)}
+.btn-danger{background:var(--s0);color:var(--er);border:1px solid #D2D2D2;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500}
 .btn-danger:hover{background:var(--ers);border-color:var(--er)}
-.btn-extend{background:var(--ph);color:#fff;border:none;padding:10px 20px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Libre Franklin',sans-serif;width:100%}
-.btn-extend:hover{background:var(--p)}
-.extend-box{background:var(--s0);border:1px solid var(--bd);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem;text-align:center}
+.btn-extend{background:#172D2D;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Libre Franklin',sans-serif;width:100%}
+.btn-extend:hover{background:#253C3C}
+.extend-box{background:var(--s0);border:1px solid var(--bd);border-radius:8px;padding:24px;margin-bottom:1rem;text-align:center}
 .extend-box p{font-size:13px;color:var(--txs);margin-bottom:10px}
-.rnav{display:flex;align-items:center;gap:10px;margin-bottom:1rem}
+.rnav{display:flex;align-items:center;gap:12px;margin-bottom:1rem;background:var(--s0);border:1px solid var(--bd);border-radius:8px;padding:10px 16px}
 .rnav .rlabel{flex:1;text-align:center;font-size:15px;font-weight:600;color:var(--tx)}
-.sub-banner{background:var(--was);border:1px solid var(--wa);border-radius:6px;padding:10px 14px;color:var(--tx);font-size:13px;font-weight:600;margin-bottom:.75rem}
+.sub-banner{background:var(--was);border:1px solid var(--wa);border-radius:6px;padding:10px 16px;color:var(--tx);font-size:13px;font-weight:600;margin-bottom:.75rem}
 .sub-banner span{font-weight:400}
-.courts-grid{display:grid;gap:10px;margin-bottom:1rem}
+.courts-grid{display:grid;gap:12px;margin-bottom:1rem}
 .court-card{border:1px solid var(--bd);border-radius:8px;overflow:hidden;background:var(--s0)}
-.court-card.singles{border-color:var(--blb)}
-.ch{background:var(--p);padding:8px 12px;display:flex;align-items:center;gap:8px}
+.court-card.singles{border-color:#7BC8E2}
+.ch{background:#172D2D;padding:9px 14px;display:flex;align-items:center;gap:8px}
 .court-card.singles .ch{background:#0E687D}
-.ch .cn{background:var(--ok);color:#fff;font-size:11px;font-weight:600;padding:2px 9px;border-radius:3px}
-.court-card.singles .ch .cn{background:var(--blb)}
+.ch .cn{background:#004C45;color:#fff;font-size:11px;font-weight:600;padding:2px 9px;border-radius:3px}
+.court-card.singles .ch .cn{background:#128BA6}
 .ch .tag-s{background:rgba(255,255,255,.2);color:#fff;font-size:10px;font-weight:600;padding:2px 7px;border-radius:3px;margin-left:2px}
-.cb{padding:12px;display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center}
-.team{display:flex;flex-direction:column;gap:4px}
+.cb{padding:14px;display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+.team{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
 .tlabel{font-size:10px;color:var(--txs);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
 .vs{font-size:12px;color:var(--txs);text-align:center;font-weight:600}
-.pa{display:inline-block;padding:4px 10px;border-radius:3px;font-size:12px;font-weight:600;background:var(--oks);color:var(--ph);margin-bottom:2px}
-.pb{display:inline-block;padding:4px 10px;border-radius:3px;font-size:12px;font-weight:600;background:var(--bls);color:#0E687D;margin-bottom:2px}
+.pa{display:inline-block;padding:4px 11px;border-radius:4px;font-size:12px;font-weight:600;background:#EEF7F1;color:#004C45;margin-bottom:2px}
+.pb{display:inline-block;padding:4px 11px;border-radius:4px;font-size:12px;font-weight:600;background:#D3EDF6;color:#00598C;margin-bottom:2px}
 .stats-tbl{width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed}
 .stats-tbl th{font-size:11px;color:var(--txs);font-weight:600;text-align:left;padding:5px 7px;border-bottom:1px solid var(--bd);text-transform:uppercase;letter-spacing:.05em}
 .stats-tbl td{padding:5px 7px;border-bottom:1px solid var(--bd);color:var(--tx);font-size:12px}
 .stats-tbl tr:last-child td{border-bottom:none}
 .stats-tbl tbody tr:hover td{background:var(--s1)}
-.badge-in{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;background:var(--oks);color:var(--ph)}
-.badge-out{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;background:var(--was);color:#7a4e00}
+.badge-in{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;background:#D5EBDB;color:#004C45}
+.badge-out{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;background:#FFE999;color:#7a4e00}
 .vrow{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--bd);font-size:13px;color:var(--tx)}
 .vrow:last-child{border-bottom:none}
-.dok{width:8px;height:8px;border-radius:50%;background:var(--ok);flex-shrink:0}
+.dok{width:8px;height:8px;border-radius:50%;background:#004C45;flex-shrink:0}
 .derr{width:8px;height:8px;border-radius:50%;background:var(--er);flex-shrink:0}
 details summary{font-size:13px;color:var(--txs);cursor:pointer;user-select:none;padding:2px 0;font-weight:500}
 details summary:hover{color:var(--ia)}
-.btn-icon-hdr{background:none;border:none;color:rgba(255,255,255,.7);font-size:20px;cursor:pointer;padding:7px;border-radius:4px;line-height:1;transition:all .15s}
-.btn-icon-hdr:hover{color:#fff;background:rgba(255,255,255,.15)}
-.lang-menu{position:absolute;right:0;top:calc(100% + 4px);background:var(--s0);border:1px solid var(--bd);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:180px;z-index:200;overflow:hidden}
+.btn-icon-hdr{background:none;border:none;color:rgba(255,255,255,.65);font-size:20px;cursor:pointer;padding:0;border-radius:6px;line-height:1;transition:all .15s;width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.btn-icon-hdr:hover{color:#fff;background:rgba(255,255,255,.12)}
+.lang-menu{position:absolute;right:0;top:calc(100% + 4px);background:var(--s0);border:1px solid var(--bd);border-radius:8px;box-shadow:0 4px 8px rgba(18,18,18,0.10),0 8px 16px rgba(18,18,18,0.08);min-width:200px;z-index:200;overflow:hidden}
 .lang-menu button{display:block;width:100%;padding:9px 14px;border:none;background:none;text-align:left;font-size:13px;font-family:'Libre Franklin',sans-serif;color:var(--tx);cursor:pointer}
 .lang-menu button:hover{background:var(--s1)}
-.lang-menu button.active{font-weight:600;color:var(--ia)}
+.lang-menu button.active{font-weight:600;color:#172D2D}
 body.dark-mode{
-  --p:#17AED0;--ph:#20BAD6;--ia:#62908B;
-  --nav:#004C45;--s0:#0F1A19;--s1:#141F1E;--s2:#1A2524;
+  --s0:#141F1E;--s1:#0F1A19;
   --bd:#334542;--bdm:#5A7570;
-  --tx:#FFFFFF;--txs:#E5E5E5;--txd:#999999;
-  --ok:#6BC699;--oks:#1A3A2E;
+  --tx:#F2F2F2;--txs:#A6A6A6;--txm:#D2D2D2;--txd:#666666;
+  --nav:#1A3A2E;--ok:#6BC699;--oks:#1A3A2E;
   --wa:#FFD700;--was:#332200;
   --er:#FF8A8F;--ers:#4D2A2D;
   --bls:#0F3A45;--blb:#4CB8D4;
 }
+body.dark-mode .pa{background:#1A3A2E;color:#6BC699}
+body.dark-mode .pb{background:#0F3A45;color:#4CB8D4}
+body.dark-mode .tabs{background:var(--s0);border-color:var(--bd)}
+body.dark-mode .tab.active{color:var(--tx);border-color:var(--tx)}
+body.dark-mode .sub-banner{background:var(--was);color:var(--wa);border-color:var(--wa)}
+body.dark-mode .badge-in{background:#1A3A2E;color:#6BC699}
+body.dark-mode .badge-out{background:#332200;color:#FFD700}
+body.dark-mode .cx{background:var(--s0)}
+body.dark-mode .lang-menu button.active{color:var(--tx)}
+body.dark-mode .info-hint{color:var(--blb);background:var(--bls);border-color:var(--blb)}
 @media(max-width:600px){.courts-grid{grid-template-columns:1fr !important}.modal-content{width:95%}}
 </style>
 </head>
 <body>
-<div class="app">
-  <div class="hdr">
-    <div class="hdr-ic"><i class="ti ti-tournament" style="color:#A4DCB4;font-size:20px"></i></div>
-    <div style="flex:1">
-      <h1 data-i18n="appTitle"></h1>
-      <p data-i18n="appDesc"></p>
+<header class="hdr">
+  <div class="hdr-inner">
+    <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0">
+      <div style="color:#FFFFFF;display:flex;align-items:center;flex-shrink:0">
+        <svg xmlns="http://www.w3.org/2000/svg" height="19" viewBox="0 0 328.940 80.690" fill="currentColor" aria-label="Trulioo"><path d="M 325.46 74.21 L 324.58 74.21 L 324.58 75.43 L 325.46 75.43 C 325.85 75.43 326.12 75.2 326.12 74.82 C 326.12 74.44 325.85 74.21 325.46 74.21 Z M 326.15 77.58 L 325.33 75.93 L 324.59 75.93 L 324.59 77.58 L 324 77.58 L 324 73.67 L 325.51 73.67 C 326.25 73.67 326.72 74.15 326.72 74.81 C 326.72 75.37 326.38 75.73 325.94 75.85 L 326.84 77.58 L 326.15 77.58 L 326.15 77.58 Z M 325.23 72.45 C 323.46 72.45 322.02 73.89 322.02 75.66 C 322.02 77.43 323.46 78.87 325.23 78.87 C 327 78.87 328.44 77.43 328.44 75.66 C 328.44 73.89 327 72.45 325.23 72.45 Z M 325.23 79.36 C 323.19 79.36 321.52 77.7 321.52 75.65 C 321.52 73.6 323.18 71.94 325.23 71.94 C 327.28 71.94 328.94 73.6 328.94 75.65 C 328.94 77.7 327.28 79.36 325.23 79.36 Z M 18.38 79.36 L 46 79.36 L 46 76.59 C 41.17 75.36 38.92 72.59 38.92 66.02 L 38.92 8.75 L 45.18 8.75 C 53.19 8.75 58.22 12.45 60.89 19.43 L 64.28 19.43 L 64.28 2.59 L 0 2.59 L 0 19.43 L 3.49 19.43 C 6.16 12.45 11.19 8.75 19.2 8.75 L 25.46 8.75 L 25.46 66.01 C 25.46 72.58 23.1 75.35 18.38 76.58 L 18.38 79.35 L 18.38 79.36 Z M 57.89 79.36 L 79.66 79.36 L 79.66 76.59 C 76.07 75.46 74.22 73.3 74.22 66.84 L 74.22 37.48 C 77.3 34.61 78.43 33.78 79.35 33.37 C 80.27 37.48 82.94 40.56 86.95 40.56 C 91.16 40.56 94.44 37.07 94.44 32.65 C 94.44 28.23 91.36 24.95 86.84 24.95 C 83.76 24.95 80.47 26.59 74.21 31.93 L 74.21 24.64 L 57.89 30.18 L 57.89 32.95 C 60.66 33.98 62.3 36.24 62.3 43.52 L 62.3 66.83 C 62.3 73.3 60.97 75.35 57.89 76.58 L 57.89 79.35 L 57.89 79.36 Z M 98.22 32.95 C 101.3 34.18 102.63 36.24 102.63 42.4 L 102.63 64.27 C 102.63 74.84 107.56 80.39 117 80.39 C 123.78 80.39 129.11 77.62 134.56 72.07 L 134.56 80.69 L 151.09 76.48 L 151.09 73.71 C 148.01 72.48 146.47 70.42 146.47 64.06 L 146.47 24.64 L 130.15 30.18 L 130.15 32.95 C 133.33 34.18 134.67 36.24 134.67 42.4 L 134.57 66.22 C 130.05 70.74 126.25 72.89 121.84 72.89 C 117.12 72.89 114.45 70.53 114.45 63.44 L 114.45 24.64 L 98.23 30.18 L 98.23 32.95 L 98.22 32.95 Z M 157.14 79.36 L 177.88 79.36 L 177.88 76.59 C 175.11 75.36 173.36 73.3 173.36 66.84 L 173.36 0 L 157.14 5.65 L 157.14 8.32 C 159.91 9.55 161.55 11.61 161.55 18.07 L 161.55 66.84 C 161.55 73.31 159.91 75.36 157.14 76.59 L 157.14 79.36 Z M 184.74 79.36 L 205.48 79.36 L 205.48 76.59 C 202.71 75.36 201.07 73.3 201.07 66.84 L 201.07 24.44 L 184.75 30.09 L 184.75 32.76 C 187.52 33.99 189.27 36.05 189.27 42.51 L 189.27 66.84 C 189.27 73.31 187.52 75.36 184.75 76.59 L 184.75 79.36 L 184.74 79.36 Z M 186.07 10.16 C 186.07 14.78 189.87 18.48 194.39 18.48 C 198.91 18.48 202.71 14.78 202.71 10.16 C 202.71 5.54 199.01 1.84 194.39 1.84 C 189.77 1.84 186.07 5.54 186.07 10.16 Z M 237.9 25.46 C 221.17 25.46 210.69 36.55 210.69 53.28 C 210.69 70.01 220.85 80.38 236.87 80.38 C 252.89 80.38 264.08 69.19 264.08 52.35 C 264.08 35.51 253.92 25.45 237.9 25.45 L 237.9 25.46 Z M 237.8 76.49 C 229.59 76.49 224.25 67.15 224.25 51.64 C 224.25 37.88 228.77 29.36 236.67 29.36 C 244.99 29.36 250.53 38.81 250.53 53.9 C 250.53 68.17 245.6 76.49 237.8 76.49 Z M 296.54 25.46 C 279.81 25.46 269.33 36.55 269.33 53.28 C 269.33 69.6 279.49 80.38 295.41 80.38 C 311.33 80.38 322.72 69.19 322.72 52.35 C 322.72 35.51 312.35 25.45 296.54 25.45 L 296.54 25.46 Z M 296.44 76.49 C 288.23 76.49 282.79 67.15 282.79 51.64 C 282.79 37.88 287.41 29.36 295.21 29.36 C 303.53 29.36 309.07 38.81 309.07 53.9 C 309.07 68.17 304.24 76.49 296.44 76.49 L 296.44 76.49 Z" fill="currentColor" fill-rule="nonzero"/></svg>
+      </div>
+      <div style="width:1px;height:26px;background:rgba(255,255,255,0.2);flex-shrink:0"></div>
+      <div>
+        <div style="font-size:14px;font-weight:600;color:#FFFFFF" data-i18n="appTitle"></div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.04em">Internal Tools</div>
+      </div>
     </div>
     <button id="theme-toggle" class="btn-icon-hdr" onclick="toggleTheme()" title="Toggle theme">
       <i id="theme-icon" class="ti ti-sun"></i>
@@ -140,6 +155,8 @@ body.dark-mode{
       </div>
     </div>
   </div>
+</header>
+<div class="app">
   <div class="tabs">
     <button class="tab active" onclick="switchTab('setup')" id="tab-setup" data-i18n="setupTab"></button>
     <button class="tab" onclick="switchTab('schedule')" id="tab-sched" data-i18n="scheduleTab"></button>
@@ -218,7 +235,7 @@ body.dark-mode{
         <i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i><span data-i18n="extendBtn"></span>
       </button>
     </div>
-    <div id="shared-banner" class="sub-banner" style="display:none;background:var(--oks);border-color:var(--ok);color:var(--ok)">
+    <div id="shared-banner" class="sub-banner" style="display:none;background:#EEF7F1;border-color:#A4DCB4;color:#004C45">
       <i class="ti ti-circle-check" style="font-size:14px;vertical-align:-2px;margin-right:6px;color:var(--ok)"></i><strong data-i18n="activeSchedule"></strong> <span id="shared-time"></span>
     </div>
     <div class="card">
@@ -229,10 +246,22 @@ body.dark-mode{
           <i class="ti ti-share-2" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i><span id="share-btn-txt" data-i18n="shareBtn"></span>
         </button>
       </div>
-      <div id="qr-block" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px">
-        <img id="qr-img" alt="Schedule QR code" style="display:none;width:180px;height:180px;background:#fff;padding:8px;border:1px solid var(--bd);border-radius:8px">
+      <div id="qr-block" style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-top:10px">
+        <div style="flex-shrink:0">
+          <div id="qr-canvas-wrap" style="display:none;width:172px;height:172px;border-radius:10px;overflow:hidden;border:2.5px solid #172D2D;box-shadow:0 3px 14px rgba(23,45,45,0.18)"></div>
+          <div id="qr-scan-label" style="display:none;text-align:center;font-size:10px;font-weight:700;color:#172D2D;letter-spacing:0.1em;text-transform:uppercase;margin-top:7px">Scan to join</div>
+          <div id="qr-style-switcher" style="display:none;margin-top:8px;flex-direction:column;align-items:center;gap:5px">
+            <div style="font-size:10px;font-weight:600;color:var(--txs);text-transform:uppercase;letter-spacing:0.07em">Style</div>
+            <div style="display:flex;gap:4px">
+              <button class="qr-sty-btn" data-action="setQrStyle" data-style="forest" title="Forest" style="width:26px;height:26px;border-radius:5px;border:2px solid #172D2D;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0"><span style="width:9px;height:9px;border-radius:2px;background:#172D2D;display:block;pointer-events:none"></span></button>
+              <button class="qr-sty-btn" data-action="setQrStyle" data-style="rally" title="Rally" style="width:26px;height:26px;border-radius:5px;border:1.5px solid #D2D2D2;background:#EFF8FB;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0"><span style="width:9px;height:9px;border-radius:2px;background:#0E687D;display:block;pointer-events:none"></span></button>
+              <button class="qr-sty-btn" data-action="setQrStyle" data-style="court" title="Court" style="width:26px;height:26px;border-radius:5px;border:1.5px solid #D2D2D2;background:#F3FAF5;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0"><span style="width:9px;height:9px;border-radius:50%;background:#004C45;display:block;pointer-events:none"></span></button>
+              <button class="qr-sty-btn" data-action="setQrStyle" data-style="smash" title="Smash" style="width:26px;height:26px;border-radius:2px;border:1.5px solid #D2D2D2;background:#FAFAF7;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0"><span style="width:9px;height:9px;border-radius:0;background:#172D2D;display:block;pointer-events:none"></span></button>
+            </div>
+          </div>
+        </div>
         <div style="min-width:220px;flex:1">
-          <div id="qr-code" style="font-size:13px;font-weight:600;color:var(--p);margin-bottom:4px"></div>
+          <div id="qr-code" style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:4px"></div>
           <div id="qr-url" style="font-size:12px;color:var(--txs);word-break:break-all"></div>
         </div>
       </div>
@@ -254,6 +283,15 @@ let sitC={},usedTeams=new Set(),currentLayout=null,currentNc=0;
 let currentShareCode='',currentShareUrl='',currentQrDataUrl='',qrSyncToken=0;
 let isScheduleShared=false,sharedByOrganizerName='Ryan Xu';
 let currentLanguage='en';
+let currentQrStyle='forest';
+const QR_SHUTTLE_SVG='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#172D2D"/><path d="M32 46 L11 18 A21 6.5 0 0 0 53 18 Z" fill="white" opacity="0.93"/><ellipse cx="32" cy="18" rx="21" ry="6.5" fill="none" stroke="white" stroke-width="2.5"/><ellipse cx="32" cy="50" rx="7" ry="5.5" fill="white"/><ellipse cx="32" cy="47" rx="7" ry="3.5" fill="#A4DCB4"/></svg>';
+const QR_SHUTTLE_URL='data:image/svg+xml;base64,'+btoa(QR_SHUTTLE_SVG);
+const QR_STYLES={
+  forest:{border:'#172D2D',dotsOptions:{color:'#172D2D',type:'extra-rounded'},backgroundOptions:{color:'#ffffff'},cornersSquareOptions:{color:'#172D2D',type:'extra-rounded'},cornersDotOptions:{color:'#004C45',type:'dot'}},
+  rally:{border:'#128BA6',dotsOptions:{color:'#172D2D',type:'extra-rounded'},backgroundOptions:{color:'#EFF8FB'},cornersSquareOptions:{color:'#0E687D',type:'extra-rounded'},cornersDotOptions:{color:'#128BA6',type:'dot'}},
+  court:{border:'#004C45',dotsOptions:{color:'#172D2D',type:'dots'},backgroundOptions:{color:'#F3FAF5'},cornersSquareOptions:{color:'#004C45',type:'extra-rounded'},cornersDotOptions:{color:'#172D2D',type:'dot'}},
+  smash:{border:'#172D2D',dotsOptions:{color:'#172D2D',type:'classy-rounded'},backgroundOptions:{color:'#FAFAF7'},cornersSquareOptions:{color:'#172D2D',type:'square'},cornersDotOptions:{color:'#004C45',type:'square'}}
+};
 const API_BASE=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'http://localhost:5000':'https://badminton-scheduler-api.rxlab.workers.dev';
 const i18n={en:{appTitle:'Badminton Rotation Scheduler',appDesc:'Fair rotation · 2v2 doubles · 1v1 singles overflow · extendable',setupTab:'Setup',scheduleTab:'Schedule',settings:'Settings',courts:'Courts',numCourts:'Number of courts',courtPlaceholder:'e.g. 3',players:'Players',addPlayer:'Add',removeAll:'Remove all',typeName:'Type a name and press Enter…',bulkImport:'Bulk import from list',bulkDesc:'Paste names or emails — one per line. Emails and role suffixes like "- Organizer" are stripped automatically.',import:'Import',clear:'Clear',demoHelper:'Demo helper',demoDesc:'Append fake players for demos or screen recordings. This keeps any real names already entered.',injectDemo:'Inject demo players',demoCount:'Count',conflicts:'Team conflicts',conflictsDesc:'Click players who should never share a team.',generateDesc:'Generate a rotation to create a QR code immediately.',generateBtn:'Generate Schedule',playerStats:'Player stats',validation:'Constraint validation',roundOf:'Round {round} of {total}',singles:'1v1 singles',courtLabel:'Court {num}',activeSchedule:'ACTIVE SCHEDULE',extendMsg:'End of schedule — still going? Add 5 more rounds.',extendBtn:'Add 5 more rounds',shareBtn:'Share with group',appearance:'Appearance',language:'Language',lightTheme:'☀️ Light',darkTheme:'🌙 Dark',errorNeedMore:'{n} player{plural} — need at least {min} for {nc} court{courtPlural}',errorLayout:'Cannot create a valid layout',errorNoSchedule:'No schedule to share',errorShare:'Error sharing schedule: {error}',sharing:'Sharing...',shared:'✓ Shared',newRotation:'New rotation',shareQr:'Share QR',sittingOut:'Sitting out',teamA:'Team A',teamB:'Team B',vs:'vs',statPlayer:'Player',statPlayed:'Played',statSatOut:'Sat out',statPartners:'Partners',statOpponents:'Opponents',valNoConflicts:'No team conflict violations',valConflicts:'Violations: {list}',valNoRepeats:'No repeated team pairings',valRepeats:'{count} repeated pairing{plural} (rounds: {rounds})',valFairSubs:'Sub rotation fair — {min}–{max} sits per player',valUnfairSubs:'Uneven sub rotation (range {min}–{max})',valSummary:'{rounds} round{rplural} · {courts} court{cplural} · {fmt}',enterCourts:'Enter a number of courts',optionalLabel:'(optional)',conflictNone:'No conflict rules set.',conflictOneMore:'selected — pick at least one more.',conflictGroupSummary:'{count} players in conflict group: {names}.',hintPlayers:'{n} players',hintDoubles:'{count} doubles (2v2)',hintSingles:'{count} singles (1v1)',hintSitsOut:'{n} sit{plural} out per round',demoInjected:'Injected {n} demo player{plural} for demo use.',demoCountError:'Enter a count between 1 and 50',demoPlayer:'Demo Player'},
 'zh-s':{appTitle:'羽毛球轮转调度器',appDesc:'公平轮转 · 2v2双打 · 1v1单打替补 · 可扩展',setupTab:'设置',scheduleTab:'日程',settings:'设置',courts:'球场',numCourts:'球场数量',courtPlaceholder:'例如 3',players:'运动员',addPlayer:'添加',removeAll:'全部删除',typeName:'输入名字然后按Enter…',bulkImport:'从列表批量导入',bulkDesc:'粘贴姓名或电子邮件 — 每行一个。电子邮件和角色后缀如"- 组织者"会自动删除。',import:'导入',clear:'清除',demoHelper:'演示助手',demoDesc:'添加虚拟运动员进行演示或屏幕录制。这会保留已输入的任何真实名字。',injectDemo:'注入演示运动员',demoCount:'数量',conflicts:'团队冲突',conflictsDesc:'点击不应该在同一队的运动员。',generateDesc:'生成轮转以立即创建二维码。',generateBtn:'生成日程',playerStats:'运动员统计',validation:'约束验证',roundOf:'第{round}轮，共{total}轮',singles:'1v1单打',courtLabel:'球场{num}',activeSchedule:'日程已激活',extendMsg:'日程已结束 — 还想继续？添加5轮。',extendBtn:'添加5轮',shareBtn:'与小组分享',appearance:'外观',language:'语言',lightTheme:'☀️ 浅色',darkTheme:'🌙 深色',errorNeedMore:'{n}个运动员{plural} — 需要至少{min}个来进行{nc}个球场{courtPlural}',errorLayout:'无法创建有效的布局',errorNoSchedule:'没有日程可分享',errorShare:'分享日程出错：{error}',sharing:'分享中...',shared:'✓ 已分享',newRotation:'新轮换',shareQr:'分享二维码',sittingOut:'休息',teamA:'A队',teamB:'B队',vs:'对',statPlayer:'运动员',statPlayed:'上场',statSatOut:'休息',statPartners:'搭档',statOpponents:'对手',valNoConflicts:'无团队冲突违规',valConflicts:'违规：{list}',valNoRepeats:'无重复配对',valRepeats:'{count}次重复配对（轮次：{rounds}）',valFairSubs:'替补轮换公平 — 每人{min}–{max}次休息',valUnfairSubs:'替补轮换不公平（范围{min}–{max}）',valSummary:'{rounds}轮 · {courts}球场 · {fmt}',enterCourts:'请输入球场数量',optionalLabel:'（可选）',conflictNone:'未设置冲突规则。',conflictOneMore:'已选 — 请至少再选一人。',conflictGroupSummary:'{count}名运动员在冲突组：{names}。',hintPlayers:'{n}名运动员',hintDoubles:'{count}双打 (2v2)',hintSingles:'{count}单打 (1v1)',hintSitsOut:'每轮{n}人休息',demoInjected:'已加入{n}名示例玩家。',demoCountError:'请输入1到50之间的数字',demoPlayer:'示例玩家'},
@@ -272,10 +310,11 @@ function toggleLangMenu(){
 }
 function closeLangMenu(){document.getElementById('lang-menu').style.display='none';}
 document.addEventListener('click',e=>{
-  const langBtn=document.querySelector('.btn-icon-hdr[onclick*="toggleLangMenu"]');
   if(!e.target.closest('#lang-menu')&&!e.target.closest('.btn-icon-hdr[onclick*="toggleLangMenu"]')){
     closeLangMenu();
   }
+  const btn=e.target.closest('[data-action]');
+  if(btn&&btn.dataset.action==='setQrStyle')setQrStyle(btn.dataset.style);
 });
 function setTheme(t){
   localStorage.setItem('theme',t);
@@ -409,13 +448,17 @@ function renderAll(){renderPlayers();renderConflictPicker();updateHint();}
 function resetShareQr(){
   currentShareCode='';currentShareUrl='';currentQrDataUrl='';isScheduleShared=false;
   const status=document.getElementById('qr-status');
-  const img=document.getElementById('qr-img');
   const code=document.getElementById('qr-code');
   const url=document.getElementById('qr-url');
   const actions=document.getElementById('share-actions');
   const banner=document.getElementById('shared-banner');
+  const wrap=document.getElementById('qr-canvas-wrap');
+  const lbl=document.getElementById('qr-scan-label');
+  const sw=document.getElementById('qr-style-switcher');
   if(status)status.textContent='Generate a rotation to create a QR code immediately.';
-  if(img){img.src='';img.style.display='none';}
+  if(wrap){wrap.innerHTML='';wrap.style.display='none';}
+  if(lbl)lbl.style.display='none';
+  if(sw)sw.style.display='none';
   if(code)code.textContent='';
   if(url)url.textContent='';
   if(actions)actions.style.display='none';
@@ -423,12 +466,16 @@ function resetShareQr(){
 }
 function showShareQrPending(){
   const status=document.getElementById('qr-status');
-  const img=document.getElementById('qr-img');
   const code=document.getElementById('qr-code');
   const url=document.getElementById('qr-url');
   const actions=document.getElementById('share-actions');
+  const wrap=document.getElementById('qr-canvas-wrap');
+  const lbl=document.getElementById('qr-scan-label');
+  const sw=document.getElementById('qr-style-switcher');
   if(status)status.textContent='Generating QR for this schedule...';
-  if(img)img.style.display='none';
+  if(wrap){wrap.innerHTML='';wrap.style.display='none';}
+  if(lbl)lbl.style.display='none';
+  if(sw)sw.style.display='none';
   if(code)code.textContent='';
   if(url)url.textContent='';
   if(actions)actions.style.display='none';
@@ -438,15 +485,56 @@ function showShareQr(payload){
   currentShareUrl=payload.shareUrl||'';
   currentQrDataUrl=payload.qrDataUrl||'';
   const status=document.getElementById('qr-status');
-  const img=document.getElementById('qr-img');
   const code=document.getElementById('qr-code');
   const url=document.getElementById('qr-url');
   const actions=document.getElementById('share-actions');
   if(status)status.textContent='QR ready. Scan it to open this exact rotation.';
-  if(img&&currentQrDataUrl){img.src=currentQrDataUrl;img.style.display='block';}
+  if(currentShareUrl)renderStyledQr(currentShareUrl);
   if(code)code.textContent=currentShareCode?`Code: ${currentShareCode}`:'';
   if(url)url.textContent=currentShareUrl||'';
   if(actions)actions.style.display='flex';
+}
+function renderStyledQr(url){
+  const wrap=document.getElementById('qr-canvas-wrap');
+  const lbl=document.getElementById('qr-scan-label');
+  const sw=document.getElementById('qr-style-switcher');
+  if(!wrap)return;
+  wrap.innerHTML='';
+  wrap.style.display='block';
+  const s=QR_STYLES[currentQrStyle]||QR_STYLES.forest;
+  wrap.style.borderColor=s.border;
+  if(lbl)lbl.style.display='block';
+  if(sw)sw.style.display='flex';
+  if(typeof QRCodeStyling==='undefined'){
+    const img=document.createElement('img');
+    img.src=currentQrDataUrl||'';
+    img.style.cssText='width:100%;height:100%;object-fit:contain';
+    wrap.appendChild(img);
+    return;
+  }
+  const qr=new QRCodeStyling({
+    width:172,height:172,type:'canvas',
+    data:url||'https://trulioo.com',
+    image:QR_SHUTTLE_URL,
+    margin:6,
+    qrOptions:{errorCorrectionLevel:'H'},
+    imageOptions:{hideBackgroundDots:true,imageSize:0.28,margin:3},
+    dotsOptions:s.dotsOptions,
+    backgroundOptions:s.backgroundOptions,
+    cornersSquareOptions:s.cornersSquareOptions,
+    cornersDotOptions:s.cornersDotOptions
+  });
+  qr.append(wrap);
+}
+function setQrStyle(style){
+  if(!QR_STYLES[style])return;
+  currentQrStyle=style;
+  document.querySelectorAll('.qr-sty-btn').forEach(btn=>{
+    const active=btn.dataset.style===style;
+    btn.style.borderWidth=active?'2px':'1.5px';
+    btn.style.borderColor=active?'#172D2D':'#D2D2D2';
+  });
+  if(currentShareUrl)renderStyledQr(currentShareUrl);
 }
 function rebuildSchedulingState(){
   sitC=Object.fromEntries(rawPlayers.map(p=>[p,0]));
@@ -637,6 +725,7 @@ async function loadScheduleFromCode(code){
     if(status)status.textContent='Loaded from a shared schedule link.';
     if(codeEl)codeEl.textContent=`Code: ${currentShareCode}`;
     if(urlEl)urlEl.textContent=currentShareUrl;
+    if(currentShareUrl)renderStyledQr(currentShareUrl);
     switchTab('schedule');
   }catch(e){
     if(err)err.textContent=`Could not load shared schedule: ${e.message}`;
