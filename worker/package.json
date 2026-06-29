@@ -1,0 +1,13 @@
+{
+  "name": "badminton-scheduler-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "node --check src/index.js"
+  },
+  "devDependencies": {
+    "wrangler": "^3.80.0"
+  }
+}
