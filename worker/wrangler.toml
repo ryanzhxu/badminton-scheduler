@@ -6,3 +6,11 @@ compatibility_flags = ["nodejs_compat"]
 [[kv_namespaces]]
 binding = "SCHEDULES"
 id = "0bd932cd779942858e051712755f4cee"
+
+[[durable_objects.bindings]]
+name = "SCHEDULE_ROOMS"
+class_name = "ScheduleRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ScheduleRoom"]

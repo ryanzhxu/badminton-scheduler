@@ -10,6 +10,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const DATA_FILE = path.join(__dirname, 'shared-data.json');
+const SSE_PING_MS = 25000;
+const scheduleSubscribers = new Map();
 
 app.use(cors());
 app.use(express.json());
@@ -32,6 +34,108 @@ function loadData() {
 
 function saveData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+function getScheduleRevision(schedule) {
+  const revision = Number(schedule?.revision);
+  return Number.isFinite(revision) && revision >= 0 ? revision : 0;
+}
+
+function touchSchedule(schedule) {
+  const now = new Date().toISOString();
+  schedule.revision = getScheduleRevision(schedule) + 1;
+  schedule.updatedAt = now;
+  if (!schedule.generatedAt) {
+    schedule.generatedAt = now;
+  }
+  return schedule;
+}
+
+function formatSseMessage({ event, data, id }) {
+  const lines = [];
+  if (id !== undefined && id !== null) {
+    lines.push(`id: ${id}`);
+  }
+  if (event) {
+    lines.push(`event: ${event}`);
+  }
+  if (data !== undefined) {
+    const payload = typeof data === 'string' ? data : JSON.stringify(data);
+    payload.split(/\r?\n/).forEach(line => lines.push(`data: ${line}`));
+  }
+  return `${lines.join('\n')}\n\n`;
+}
+
+function publishScheduleEvent(code, event, data) {
+  const subscribers = scheduleSubscribers.get(code);
+  if (!subscribers || !subscribers.size) {
+    return;
+  }
+
+  const message = formatSseMessage({
+    event,
+    data,
+    id: data && data.revision,
+  });
+
+  for (const subscriber of [...subscribers]) {
+    try {
+      subscriber.res.write(message);
+    } catch {
+      subscriber.cleanup();
+    }
+  }
+}
+
+function addScheduleSubscriber(code, res) {
+  let subscribers = scheduleSubscribers.get(code);
+  if (!subscribers) {
+    subscribers = new Set();
+    scheduleSubscribers.set(code, subscribers);
+  }
+
+  const subscriber = { res, heartbeat: null, cleanup: null };
+  subscriber.cleanup = () => {
+    if (subscriber.heartbeat) {
+      clearInterval(subscriber.heartbeat);
+      subscriber.heartbeat = null;
+    }
+    const current = scheduleSubscribers.get(code);
+    if (current) {
+      current.delete(subscriber);
+      if (!current.size) {
+        scheduleSubscribers.delete(code);
+      }
+    }
+  };
+
+  subscriber.heartbeat = setInterval(() => {
+    try {
+      res.write(': ping\n\n');
+    } catch {
+      subscriber.cleanup();
+    }
+  }, SSE_PING_MS);
+
+  subscribers.add(subscriber);
+  return subscriber;
+}
+
+function createSseHeaders() {
+  return {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  };
+}
+
+function scheduleStreamPayload(schedule) {
+  return {
+    code: schedule.code,
+    revision: getScheduleRevision(schedule),
+    updatedAt: schedule.updatedAt || schedule.generatedAt || null,
+  };
 }
 
 function generateScheduleCode() {
@@ -205,6 +309,8 @@ app.post('/api/schedule', async (req, res) => {
       shareUrl
     };
 
+    touchSchedule(schedule);
+
     const data = loadData();
     data.archivedSchedules.push(schedule);
     saveData(data);
@@ -242,11 +348,13 @@ app.post('/api/schedule/share', (req, res) => {
     const sharedAt = new Date().toISOString();
     schedule.sharedAt = sharedAt;
     schedule.sharedBy = organizer;
+    touchSchedule(schedule);
 
     data.currentSchedule = schedule;
     saveData(data);
+    publishScheduleEvent(scheduleCode, 'schedule-shared', scheduleStreamPayload(schedule));
 
-    res.json({ ok: true, sharedAt, sharedBy: organizer });
+    res.json({ ok: true, sharedAt, sharedBy: organizer, schedule });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -281,10 +389,34 @@ app.get('/api/schedule/:code', (req, res) => {
   }
 });
 
+app.get('/api/schedule/:code/stream', (req, res) => {
+  try {
+    const { code } = req.params;
+    const data = loadData();
+    const schedule = data.archivedSchedules.find(s => s.code === code);
+
+    if (!schedule) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+
+    res.writeHead(200, createSseHeaders());
+    res.flushHeaders?.();
+    res.write(': connected\n\n');
+
+    const subscriber = addScheduleSubscriber(code, res);
+    const cleanup = () => subscriber.cleanup();
+    req.on('close', cleanup);
+    req.on('aborted', cleanup);
+    res.on('close', cleanup);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/schedule/:code/extend', (req, res) => {
   try {
     const { code } = req.params;
-    const { count = 5 } = req.body;
+    const { count = 5, baseRoundCount } = req.body || {};
 
     const data = loadData();
     const schedule = data.archivedSchedules.find(s => s.code === code);
@@ -293,17 +425,26 @@ app.post('/api/schedule/:code/extend', (req, res) => {
       return res.status(404).json({ error: 'Schedule not found' });
     }
 
+    const currentRoundCount = Array.isArray(schedule.rounds) ? schedule.rounds.length : 0;
+    const requestedBaseRoundCount = Number(baseRoundCount);
+    if (!Number.isInteger(requestedBaseRoundCount) || requestedBaseRoundCount !== currentRoundCount) {
+      return res.json({ schedule, extended: false });
+    }
+
+    const existingRounds = Array.isArray(schedule.rounds) ? schedule.rounds : [];
     const sitC = Object.fromEntries(schedule.players.map(p => [p, 0]));
     const usedTeams = new Set();
-    schedule.rounds.forEach(rnd => {
+    existingRounds.forEach(rnd => {
       rnd.subs.forEach(p => { if (p in sitC) sitC[p]++; });
       rnd.courts.forEach(ct => { usedTeams.add(teamKey(ct.a)); usedTeams.add(teamKey(ct.b)); });
     });
 
     const newRounds = generateRounds(schedule.players, schedule.layout, schedule.conflictGroup, count, sitC, usedTeams);
-    schedule.rounds.push(...newRounds);
+    schedule.rounds = [...existingRounds, ...newRounds];
+    touchSchedule(schedule);
     saveData(data);
-    res.json({ schedule });
+    publishScheduleEvent(code, 'schedule-updated', scheduleStreamPayload(schedule));
+    res.json({ schedule, extended: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

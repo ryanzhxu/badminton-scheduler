@@ -283,6 +283,7 @@ const BASE_ROUNDS=10,EXTEND_ROUNDS=5;
 let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0;
 let sitC={},usedTeams=new Set(),currentLayout=null,currentNc=0;
 let currentShareCode='',currentShareUrl='',currentQrDataUrl='',qrSyncToken=0;
+let currentScheduleRevision=0,currentScheduleStream=null,currentScheduleStreamCode='';
 let isScheduleShared=false,sharedByOrganizerName='Ryan Xu';
 let currentLanguage='en';
 let currentQrStyle='forest';
@@ -354,6 +355,67 @@ function markScheduleAsShared(){
   document.getElementById('shared-time').textContent=`at ${now}`;
   document.getElementById('extend-box').style.display='none';
 }
+function getScheduleRevision(sch){const revision=Number(sch&&sch.revision);return Number.isFinite(revision)&&revision>=0?revision:0;}
+function closeScheduleStream(){
+  if(currentScheduleStream){
+    currentScheduleStream.onopen=null;
+    currentScheduleStream.onmessage=null;
+    currentScheduleStream.onerror=null;
+    currentScheduleStream.close();
+  }
+  currentScheduleStream=null;
+  currentScheduleStreamCode='';
+}
+function applyScheduleSnapshot(sch,{preserveRound=false}={}){
+  const previousRound=currentRound;
+  rawPlayers=(sch.players||[]).map(p=>typeof p==='string'?p:p.name).filter(Boolean);
+  conflictGroup=new Set(Array.isArray(sch.conflictGroup)?sch.conflictGroup:[]);
+  schedule=Array.isArray(sch.rounds)?sch.rounds:[];
+  currentLayout=sch.layout||null;
+  currentNc=sch.numCourts||((currentLayout&&typeof currentLayout.doubles==='number')?(currentLayout.doubles+currentLayout.singles):0);
+  currentScheduleRevision=getScheduleRevision(sch);
+  document.getElementById('num-courts').value=currentNc||'';
+  rebuildSchedulingState();
+  renderAll();
+  currentRound=preserveRound?Math.max(0,Math.min(previousRound,schedule.length-1)):0;
+  renderSchedule();
+}
+async function refreshSharedSchedule({force=false}={}){
+  if(!currentShareCode)return false;
+  const res=await fetch(`${API_BASE}/api/schedule/${encodeURIComponent(currentShareCode)}`);
+  if(!res.ok)throw new Error(`HTTP ${res.status}`);
+  const data=await res.json();
+  const sch=data.schedule||{};
+  const nextRevision=getScheduleRevision(sch);
+  if(!force&&nextRevision<=currentScheduleRevision)return false;
+  applyScheduleSnapshot(sch,{preserveRound:true});
+  currentShareCode=sch.code||currentShareCode;
+  currentShareUrl=sch.shareUrl||currentShareUrl;
+  return true;
+}
+function onScheduleStreamEvent(event){
+  try{
+    const payload=JSON.parse(event.data||'{}');
+    if(!payload||payload.code!==currentShareCode)return;
+    if(getScheduleRevision(payload)<=currentScheduleRevision)return;
+    refreshSharedSchedule().catch(()=>{});
+  }catch(_err){}
+}
+function setScheduleStream(code){
+  if(!code||typeof EventSource==='undefined'){
+    closeScheduleStream();
+    return;
+  }
+  if(currentScheduleStreamCode===code&&currentScheduleStream)return;
+  closeScheduleStream();
+  const stream=new EventSource(`${API_BASE}/api/schedule/${encodeURIComponent(code)}/stream`);
+  currentScheduleStream=stream;
+  currentScheduleStreamCode=code;
+  stream.onopen=()=>{if(code===currentShareCode)refreshSharedSchedule().catch(()=>{});};
+  stream.addEventListener('schedule-updated',onScheduleStreamEvent);
+  stream.addEventListener('schedule-shared',onScheduleStreamEvent);
+  stream.onerror=()=>{};
+}
 async function shareSchedule(){
   if(!currentShareCode){alert(t('errorNoSchedule'));return;}
   const shareBtn=document.getElementById('share-btn');
@@ -366,7 +428,9 @@ async function shareSchedule(){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({scheduleCode:currentShareCode,organizer:sharedByOrganizerName}),
     });
-    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const data=await res.json();
+    if(!res.ok)throw new Error(data?.error||`HTTP ${res.status}`);
+    currentScheduleRevision=getScheduleRevision(data.schedule||{revision:currentScheduleRevision});
     markScheduleAsShared();
     shareBtnTxt.textContent=t('shared');
     setTimeout(()=>{shareBtnTxt.textContent=t('shareBtn');shareBtn.disabled=false;},2000);
@@ -452,7 +516,8 @@ function removePlayer(i){const r=rawPlayers[i];rawPlayers.splice(i,1);conflictGr
 function clearAllPlayers(){rawPlayers=[];conflictGroup=new Set();renderAll();}
 function renderAll(){renderPlayers();renderConflictPicker();updateHint();}
 function resetShareQr(){
-  currentShareCode='';currentShareUrl='';currentQrDataUrl='';isScheduleShared=false;
+  closeScheduleStream();
+  currentShareCode='';currentShareUrl='';currentQrDataUrl='';currentScheduleRevision=0;isScheduleShared=false;
   const status=document.getElementById('qr-status');
   const code=document.getElementById('qr-code');
   const url=document.getElementById('qr-url');
@@ -490,6 +555,7 @@ function showShareQr(payload){
   currentShareCode=payload.scheduleCode||'';
   currentShareUrl=payload.shareUrl||'';
   currentQrDataUrl=payload.qrDataUrl||'';
+  currentScheduleRevision=getScheduleRevision(payload.schedule||payload);
   const status=document.getElementById('qr-status');
   const code=document.getElementById('qr-code');
   const url=document.getElementById('qr-url');
@@ -499,6 +565,7 @@ function showShareQr(payload){
   if(code)code.textContent=currentShareCode?`Code: ${currentShareCode}`:'';
   if(url)url.textContent=currentShareUrl||'';
   if(actions)actions.style.display='flex';
+  setScheduleStream(currentShareCode);
 }
 function renderStyledQr(url){
   const wrap=document.getElementById('qr-canvas-wrap');
@@ -648,20 +715,26 @@ function generateFresh(){
 }
 async function extendSchedule(){
   if(currentShareCode){
+    const err=document.getElementById('setup-err');
+    let sharedExtendError=null;
     try{
       const res=await fetch(`${API_BASE}/api/schedule/${encodeURIComponent(currentShareCode)}/extend`,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({count:EXTEND_ROUNDS}),
+        body:JSON.stringify({count:EXTEND_ROUNDS,baseRoundCount:schedule.length}),
       });
-      if(!res.ok)throw new Error(`HTTP ${res.status}`);
       const data=await res.json();
-      schedule=data.schedule.rounds;
-      rebuildSchedulingState();
-      currentRound=schedule.length-EXTEND_ROUNDS;
-      renderSchedule();
+      if(!res.ok)throw new Error(data?.error||`HTTP ${res.status}`);
+      if(!data?.schedule||!Array.isArray(data.schedule.rounds))throw new Error('Invalid schedule response');
+      applyScheduleSnapshot(data.schedule,{preserveRound:true});
       return;
-    }catch(e){}
+    }catch(e){
+      sharedExtendError=e;
+    }
+    const msg=`Could not extend shared schedule: ${sharedExtendError.message}`;
+    if(err)err.textContent=msg;
+    alert(msg);
+    return;
   }
   const newRounds=generateRounds(EXTEND_ROUNDS);schedule=[...schedule,...newRounds];currentRound=schedule.length-EXTEND_ROUNDS;renderSchedule();syncShareQr();
 }
@@ -713,15 +786,7 @@ async function loadScheduleFromCode(code){
     if(!res.ok)throw new Error(`HTTP ${res.status}`);
     const data=await res.json();
     const sch=data.schedule||{};
-    rawPlayers=(sch.players||[]).map(p=>typeof p==='string'?p:p.name).filter(Boolean);
-    conflictGroup=new Set();
-    schedule=Array.isArray(sch.rounds)?sch.rounds:[];
-    currentLayout=sch.layout||null;
-    currentNc=sch.numCourts||((currentLayout&&typeof currentLayout.doubles==='number')?(currentLayout.doubles+currentLayout.singles):0);
-    document.getElementById('num-courts').value=currentNc||'';
-    rebuildSchedulingState();
-    renderAll();
-    renderSchedule();
+    applyScheduleSnapshot(sch);
     currentShareCode=sch.code||code;
     currentShareUrl=sch.shareUrl||`${location.origin}/?scheduleCode=${encodeURIComponent(currentShareCode)}`;
     currentQrDataUrl='';
@@ -732,6 +797,7 @@ async function loadScheduleFromCode(code){
     if(codeEl)codeEl.textContent=`Code: ${currentShareCode}`;
     if(urlEl)urlEl.textContent=currentShareUrl;
     if(currentShareUrl)renderStyledQr(currentShareUrl);
+    setScheduleStream(currentShareCode);
     switchTab('schedule');
   }catch(e){
     if(err)err.textContent=`Could not load shared schedule: ${e.message}`;

@@ -5,6 +5,7 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
+const SSE_PING_MS = 25000;
 
 const SCHEDULE_PREFIX = 'schedule:';
 const CURRENT_SCHEDULE_KEY = 'current_schedule';
@@ -334,6 +335,81 @@ function healthPayload() {
   };
 }
 
+function getScheduleRevision(schedule) {
+  const revision = Number(schedule?.revision);
+  return Number.isFinite(revision) && revision >= 0 ? revision : 0;
+}
+
+function touchSchedule(schedule) {
+  const now = new Date().toISOString();
+  schedule.revision = getScheduleRevision(schedule) + 1;
+  schedule.updatedAt = now;
+  if (!schedule.generatedAt) {
+    schedule.generatedAt = now;
+  }
+  return schedule;
+}
+
+function formatSseMessage({ event, data, id }) {
+  const lines = [];
+  if (id !== undefined && id !== null) {
+    lines.push(`id: ${id}`);
+  }
+  if (event) {
+    lines.push(`event: ${event}`);
+  }
+  if (data !== undefined) {
+    const payload = typeof data === 'string' ? data : JSON.stringify(data);
+    payload.split(/\r?\n/).forEach((line) => lines.push(`data: ${line}`));
+  }
+  return `${lines.join('\n')}\n\n`;
+}
+
+function createSseHeaders() {
+  return {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  };
+}
+
+function scheduleStreamPayload(schedule) {
+  return {
+    code: schedule.code,
+    revision: getScheduleRevision(schedule),
+    updatedAt: schedule.updatedAt || schedule.generatedAt || null,
+  };
+}
+
+function getScheduleRoomStub(env, code) {
+  if (!env?.SCHEDULE_ROOMS) {
+    return null;
+  }
+  const id = env.SCHEDULE_ROOMS.idFromName(code);
+  return env.SCHEDULE_ROOMS.get(id);
+}
+
+async function notifyScheduleRoom(env, code, event, data) {
+  const room = getScheduleRoomStub(env, code);
+  if (!room) {
+    return false;
+  }
+
+  try {
+    await room.fetch(
+      new Request('https://schedule-room.local/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event, data }),
+      }),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function toBase64(text) {
   if (typeof btoa === 'function') return btoa(text);
   if (typeof Buffer !== 'undefined') return Buffer.from(text, 'utf8').toString('base64');
@@ -440,6 +516,8 @@ async function handleGenerateSchedule(c) {
     shareUrl,
   };
 
+  touchSchedule(schedule);
+
   await saveSchedule(c.env, schedule);
 
   return c.json({
@@ -466,11 +544,13 @@ async function handleShareSchedule(c) {
   const sharedAt = new Date().toISOString();
   schedule.sharedAt = sharedAt;
   schedule.sharedBy = organizer;
+  touchSchedule(schedule);
 
   await saveSchedule(c.env, schedule);
   await saveCurrentSchedule(c.env, schedule);
+  await notifyScheduleRoom(c.env, scheduleCode, 'schedule-shared', scheduleStreamPayload(schedule));
 
-  return c.json({ ok: true, sharedAt, sharedBy: organizer });
+  return c.json({ ok: true, sharedAt, sharedBy: organizer, schedule });
 }
 
 async function handleGetSchedule(c) {
@@ -484,19 +564,42 @@ async function handleGetSchedule(c) {
   return c.json({ schedule });
 }
 
+async function handleScheduleStream(c) {
+  const code = c.req.param('code');
+  const schedule = await loadSchedule(c.env, code);
+
+  if (!schedule) {
+    return c.json({ error: 'Schedule not found' }, { status: 404 });
+  }
+
+  const room = getScheduleRoomStub(c.env, code);
+  if (!room) {
+    return c.json({ error: 'Schedule room binding is missing' }, { status: 503 });
+  }
+
+  return room.fetch(c.req.raw);
+}
+
 async function handleExtendSchedule(c) {
   const code = c.req.param('code');
   const body = await c.req.json();
-  const { count = 5 } = body ?? {};
+  const { count = 5, baseRoundCount } = body ?? {};
 
   const schedule = await loadSchedule(c.env, code);
   if (!schedule) {
     return c.json({ error: 'Schedule not found' }, { status: 404 });
   }
 
+  const existingRounds = Array.isArray(schedule.rounds) ? schedule.rounds : [];
+  const currentRoundCount = existingRounds.length;
+  const requestedBaseRoundCount = Number(baseRoundCount);
+  if (!Number.isInteger(requestedBaseRoundCount) || requestedBaseRoundCount !== currentRoundCount) {
+    return c.json({ schedule, extended: false });
+  }
+
   const sitC = Object.fromEntries((schedule.players || []).map((p) => [p, 0]));
   const usedTeams = new Set();
-  (schedule.rounds || []).forEach((rnd) => {
+  existingRounds.forEach((rnd) => {
     (rnd.subs || []).forEach((p) => {
       if (p in sitC) sitC[p]++;
     });
@@ -515,7 +618,8 @@ async function handleExtendSchedule(c) {
     usedTeams,
   );
 
-  schedule.rounds = [...(schedule.rounds || []), ...newRounds];
+  schedule.rounds = [...existingRounds, ...newRounds];
+  touchSchedule(schedule);
   await saveSchedule(c.env, schedule);
 
   const currentSchedule = await loadCurrentSchedule(c.env);
@@ -523,7 +627,9 @@ async function handleExtendSchedule(c) {
     await saveCurrentSchedule(c.env, schedule);
   }
 
-  return c.json({ schedule });
+  await notifyScheduleRoom(c.env, code, 'schedule-updated', scheduleStreamPayload(schedule));
+
+  return c.json({ schedule, extended: true });
 }
 
 async function handleProfiles(c) {
@@ -552,6 +658,97 @@ async function handleData(c) {
   });
 }
 
+class ScheduleRoom {
+  constructor(state) {
+    this.state = state;
+    this.encoder = new TextEncoder();
+    this.connections = new Set();
+    this.heartbeat = null;
+  }
+
+  async fetch(request) {
+    if (request.method === 'GET') {
+      return this.handleStream();
+    }
+
+    if (request.method === 'POST') {
+      return this.handlePublish(request);
+    }
+
+    return new Response('Method Not Allowed', { status: 405 });
+  }
+
+  handleStream() {
+    const connection = { controller: null };
+
+    const cleanup = () => {
+      if (!connection.controller) {
+        return;
+      }
+
+      this.connections.delete(connection);
+      connection.controller = null;
+
+      if (!this.connections.size && this.heartbeat) {
+        clearInterval(this.heartbeat);
+        this.heartbeat = null;
+      }
+    };
+
+    const stream = new ReadableStream({
+      start: (controller) => {
+        connection.controller = controller;
+        this.connections.add(connection);
+
+        if (!this.heartbeat) {
+          this.heartbeat = setInterval(() => {
+            this.broadcastRaw(': ping\n\n');
+          }, SSE_PING_MS);
+        }
+
+        controller.enqueue(this.encoder.encode(': connected\n\n'));
+      },
+      cancel: cleanup,
+    });
+
+    return new Response(stream, { headers: createSseHeaders() });
+  }
+
+  async handlePublish(request) {
+    const body = await request.json();
+    const event = body?.event || 'schedule-updated';
+    const data = body?.data ?? null;
+    const message = formatSseMessage({
+      event,
+      data,
+      id: data && data.revision,
+    });
+
+    this.broadcastRaw(message);
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    });
+  }
+
+  broadcastRaw(message) {
+    for (const connection of [...this.connections]) {
+      try {
+        connection.controller.enqueue(this.encoder.encode(message));
+      } catch {
+        this.removeConnection(connection);
+      }
+    }
+  }
+
+  removeConnection(connection) {
+    this.connections.delete(connection);
+    if (!this.connections.size && this.heartbeat) {
+      clearInterval(this.heartbeat);
+      this.heartbeat = null;
+    }
+  }
+}
+
 function createWorkerApp() {
   const app = new Hono();
   app.use('*', cors());
@@ -559,6 +756,7 @@ function createWorkerApp() {
   app.get('/api/health', (c) => c.json(healthPayload()));
   app.post('/api/schedule', handleGenerateSchedule);
   app.get('/api/schedule/:code', handleGetSchedule);
+  app.get('/api/schedule/:code/stream', handleScheduleStream);
   app.post('/api/schedule/:code/extend', handleExtendSchedule);
   app.post('/api/schedule/share', handleShareSchedule);
   app.post('/api/profiles', handleProfiles);
@@ -581,11 +779,13 @@ export {
   handleGetSchedule,
   handleProfiles,
   handleShareSchedule,
+  handleScheduleStream,
   healthPayload,
   makeTeams,
   matchPath,
   normalizePath,
   shuffle,
+  ScheduleRoom,
   teamKey,
   teamOk,
 };
