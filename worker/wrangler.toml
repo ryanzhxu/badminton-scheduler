@@ -12,5 +12,5 @@ name = "SCHEDULE_ROOMS"
 class_name = "ScheduleRoom"
 
 [[migrations]]
-tag = "v1"
-new_classes = ["ScheduleRoom"]
+tag = "v2"
+new_sqlite_classes = ["ScheduleRoom"]
