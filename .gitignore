@@ -2,3 +2,15 @@ node_modules/
 package-lock.json
 *.bak
 shared-data.json
+
+# Local handoff / documentation clutter
+BADMINTON_SCHEDULER_PROJECT_DOCS.md
+FRONTEND-SETTINGS-1.md
+COUNTRY_TEAM_INDICATOR.md
+HANDOFF-2026-07-08.md
+design_handoff_badminton_scheduler/
+
+# Local tool and desktop noise
+.claude/
+.DS_Store
+\# Badminton Scheduler Brand Redesign.zip

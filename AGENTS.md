@@ -3,22 +3,25 @@
 ## Working Style
 
 - Keep changes small and behavior-first.
-- Start from the local source of truth: `index.html`, `server.js`, `package.json`, and `shared-data.json`.
+- Start from the local source of truth: `index.html`, `server.js`, `worker/`, `package.json`, `shared-data.json`, and `worker/wrangler.toml`.
 - Protect unrelated local changes. Do not overwrite user work.
 - Prefer concise updates and practical verification over broad refactors.
 
 ## Project Shape
 
-- This repo now has two parts: the UI in `index.html` and the API in `server.js`.
-- `shared-data.json` is runtime state, not source code. Treat its shape carefully.
-- `package.json` only wires `start` and `dev`; there is no build step.
+- The UI lives in `index.html`.
+- Local Node API compatibility still lives in `server.js`.
+- The deployed API also has a Cloudflare Worker implementation under `worker/`; keep the Node and Worker paths behaviorally aligned.
+- `shared-data.json` is runtime state for the Node path, not source code. Treat its shape carefully.
+- `worker/wrangler.toml` is the Worker config and holds the Worker env/binding setup.
+- `package.json` only wires `start` and `dev`; the Worker has its own `worker/package.json` scripts.
 
 ## How It Runs
 
 - The API starts with `npm start` or `node server.js`.
 - The server listens on `PORT` and defaults to `3000`.
 - `npm run dev` currently aliases `npm start`.
-- `.env.example` documents the expected local env shape: `PORT` and `NODE_ENV`.
+- `.env.example` documents the expected local env shape: `PORT`, `NODE_ENV`, and any Worker-facing flags mirrored for local dev.
 - The UI can still be opened directly from `index.html`, but that path does not exercise the API.
 - If you need the full app behavior, run the server rather than opening the HTML file directly.
 
@@ -43,12 +46,14 @@
 
 - For frontend-only edits, do a quick browser check of the changed behavior.
 - For `server.js` changes, prefer a syntax check plus a local run:
-- `node -c server.js`
-- `npm start`
+  - `node -c server.js`
+  - `npm start`
+- For `worker/` changes, prefer:
+  - `cd worker && npm run check`
+  - `cd worker && npm run dev`
 - If you change JSON persistence, verify the saved file still loads with the existing schema.
 
 ## Render Notes
 
-- The repo already has a deployed static site.
-- If the app is meant to use `server.js` in production, deploy it as a Render web service instead of a static site.
-- If only the UI is being published, keep the service aligned with `index.html` and the repo root.
+- The deployed API is the Cloudflare Worker under `worker/`; keep `worker/wrangler.toml` and `worker/src/index.js` aligned with live behavior.
+- If only the UI is being published, keep the frontend host aligned with `index.html` and the repo root.

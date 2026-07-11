@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Team fairness**: no repeated pairings across rounds, conflict rules to prevent specific players on same team
 - **Player assignment**: 2v2 doubles matches with 1v1 singles for overflow
 - **Extensible schedules**: add more rounds on demand via server or client
-- **Internationalization**: 6 languages (English, Simplified Chinese, Traditional Chinese, Korean, Hindi, Filipino, Thai) with live switching
+- **Internationalization**: 6 languages (English, Simplified Chinese, Traditional Chinese, Korean, Hindi, Filipino) with live switching
 - **Dark mode support**: theme toggle persisted to localStorage
 - **Share & persistence**: generate QR codes to share exact schedules; server archives and can reload them
 
