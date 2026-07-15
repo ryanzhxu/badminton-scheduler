@@ -354,7 +354,6 @@ async function loadBackendCountryLookup(){
   syncPlayerCountries();
   if(schedule.length)renderSchedule();
 }
-function countryEmoji(code){const cc=String(code||'').trim().toUpperCase();if(!/^[A-Z]{2}$/.test(cc))return'';return[...cc].map(c=>String.fromCodePoint(0x1F1E6+c.charCodeAt(0)-65)).join('');}
 function countryLabel(code){
   const cc=String(code||'').trim().toUpperCase();
   if(!/^[A-Z]{2}$/.test(cc))return'';
@@ -377,8 +376,8 @@ function ctryInd(team){
   if(!showCountryLabel)return`<div class="ctry-slot"><div class="ctry-sep ctry-gap" aria-hidden="true"></div></div>`;
   const codes=team.map(p=>playerCountries[p]).filter(Boolean);
   if(codes.length===team.length&&new Set(codes).size===1){
-    const cc=codes[0].toUpperCase();const name=countryLabel(cc);const flag=countryEmoji(cc);
-    return`<div class="ctry-slot"><div class="ctry-sep"><span class="sep-ln"></span><span aria-hidden="true" style="font-size:12px;line-height:1;vertical-align:middle">${flag}</span>&thinsp;<span class="sep-tx">${name}</span><span class="sep-ln"></span></div></div>`;
+    const name=countryLabel(codes[0]);
+    return`<div class="ctry-slot"><div class="ctry-sep"><span class="sep-ln"></span><span class="sep-tx">${name}</span><span class="sep-ln"></span></div></div>`;
   }
   return`<div class="ctry-slot"><div class="ctry-sep ctry-gap" aria-hidden="true"></div></div>`;
 }
