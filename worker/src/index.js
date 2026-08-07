@@ -299,6 +299,23 @@ function teamOk(t, conflictGroup) {
   return true;
 }
 
+// Skill tiers are 1 (Beginner), 2 (Intermediate), 3 (Advanced). Unrated players
+// are treated as a neutral 2 so they don't skew balancing for rosters without
+// skill data (fully backward compatible with existing schedules).
+const SKILL_IMBALANCE_WEIGHT = 0.1;
+
+function getSkill(playerSkills, name) {
+  const v = playerSkills ? playerSkills[name] : undefined;
+  return v === 1 || v === 2 || v === 3 ? v : 2;
+}
+
+function skillImbalance(ct, playerSkills) {
+  if (ct.singles || ct.a.length !== 2 || ct.b.length !== 2) return 0;
+  const sa = ct.a.reduce((s, p) => s + getSkill(playerSkills, p), 0);
+  const sb = ct.b.reduce((s, p) => s + getSkill(playerSkills, p), 0);
+  return Math.pow(sa - sb, 2) * SKILL_IMBALANCE_WEIGHT;
+}
+
 function assignCourts(pl, layout) {
   const courts = [];
   let idx = 0;
@@ -321,7 +338,7 @@ function assignCourts(pl, layout) {
   return courts;
 }
 
-function makeTeams(activePl, layout, used, conflictGroup) {
+function makeTeams(activePl, layout, used, conflictGroup, playerSkills) {
   let best = null;
   let bestScore = Infinity;
   for (let att = 0; att < 600; att++) {
@@ -329,13 +346,15 @@ function makeTeams(activePl, layout, used, conflictGroup) {
     const courts = assignCourts(s, layout);
     let cv = 0;
     let rv = 0;
+    let sv = 0;
     courts.forEach((ct) => {
       if (!teamOk(ct.a, conflictGroup)) cv++;
       if (!teamOk(ct.b, conflictGroup)) cv++;
       if (used.has(teamKey(ct.a))) rv++;
       if (used.has(teamKey(ct.b))) rv++;
+      sv += skillImbalance(ct, playerSkills);
     });
-    const score = cv * 1000 + rv;
+    const score = cv * 1000 + rv + sv;
     if (score < bestScore) {
       bestScore = score;
       best = courts;
@@ -345,7 +364,7 @@ function makeTeams(activePl, layout, used, conflictGroup) {
   return best;
 }
 
-function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, usedTeams = null) {
+function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, usedTeams = null, playerSkills = null) {
   if (sitC === null) {
     sitC = {};
     rawPlayers.forEach((p) => (sitC[p] = 0));
@@ -359,7 +378,7 @@ function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, u
     const subs = sorted.slice(0, layout.subs);
     subs.forEach((p) => sitC[p]++);
     const activePl = rawPlayers.filter((p) => !subs.includes(p));
-    const courts = makeTeams(activePl, layout, usedTeams, conflictGroup);
+    const courts = makeTeams(activePl, layout, usedTeams, conflictGroup, playerSkills);
     courts.forEach((ct) => {
       usedTeams.add(teamKey(ct.a));
       usedTeams.add(teamKey(ct.b));
@@ -589,6 +608,12 @@ async function handleGenerateSchedule(c) {
   const playerNames = players
     .map((p) => (typeof p === 'string' ? p : p.name))
     .filter(Boolean);
+  const playerSkills = {};
+  players.forEach((p) => {
+    if (p && typeof p === 'object' && p.name && (p.skill === 1 || p.skill === 2 || p.skill === 3)) {
+      playerSkills[p.name] = p.skill;
+    }
+  });
   const computedLayout = layout || getLayout(playerNames.length, numCourts);
 
   if (!computedLayout) {
@@ -598,7 +623,7 @@ async function handleGenerateSchedule(c) {
   const scheduleCode = generateScheduleCode();
   const roundData = Array.isArray(rounds)
     ? rounds
-    : generateRounds(playerNames, computedLayout, conflictGroup || [], 10);
+    : generateRounds(playerNames, computedLayout, conflictGroup || [], 10, null, null, playerSkills);
   const shareUrl = buildShareUrl(shareBaseUrl || c.req.header('origin'), scheduleCode);
   const qrDataUrl = await createQrDataUrl(shareUrl);
 
@@ -607,6 +632,7 @@ async function handleGenerateSchedule(c) {
     generatedAt: new Date().toISOString(),
     rounds: roundData,
     players: playerNames,
+    playerSkills,
     numCourts,
     courtLocation: courtLocation || '',
     conflictGroup: Array.isArray(conflictGroup) ? conflictGroup : [],
@@ -735,6 +761,7 @@ async function handleExtendSchedule(c) {
     count,
     sitC,
     usedTeams,
+    schedule.playerSkills || null,
   );
 
   schedule.rounds = [...existingRounds, ...newRounds];
