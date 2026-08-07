@@ -1,4 +1,5 @@
 import QRCode from './qrcode-svg.js';
+import playerCountryLookupRaw from '../../player-countries.json';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,45 @@ const CURRENT_SCHEDULE_KEY = 'current_schedule';
 const PROFILES_KEY = 'profiles';
 const PLAYER_REGISTRY_KEY = 'players:registry';
 const SCHEDULE_INDEX_KEY = 'schedules:index';
+
+function normalizePlayerName(name) {
+  return String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function loadCountryLookup(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(raw)
+      .map(([name, code]) => [
+        normalizePlayerName(name),
+        String(code || '').trim().toUpperCase(),
+      ])
+      .filter(([, code]) => /^[A-Z]{2}$/.test(code)),
+  );
+}
+
+const playerCountryLookup = loadCountryLookup(playerCountryLookupRaw);
+
+function readBooleanFlag(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return ['1', 'true', 'yes', 'on'].includes(normalized);
+}
+
+function getShowCountryLabelFlag(env) {
+  return readBooleanFlag(
+    env?.SHOW_COUNTRY_LABELS ??
+      env?.SHOW_COUNTRY_LABEL ??
+      env?.COUNTRY_LABELS_ENABLED,
+  );
+}
 
 function createHeaders(init = {}) {
   return new Headers(init);
@@ -804,6 +844,9 @@ async function handleData(c) {
     currentSchedule: await loadCurrentSchedule(c.env),
     players: profiles.players || [],
     courtLocation: profiles.courtLocation || '',
+    showCountryLabel: getShowCountryLabelFlag(c.env),
+    playerCountryLookup,
+    countryLookup: playerCountryLookup,
   });
 }
 

@@ -5,7 +5,7 @@ This file is the canonical guidance for any coding agent (Claude Code, Codex, or
 ## Working Style
 
 - Keep changes small and behavior-first.
-- Start from the local source of truth: `index.html`, `server.js`, `package.json`, and `shared-data.json`.
+- Start from the local source of truth: `index.html`, `server.js`, `worker/`, `package.json`, `shared-data.json`, and `worker/wrangler.toml`.
 - Protect unrelated local changes. Do not overwrite user work.
 - Prefer concise updates and practical verification over broad refactors.
 
@@ -22,19 +22,21 @@ This file is the canonical guidance for any coding agent (Claude Code, Codex, or
 
 ## Project Shape
 
-- This repo has two parts: the UI in `index.html` and the API in `server.js` (a Cloudflare Worker variant also exists under `worker/src/index.js` — see "Deployment Targets" below).
-- `shared-data.json` is runtime state, not source code. Treat its shape carefully.
-- `package.json` only wires `start` and `dev`; there is no build step.
+- The UI lives in `index.html`. Local Node API compatibility lives in `server.js`.
+- The deployed API also has a Cloudflare Worker implementation under `worker/src/index.js`; keep the Node and Worker paths behaviorally aligned — see "Deployment Targets" below for which one is actually live.
+- `shared-data.json` is runtime state for the Node path, not source code. Treat its shape carefully.
+- `worker/wrangler.toml` is the Worker config and holds the Worker env/binding setup.
+- `package.json` only wires `start` and `dev`; there is no build step. The Worker has its own `worker/package.json` scripts.
 - **No frontend dependencies**: pure HTML, CSS, JavaScript — no build step, no npm packages in the SPA.
 - **Backend stack**: Express + QRCode + dotenv + cors (minimal, production-ready).
-- **Persistent data**: server stores all schedules in `shared-data.json` (auto-created, excluded from git).
+- **Persistent data**: the Node path stores all schedules in `shared-data.json` (auto-created, excluded from git); the Worker path stores schedules/registry/index in Cloudflare KV.
 
 ## How It Runs
 
 - The API starts with `npm start` or `node server.js`.
 - The server listens on `PORT` and defaults to `3000`.
 - `npm run dev` currently aliases `npm start`.
-- `.env.example` documents the expected local env shape: `PORT` and `NODE_ENV`.
+- `.env.example` documents the expected local env shape: `PORT`, `NODE_ENV`, and any Worker-facing flags mirrored for local dev.
 - The UI can still be opened directly from `index.html`, but that path does not exercise the API.
 - If you need the full app behavior, run the server rather than opening the HTML file directly.
 - Alternative local run for the UI only: `python3 -m http.server 8000`, then visit `http://localhost:8000`.
@@ -229,12 +231,12 @@ Cross-session stats require a stable player identity, since names are otherwise 
 - For `server.js` changes, prefer a syntax check plus a local run:
   - `node -c server.js`
   - `npm start`
-- For `worker/src/index.js` changes, run `node --check worker/src/index.js` before deploying.
+- For `worker/src/index.js` changes, run `node --check worker/src/index.js` before deploying, or `cd worker && npm run check` / `cd worker && npm run dev` if available.
 - If you change JSON persistence, verify the saved file still loads with the existing schema.
 
 ## Deployment Targets
 
-- The repo has a deployed static site, and a production API. Confirm which backend is actually live before assuming `server.js`/Render is authoritative — as of this writing the frontend's `API_BASE` points at a Cloudflare Worker (`https://badminton-scheduler-api.rxlab.workers.dev`), not the Render-hosted `server.js`.
-- If the app is meant to use `server.js` in production, deploy it as a Render web service instead of a static site.
-- If only the UI is being published, keep the service aligned with `index.html` and the repo root.
+- The repo has a deployed static site (frontend) and a separate production API. Confirm which backend is actually live before assuming `server.js`/Render is authoritative — as of this writing the frontend's `API_BASE` points at the Cloudflare Worker (`https://badminton-scheduler-api.rxlab.workers.dev`), not the Render-hosted `server.js`. Keep `worker/wrangler.toml` and `worker/src/index.js` aligned with live behavior.
+- If the app is meant to use `server.js` in production instead, deploy it as a Render web service rather than a static site.
+- If only the UI is being published, keep the frontend host aligned with `index.html` and the repo root.
 - If deploying the Worker, watch for Durable Object migration format issues (the free plan requires `new_sqlite_classes` rather than the default classes migration).

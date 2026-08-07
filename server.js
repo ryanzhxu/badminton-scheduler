@@ -10,8 +10,47 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const DATA_FILE = path.join(__dirname, 'shared-data.json');
+const COUNTRY_LOOKUP_FILE = path.join(__dirname, 'player-countries.json');
 const SSE_PING_MS = 25000;
 const scheduleSubscribers = new Map();
+const normalizePlayerName = name =>
+  String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(word => word[0].toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+
+function loadCountryLookup() {
+  try {
+    if (!fs.existsSync(COUNTRY_LOOKUP_FILE)) {
+      return {};
+    }
+    const raw = JSON.parse(fs.readFileSync(COUNTRY_LOOKUP_FILE, 'utf8'));
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return {};
+    }
+    return Object.fromEntries(
+      Object.entries(raw)
+        .map(([name, code]) => [normalizePlayerName(name), String(code || '').trim().toUpperCase()])
+        .filter(([, code]) => /^[A-Z]{2}$/.test(code))
+    );
+  } catch {
+    return {};
+  }
+}
+
+function readBooleanFlag(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return ['1', 'true', 'yes', 'on'].includes(normalized);
+}
+
+const playerCountryLookup = loadCountryLookup();
+const showCountryLabel = readBooleanFlag(
+  process.env.SHOW_COUNTRY_LABELS ??
+    process.env.SHOW_COUNTRY_LABEL ??
+    process.env.COUNTRY_LABELS_ENABLED,
+);
 
 app.use(cors());
 app.use(express.json());
@@ -366,7 +405,10 @@ app.get('/api/data', (req, res) => {
     res.json({
       currentSchedule: data.currentSchedule,
       players: data.players,
-      courtLocation: data.courtLocation
+      courtLocation: data.courtLocation,
+      showCountryLabel,
+      playerCountryLookup,
+      countryLookup: playerCountryLookup
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
