@@ -10,6 +10,8 @@ const SSE_PING_MS = 25000;
 const SCHEDULE_PREFIX = 'schedule:';
 const CURRENT_SCHEDULE_KEY = 'current_schedule';
 const PROFILES_KEY = 'profiles';
+const PLAYER_REGISTRY_KEY = 'players:registry';
+const SCHEDULE_INDEX_KEY = 'schedules:index';
 
 function createHeaders(init = {}) {
   return new Headers(init);
@@ -467,6 +469,62 @@ async function loadProfiles(env) {
   return getJson(env.SCHEDULES, PROFILES_KEY, { players: [], courtLocation: '' });
 }
 
+// Canonical join-key so "Ryan", " ryan ", "RYAN" all resolve to one identity
+// across weeks, regardless of casing/whitespace differences between imports.
+function normalizePlayerKey(name) {
+  return (name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+async function loadPlayerRegistry(env) {
+  return getJson(env.SCHEDULES, PLAYER_REGISTRY_KEY, {});
+}
+
+async function savePlayerRegistry(env, registry) {
+  await putJson(env.SCHEDULES, PLAYER_REGISTRY_KEY, registry);
+}
+
+// Records/updates canonical display names so later aggregation (leaderboard)
+// can match the same person across schedules even if casing/spacing drifts.
+// The first-seen spelling of a name wins as the canonical display form.
+async function registerPlayers(env, names, dateStr) {
+  const registry = await loadPlayerRegistry(env);
+  let changed = false;
+
+  (names || []).forEach((name) => {
+    const key = normalizePlayerKey(name);
+    if (!key) return;
+    if (!registry[key]) {
+      registry[key] = { name, firstSeen: dateStr, lastSeen: dateStr };
+      changed = true;
+    } else if (registry[key].lastSeen !== dateStr) {
+      registry[key].lastSeen = dateStr;
+      changed = true;
+    }
+  });
+
+  if (changed) await savePlayerRegistry(env, registry);
+  return registry;
+}
+
+function canonicalPlayerName(registry, name) {
+  const key = normalizePlayerKey(name);
+  return registry?.[key]?.name || name;
+}
+
+async function loadScheduleIndex(env) {
+  return getJson(env.SCHEDULES, SCHEDULE_INDEX_KEY, []);
+}
+
+// Appends a lightweight pointer to every generated schedule so the
+// leaderboard can walk history without scanning the whole KV namespace.
+async function addToScheduleIndex(env, entry) {
+  const index = await loadScheduleIndex(env);
+  const deduped = index.filter((e) => e.code !== entry.code);
+  deduped.push(entry);
+  deduped.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  await putJson(env.SCHEDULES, SCHEDULE_INDEX_KEY, deduped);
+}
+
 async function createQrDataUrl(text) {
   const svg = await QRCode.toString(text, { type: 'svg' });
   return `data:image/svg+xml;base64,${toBase64(svg)}`;
@@ -519,6 +577,18 @@ async function handleGenerateSchedule(c) {
   touchSchedule(schedule);
 
   await saveSchedule(c.env, schedule);
+  // Every freshly generated schedule becomes the "current" one immediately, so
+  // the durable ?scheduleCode=current link always reflects the latest rotation
+  // without requiring a separate explicit "share" click each week.
+  await saveCurrentSchedule(c.env, schedule);
+  const genDateStr = schedule.generatedAt.slice(0, 10);
+  await registerPlayers(c.env, playerNames, genDateStr);
+  await addToScheduleIndex(c.env, {
+    code: scheduleCode,
+    date: genDateStr,
+    playerCount: playerNames.length,
+    source: 'manual',
+  });
 
   return c.json({
     scheduleCode,
@@ -555,7 +625,10 @@ async function handleShareSchedule(c) {
 
 async function handleGetSchedule(c) {
   const code = c.req.param('code');
-  const schedule = await loadSchedule(c.env, code);
+  // "current" is a stable pseudo-code (not a real schedule code) that always
+  // resolves to whichever schedule is presently active — used for a durable
+  // share link (?scheduleCode=current) that auto-updates week to week.
+  const schedule = code === 'current' ? await loadCurrentSchedule(c.env) : await loadSchedule(c.env, code);
 
   if (!schedule) {
     return c.json({ error: 'Schedule not found' }, { status: 404 });
@@ -566,6 +639,12 @@ async function handleGetSchedule(c) {
 
 async function handleScheduleStream(c) {
   const code = c.req.param('code');
+  if (code === 'current') {
+    // "current" has no single Durable Object room (the underlying schedule
+    // code changes week to week); clients polling /api/schedule/current
+    // handle picking up changes instead of subscribing to a live stream.
+    return c.json({ error: 'Live stream is not available for the current pseudo-code' }, { status: 400 });
+  }
   const schedule = await loadSchedule(c.env, code);
 
   if (!schedule) {
@@ -647,6 +726,76 @@ async function handleProfiles(c) {
 
   await saveProfiles(c.env, profiles);
   return c.json({ ok: true });
+}
+
+async function handleLeaderboard(c) {
+  const registry = await loadPlayerRegistry(c.env);
+  const index = await loadScheduleIndex(c.env);
+  const stats = {};
+
+  const ensure = (name) => {
+    if (!stats[name]) {
+      const key = normalizePlayerKey(name);
+      stats[name] = {
+        name,
+        games: 0,
+        sits: 0,
+        sessions: 0,
+        partners: new Set(),
+        opponents: new Set(),
+        firstSeen: registry[key]?.firstSeen || null,
+        lastSeen: registry[key]?.lastSeen || null,
+      };
+    }
+    return stats[name];
+  };
+
+  for (const entry of index) {
+    const schedule = await loadSchedule(c.env, entry.code);
+    if (!schedule || !Array.isArray(schedule.rounds)) continue;
+
+    const seenThisSession = new Set();
+    schedule.rounds.forEach((rnd) => {
+      (rnd.subs || []).forEach((p) => {
+        const canon = canonicalPlayerName(registry, p);
+        ensure(canon).sits += 1;
+        seenThisSession.add(canon);
+      });
+      (rnd.courts || []).forEach((ct) => {
+        [ct.a, ct.b].forEach((team, idx) => {
+          const otherTeam = idx === 0 ? ct.b : ct.a;
+          team.forEach((p) => {
+            const canon = canonicalPlayerName(registry, p);
+            const entryStats = ensure(canon);
+            entryStats.games += 1;
+            seenThisSession.add(canon);
+            team
+              .filter((q) => q !== p)
+              .forEach((q) => entryStats.partners.add(canonicalPlayerName(registry, q)));
+            otherTeam.forEach((q) => entryStats.opponents.add(canonicalPlayerName(registry, q)));
+          });
+        });
+      });
+    });
+    seenThisSession.forEach((name) => {
+      ensure(name).sessions += 1;
+    });
+  }
+
+  const leaderboard = Object.values(stats)
+    .map((s) => ({
+      name: s.name,
+      sessions: s.sessions,
+      games: s.games,
+      sits: s.sits,
+      uniquePartners: s.partners.size,
+      uniqueOpponents: s.opponents.size,
+      firstSeen: s.firstSeen,
+      lastSeen: s.lastSeen,
+    }))
+    .sort((a, b) => b.games - a.games || b.sessions - a.sessions);
+
+  return c.json({ leaderboard, sessionCount: index.length });
 }
 
 async function handleData(c) {
@@ -749,6 +898,242 @@ class ScheduleRoom {
   }
 }
 
+const CAL_API_BASE = 'https://api.cal.com/v2';
+const CAL_EVENT_TYPE_ID_KEY = 'cal:event_type_id';
+const CAL_LAST_PULL_KEY = 'cal:last_pull_date';
+const AUTO_IMPORT_NUM_COURTS = 3;
+const AUTO_IMPORT_ROUND_COUNT = 10;
+const PROD_SHARE_BASE_URL = 'https://trulioo-badminton.onrender.com';
+
+function isEmail(s) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');
+}
+
+function parseAttendeeName(raw) {
+  let s = (raw || '').trim();
+  if (!s) return null;
+  if (isEmail(s)) {
+    s = s.split('@')[0].replace(/[._-]+/g, ' ');
+  }
+  s = s.replace(/\s*[-\u2013]\s*(organizer|admin|host|co-host|guest|player|lead|manager|owner)\s*$/i, '').trim();
+  if (!s) return null;
+  return s.split(/\s+/).map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+// Builds a session-day window in Pacific time, expressed with the correct
+// UTC offset for that date (handles PST/PDT without manual toggling).
+// Pass `dateOverride` (YYYY-MM-DD) to build the window for a specific day
+// (e.g. testing an upcoming Wednesday) instead of "today".
+function pacificDateWindow(dateOverride) {
+  const referenceDate = dateOverride ? new Date(`${dateOverride}T12:00:00Z`) : new Date();
+  const dateStr = dateOverride || new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(referenceDate);
+
+  const offsetParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    timeZoneName: 'shortOffset',
+  }).formatToParts(referenceDate);
+  const tzName = offsetParts.find((p) => p.type === 'timeZoneName')?.value || 'GMT-8';
+  const match = tzName.match(/GMT([+-]\d+)(?::?(\d{2}))?/);
+  const offsetHours = match ? parseInt(match[1], 10) : -8;
+  const offsetMinutes = match && match[2] ? parseInt(match[2], 10) : 0;
+  const sign = offsetHours < 0 ? '-' : '+';
+  const offset = `${sign}${String(Math.abs(offsetHours)).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
+
+  return {
+    dateStr,
+    afterStart: `${dateStr}T00:00:00${offset}`,
+    beforeEnd: `${dateStr}T23:59:59${offset}`,
+  };
+}
+
+async function calFetch(env, path, { params = {}, apiVersion } = {}) {
+  if (!env.CAL_API_KEY) {
+    throw new Error('CAL_API_KEY secret is not configured');
+  }
+  const url = new URL(`${CAL_API_BASE}${path}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, String(value));
+    }
+  });
+  const headers = { Authorization: `Bearer ${env.CAL_API_KEY}` };
+  if (apiVersion) headers['cal-api-version'] = apiVersion;
+
+  const res = await fetch(url.toString(), { headers });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`cal.com API error ${res.status} for ${path}: ${body}`);
+  }
+  return res.json();
+}
+
+async function resolveCalEventTypeId(env) {
+  const cached = await getJson(env.SCHEDULES, CAL_EVENT_TYPE_ID_KEY, null);
+  if (cached?.id && cached.slug === env.CAL_EVENT_SLUG) return cached.id;
+
+  if (!env.CAL_USERNAME || !env.CAL_EVENT_SLUG) {
+    throw new Error('CAL_USERNAME/CAL_EVENT_SLUG vars are not configured');
+  }
+
+  const data = await calFetch(env, '/event-types', {
+    params: { username: env.CAL_USERNAME, eventSlug: env.CAL_EVENT_SLUG },
+    apiVersion: '2024-06-14',
+  });
+
+  const eventType = Array.isArray(data?.data) ? data.data[0] : data?.data;
+  if (!eventType?.id) {
+    throw new Error(`Could not resolve cal.com event type for ${env.CAL_USERNAME}/${env.CAL_EVENT_SLUG}`);
+  }
+
+  await putJson(env.SCHEDULES, CAL_EVENT_TYPE_ID_KEY, { id: eventType.id, slug: env.CAL_EVENT_SLUG });
+  return eventType.id;
+}
+
+async function fetchCalAttendeeNames(env, eventTypeId, window) {
+  const names = [];
+  let skip = 0;
+  const take = 100;
+
+  for (;;) {
+    const data = await calFetch(env, '/bookings', {
+      params: {
+        eventTypeId,
+        status: 'upcoming',
+        afterStart: window.afterStart,
+        beforeEnd: window.beforeEnd,
+        take,
+        skip,
+      },
+      apiVersion: '2024-08-13',
+    });
+
+    const bookings = Array.isArray(data?.data) ? data.data : [];
+    bookings.forEach((booking) => {
+      (booking.attendees || []).forEach((attendee) => {
+        const parsed = parseAttendeeName(attendee?.name || attendee?.email);
+        if (parsed) names.push(parsed);
+      });
+    });
+
+    if (bookings.length < take || !data?.pagination?.hasNextPage) break;
+    skip += take;
+  }
+
+  const seen = new Set();
+  return names.filter((name) => {
+    const key = name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function runCalAutoImport(env, options = {}) {
+  const { dateOverride, dryRun = false } = options;
+  const now = new Date();
+  const window = pacificDateWindow(dateOverride);
+
+  if (!dryRun) {
+    const lastPull = await getJson(env.SCHEDULES, CAL_LAST_PULL_KEY, null);
+    if (lastPull === window.dateStr) {
+      return { skipped: true, reason: 'already-ran-today', date: window.dateStr };
+    }
+  }
+
+  const eventTypeId = await resolveCalEventTypeId(env);
+  const players = await fetchCalAttendeeNames(env, eventTypeId, window);
+
+  const layout = getLayout(players.length, AUTO_IMPORT_NUM_COURTS);
+  if (!layout) {
+    if (!dryRun) await putJson(env.SCHEDULES, CAL_LAST_PULL_KEY, window.dateStr);
+    return {
+      skipped: true,
+      reason: 'not-enough-players',
+      date: window.dateStr,
+      playerCount: players.length,
+      players,
+      dryRun,
+    };
+  }
+
+  if (dryRun) {
+    const roundData = generateRounds(players, layout, [], AUTO_IMPORT_ROUND_COUNT);
+    return {
+      skipped: false,
+      dryRun: true,
+      date: window.dateStr,
+      playerCount: players.length,
+      players,
+      layout,
+      roundCount: roundData.length,
+      sampleFirstRound: roundData[0] || null,
+    };
+  }
+
+  const scheduleCode = generateScheduleCode();
+  const roundData = generateRounds(players, layout, [], AUTO_IMPORT_ROUND_COUNT);
+  const shareUrl = buildShareUrl(PROD_SHARE_BASE_URL, scheduleCode);
+  const qrDataUrl = await createQrDataUrl(shareUrl);
+  const profiles = await loadProfiles(env);
+
+  const schedule = {
+    code: scheduleCode,
+    generatedAt: now.toISOString(),
+    rounds: roundData,
+    players,
+    numCourts: AUTO_IMPORT_NUM_COURTS,
+    courtLocation: profiles.courtLocation || '',
+    conflictGroup: [],
+    layout,
+    shareUrl,
+    qrDataUrl,
+    source: 'cal-auto-import',
+    sharedAt: now.toISOString(),
+    sharedBy: 'Cal.com auto-import',
+  };
+  touchSchedule(schedule);
+
+  await saveSchedule(env, schedule);
+  await saveCurrentSchedule(env, schedule);
+  await notifyScheduleRoom(env, scheduleCode, 'schedule-shared', scheduleStreamPayload(schedule));
+  await putJson(env.SCHEDULES, CAL_LAST_PULL_KEY, window.dateStr);
+  await registerPlayers(env, players, window.dateStr);
+  await addToScheduleIndex(env, {
+    code: scheduleCode,
+    date: window.dateStr,
+    playerCount: players.length,
+    source: 'cal-auto-import',
+  });
+
+  return { skipped: false, date: window.dateStr, playerCount: players.length, scheduleCode, shareUrl };
+}
+
+async function scheduled(event, env, ctx) {
+  try {
+    const result = await runCalAutoImport(env);
+    console.log('cal-auto-import', JSON.stringify(result));
+  } catch (error) {
+    console.error('cal-auto-import failed', error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+}
+
+async function handleCalImportNow(c) {
+  const token = c.req.query('token');
+  if (!token || token !== c.env.CAL_API_KEY) {
+    return c.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const dateOverride = c.req.query('date') || undefined;
+  const dryRun = c.req.query('dryRun') === 'true';
+  const result = await runCalAutoImport(c.env, { dateOverride, dryRun });
+  return c.json(result);
+}
+
 function createWorkerApp() {
   const app = new Hono();
   app.use('*', cors());
@@ -761,33 +1146,55 @@ function createWorkerApp() {
   app.post('/api/schedule/share', handleShareSchedule);
   app.post('/api/profiles', handleProfiles);
   app.get('/api/data', handleData);
+  app.get('/api/leaderboard', handleLeaderboard);
+  app.post('/api/cal/run-import', handleCalImportNow);
   return app;
 }
 
 export {
+  addToScheduleIndex,
   assignCourts,
   buildShareUrl,
+  canonicalPlayerName,
   conflictPair,
   createQrDataUrl,
   createWorkerApp,
+  fetchCalAttendeeNames,
   generateRounds,
   generateScheduleCode,
   getLayout,
+  handleCalImportNow,
   handleData,
   handleExtendSchedule,
   handleGenerateSchedule,
   handleGetSchedule,
+  handleLeaderboard,
   handleProfiles,
   handleShareSchedule,
   handleScheduleStream,
   healthPayload,
+  loadPlayerRegistry,
+  loadScheduleIndex,
   makeTeams,
   matchPath,
   normalizePath,
+  normalizePlayerKey,
+  parseAttendeeName,
+  pacificDateWindow,
+  registerPlayers,
+  resolveCalEventTypeId,
+  runCalAutoImport,
+  savePlayerRegistry,
+  scheduled,
   shuffle,
   ScheduleRoom,
   teamKey,
   teamOk,
 };
 
-export default createWorkerApp();
+const workerApp = createWorkerApp();
+
+export default {
+  fetch: (request, env, ctx) => workerApp.fetch(request, env, ctx),
+  scheduled,
+};

@@ -14,3 +14,18 @@ class_name = "ScheduleRoom"
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["ScheduleRoom"]
+
+[vars]
+SHOW_COUNTRY_LABELS = "false"
+CAL_USERNAME = "man-sun-ixdetb"
+CAL_EVENT_SLUG = "badminton"
+
+# Runs every Wednesday at 20:00 UTC (noon PST / 1pm PDT). Cron Triggers are
+# fixed UTC, so actual Pacific local time drifts by an hour across the two
+# DST transitions each year; the job is idempotent per Pacific calendar day
+# (see CAL_LAST_PULL_KEY in src/index.js) so an off-by-an-hour firing is safe.
+[triggers]
+crons = ["0 20 * * 3"]
+
+# CAL_API_KEY must be set as a secret, never committed here:
+#   npx wrangler secret put CAL_API_KEY
