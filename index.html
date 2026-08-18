@@ -349,6 +349,9 @@ body.dark-mode .sep-tx{color:#4A8070}
 <script>
 const BASE_ROUNDS=10,EXTEND_ROUNDS=5;
 let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0;
+// Names injected by the demo helpers, so a session that includes any of them can be
+// flagged to the backend and kept out of the cross-session leaderboard/registry.
+let demoPlayers=new Set();
 let editingRound=null,editSelectedSlot=null,editHasUnsyncedSwap=false;
 let sitC={},pairHistory=null,currentLayout=null,currentNc=0;
 let attendance={};
@@ -747,6 +750,7 @@ async function injectCountryDemoPlayers(){
   if(!roster.length){msg.textContent='Country demo roster is unavailable.';return;}
   rawPlayers=roster;
   conflictGroup=new Set();
+  demoPlayers=new Set(roster);
   const ncInput=document.getElementById('num-courts');
   ncInput.value=String(Math.max(2,Math.min(3,Math.floor(roster.length/4)||2)));
   renderAll();
@@ -772,6 +776,7 @@ function injectRandomDemoPlayers(){
     existing.add(candidate);added.push(candidate);
   }
   rawPlayers.push(...added);
+  added.forEach(name=>demoPlayers.add(name));
   renderAll();
   msg.textContent=t('demoRandomInjected',{n:added.length,plural:added.length===1?'':'s'});
 }
@@ -780,8 +785,8 @@ function addOne(){
   const norm=raw.split(/\s+/).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(' ');
   if(!rawPlayers.includes(norm)){rawPlayers.push(norm);renderAll();}inp.value='';
 }
-function removePlayer(i){const r=rawPlayers[i];rawPlayers.splice(i,1);conflictGroup.delete(r);renderAll();}
-function clearAllPlayers(){rawPlayers=[];conflictGroup=new Set();renderAll();}
+function removePlayer(i){const r=rawPlayers[i];rawPlayers.splice(i,1);conflictGroup.delete(r);demoPlayers.delete(r);renderAll();}
+function clearAllPlayers(){rawPlayers=[];conflictGroup=new Set();demoPlayers=new Set();renderAll();}
 function renderAll(){syncPlayerCountries();syncAttendance();renderPlayers();renderConflictPicker();updateHint();renderCheckIn();}
 function syncAttendance(){
   const next={};
@@ -965,6 +970,7 @@ async function syncShareQr(){
         layout:currentLayout,
         rounds:schedule,
         shareBaseUrl:getShareBaseUrl(),
+        isDemo:rawPlayers.some(p=>demoPlayers.has(p)),
       }),
     });
     if(!res.ok)throw new Error(`HTTP ${res.status}`);

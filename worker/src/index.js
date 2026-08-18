@@ -645,6 +645,7 @@ async function handleGenerateSchedule(c) {
     layout,
     rounds,
     shareBaseUrl,
+    isDemo,
   } = body ?? {};
 
   if (!numCourts || !players || !Array.isArray(players)) {
@@ -676,6 +677,7 @@ async function handleGenerateSchedule(c) {
     conflictGroup: Array.isArray(conflictGroup) ? conflictGroup : [],
     layout: computedLayout,
     shareUrl,
+    isDemo: !!isDemo,
   };
 
   touchSchedule(schedule);
@@ -685,14 +687,19 @@ async function handleGenerateSchedule(c) {
   // the durable ?scheduleCode=current link always reflects the latest rotation
   // without requiring a separate explicit "share" click each week.
   await saveCurrentSchedule(c.env, schedule);
-  const genDateStr = schedule.generatedAt.slice(0, 10);
-  await registerPlayers(c.env, playerNames, genDateStr);
-  await addToScheduleIndex(c.env, {
-    code: scheduleCode,
-    date: genDateStr,
-    playerCount: playerNames.length,
-    source: 'manual',
-  });
+  // Demo rosters (from the Setup pane's demo helpers) are fake names generated
+  // for testing/screen recording, not real attendance — keep them out of the
+  // cross-session player registry and leaderboard.
+  if (!schedule.isDemo) {
+    const genDateStr = schedule.generatedAt.slice(0, 10);
+    await registerPlayers(c.env, playerNames, genDateStr);
+    await addToScheduleIndex(c.env, {
+      code: scheduleCode,
+      date: genDateStr,
+      playerCount: playerNames.length,
+      source: 'manual',
+    });
+  }
 
   return c.json({
     scheduleCode,
