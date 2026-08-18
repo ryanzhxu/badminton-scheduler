@@ -13,10 +13,10 @@ This file is the canonical guidance for any coding agent (Claude Code, Codex, or
 
 **Badminton Rotation Scheduler** is a full-featured single-page app (SPA) in `index.html` plus an Express API in `server.js`. It generates fair rotation schedules for badminton matches, then immediately publishes a shareable QR code through the backend. The app features:
 - **Fair rotation**: minimizing variance in sit-out counts across players
-- **Team fairness**: no repeated pairings across rounds, conflict rules to prevent specific players from being on the same team (this does not prevent conflicted players from playing on the same court as opponents — e.g. if A and C conflict, A+B vs. C+D is fine, they just can't be teammates)
+- **Team fairness**: partner *and* opponent variety (repeat pairings are penalized by how often a pair has already met, and back-to-back rematches cost extra, so nobody gets stuck facing the same person all night), conflict rules to prevent specific players from being on the same team (this does not prevent conflicted players from playing on the same court as opponents — e.g. if A and C conflict, A+B vs. C+D is fine, they just can't be teammates)
 - **Player assignment**: 2v2 doubles matches with 1v1 singles for overflow
 - **Extensible schedules**: add more rounds on demand via server or client
-- **Internationalization**: 7 languages (English, Simplified Chinese, Traditional Chinese, Korean, Hindi, Filipino, Thai) with live switching
+- **Internationalization**: 6 languages (English, Simplified Chinese, Traditional Chinese, Korean, Hindi, Filipino) with live switching
 - **Dark mode support**: theme toggle persisted to localStorage
 - **Share & persistence**: generate QR codes to share exact schedules; server archives and can reload them; live sync pushes updates (e.g. extended rounds) to other viewers on the same share code
 
@@ -26,7 +26,7 @@ This file is the canonical guidance for any coding agent (Claude Code, Codex, or
 - The deployed API also has a Cloudflare Worker implementation under `worker/src/index.js`; keep the Node and Worker paths behaviorally aligned — see "Deployment Targets" below for which one is actually live.
 - `shared-data.json` is runtime state for the Node path, not source code. Treat its shape carefully.
 - `worker/wrangler.toml` is the Worker config and holds the Worker env/binding setup.
-- `package.json` only wires `start` and `dev`; there is no build step. The Worker has its own `worker/package.json` scripts.
+- `package.json` wires `start`, `dev`, `test` and `check`; there is no build step and no runtime dependency needed to run the tests. The Worker has its own `worker/package.json` scripts.
 - **No frontend dependencies**: pure HTML, CSS, JavaScript — no build step, no npm packages in the SPA.
 - **Backend stack**: Express + QRCode + dotenv + cors (minimal, production-ready).
 - **Persistent data**: the Node path stores all schedules in `shared-data.json` (auto-created, excluded from git); the Worker path stores schedules/registry/index in Cloudflare KV.
@@ -121,13 +121,19 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 - Example: 13 players, 3 courts → 3 doubles (12 in play) + 1 sub per round
 - If no perfect fit exists, falls back to maximizing doubles with overflow subs
 
-**Team generation via stochastic search** (`makeTeams(activePl, layout, used)`):
-- **Why stochastic**: Finding the absolute-best team assignment is NP-hard; 600 random attempts with greedy scoring is pragmatic
+**Team generation via stochastic search** (`makeTeams(activePl, layout, hist, conflictGroup)`):
+- **Why stochastic**: Finding the absolute-best team assignment is NP-hard; `MAKE_TEAMS_ATTEMPTS` (600) random attempts with greedy scoring is pragmatic
 - **Scoring**: for each configuration, sum:
   - Conflict violations × 1000 (dominates all other concerns)
-  - Repeated team pairings (penalizes reuse from `usedTeams`)
+  - `repeatCost()` — pairing variety, see below
 - **Why 600 attempts**: empirically sufficient for 12–30 players; larger groups may need tuning
-- Early exit if score = 0 (perfect: no conflicts, no repeats)
+- Early exit if score = 0 (perfect: no conflicts, no repeats) — rare after the first couple of rounds
+- **No skill-based balancing**: an earlier skill-tier feature (rate players Beginner/Intermediate/Advanced, balance court totals) was removed (Aug 2026) in favor of relying solely on team conflicts for fairness — see "Conflict & Team Validation" above. Do not reintroduce a skill field without re-adding the removed UI, i18n keys, and `playerSkills` plumbing across all three copies.
+
+**Pairing variety** (`pairHistory`, `repeatCost`, `recordRound`):
+- `createPairHistory()` returns `{ partners: Map, opponents: Map, lastOpponents: Set }`, counting how many times each pair has been teammates and how many times they have faced each other. It is derived state — never persisted in the schedule JSON — and is rebuilt by replaying rounds (`rebuildSchedulingState()` in the SPA, and the extend handlers in both backends).
+- Cost per pair is **squared** in the number of prior meetings (`n² × REPEAT_PARTNER_WEIGHT` for teammates, `n² × REPEAT_OPPONENT_WEIGHT` for opponents). Squaring matters: a flat/binary penalty stops discriminating once every combination has been used once.
+- Facing the same opponent in the immediately preceding round costs an extra `CONSECUTIVE_OPPONENT_WEIGHT`, because a back-to-back streak is what players actually notice and report. Locked in by `tests/scheduling.test.js`.
 
 **Fair sit-out rotation** (`sitC` tracking):
 - Before each round, sort shuffled players by current sit-out count
@@ -147,8 +153,8 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 - `GET /api/schedule/:code/stream` — Server-Sent Events stream for live schedule sync (pings every `SSE_PING_MS`, pushes updated schedule snapshots to connected viewers)
 - `POST /api/schedule/:code/extend` — Extend schedule with new rounds; `{ count = 5 }`
 - `POST /api/schedule/share` — Mark schedule active by code + organizer name
-- `POST /api/profiles` — Save player list + court location to persistent storage
-- `GET /api/data` — Load current/default player list and court location
+- `POST /api/profiles` — Save player list to persistent storage
+- `GET /api/data` — Load current/default player list
 - `GET /api/leaderboard` — (Worker only) Aggregate games/sits/sessions/unique partners & opponents per canonical player across every schedule in the schedule index
 - `POST /api/cal/run-import?token=<CAL_API_KEY>` — (Worker only) Manually trigger the cal.com auto-import; supports `&dryRun=true` (no writes/side effects, just previews the pull) and `&date=YYYY-MM-DD` (override the target Pacific session date, for testing a future/past date without affecting the real cron's idempotency)
 - `GET /health`, `GET /api/health` — Health check (uptime monitoring)
@@ -216,7 +222,16 @@ Cross-session stats require a stable player identity, since names are otherwise 
 
 ## Testing
 
-**No automated test suite.** Validation is built into the UI:
+**Automated regression suite** for the scheduling algorithm — `npm test` (Node's built-in runner, no dependencies to install):
+
+- `tests/scheduling.test.js` asserts the invariants that matter: no pair gets stuck facing each other round after round, opponents/partners are spread across the roster, sit-out counts stay within one round of each other, conflict-group players never end up as teammates, every round covers every player exactly once, and pair history survives schedule extension.
+- Every test runs against **all three** implementations of the algorithm (the SPA's inline script, the Worker, and the Express server), plus an explicit check that identical seeds produce identical schedules in all three. This is what enforces the "keep the Node and Worker paths aligned" rule mechanically instead of by memory.
+- `tests/helpers/load-scheduler.js` lifts the scheduling functions out of each source and runs them in a `node:vm` sandbox with a seeded PRNG. It extracts rather than imports because `index.html` is intentionally a self-contained single file with no build step, and importing the backends would pull in express/hono and start a listener. Extraction is strict: renaming or deleting a scheduling function fails the suite loudly rather than silently skipping coverage.
+- Failures are reproducible — assertion messages carry the seed and the offending numbers.
+- If you change the scoring weights, expect to re-measure; thresholds are set from observed behavior with margin, and are wide enough to distinguish real regressions from seed noise.
+- **CI**: `.github/workflows/ci.yml` runs `npm run check` (syntax) and `npm test` on pushes to `main`, on pull requests, and on demand.
+
+Validation is also built into the UI:
 - **Constraint panel** (`renderValidation()`) shows real-time:
   - ✓/✗ Team conflict violations (if any paired players in `conflictGroup` end up as teammates)
   - ✓/✗ Repeated team pairings (any team used twice)
@@ -227,11 +242,13 @@ Cross-session stats require a stable player identity, since names are otherwise 
 
 ## Verification
 
+- **Any change to the scheduling algorithm must pass `npm test`**, and the fix must be applied to all three copies (`index.html`, `worker/src/index.js`, `server.js`) — the suite fails if they diverge.
 - For frontend-only edits, do a quick browser check of the changed behavior.
 - For `server.js` changes, prefer a syntax check plus a local run:
   - `node -c server.js`
   - `npm start`
 - For `worker/src/index.js` changes, run `node --check worker/src/index.js` before deploying, or `cd worker && npm run check` / `cd worker && npm run dev` if available.
+- `npm run check` syntax-checks both backends in one step.
 - If you change JSON persistence, verify the saved file still loads with the existing schema.
 
 ## Deployment Targets

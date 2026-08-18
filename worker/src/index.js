@@ -12,6 +12,7 @@ const SCHEDULE_PREFIX = 'schedule:';
 const CURRENT_SCHEDULE_KEY = 'current_schedule';
 const PROFILES_KEY = 'profiles';
 const PLAYER_REGISTRY_KEY = 'players:registry';
+const PLAYER_ALIASES_KEY = 'players:aliases';
 const SCHEDULE_INDEX_KEY = 'schedules:index';
 
 function normalizePlayerName(name) {
@@ -299,21 +300,63 @@ function teamOk(t, conflictGroup) {
   return true;
 }
 
-// Skill tiers are 1 (Beginner), 2 (Intermediate), 3 (Advanced). Unrated players
-// are treated as a neutral 2 so they don't skew balancing for rosters without
-// skill data (fully backward compatible with existing schedules).
-const SKILL_IMBALANCE_WEIGHT = 0.1;
+// Repeat costs are squared in how many times a pair has already met, so the search
+// keeps spreading pairings out instead of going blind once every combination has
+// been used once. Back-to-back rematches cost extra because a streak is what
+// players actually notice.
+const REPEAT_PARTNER_WEIGHT = 1;
+const REPEAT_OPPONENT_WEIGHT = 0.6;
+const CONSECUTIVE_OPPONENT_WEIGHT = 3;
+const MAKE_TEAMS_ATTEMPTS = 600;
 
-function getSkill(playerSkills, name) {
-  const v = playerSkills ? playerSkills[name] : undefined;
-  return v === 1 || v === 2 || v === 3 ? v : 2;
+function pairKey(a, b) {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
 
-function skillImbalance(ct, playerSkills) {
-  if (ct.singles || ct.a.length !== 2 || ct.b.length !== 2) return 0;
-  const sa = ct.a.reduce((s, p) => s + getSkill(playerSkills, p), 0);
-  const sb = ct.b.reduce((s, p) => s + getSkill(playerSkills, p), 0);
-  return Math.pow(sa - sb, 2) * SKILL_IMBALANCE_WEIGHT;
+function createPairHistory() {
+  return { partners: new Map(), opponents: new Map(), lastOpponents: new Set() };
+}
+
+function courtPairs(ct) {
+  const partners = [];
+  const opponents = [];
+  [ct.a, ct.b].forEach((team) => {
+    for (let i = 0; i < team.length; i++) {
+      for (let j = i + 1; j < team.length; j++) {
+        partners.push(pairKey(team[i], team[j]));
+      }
+    }
+  });
+  ct.a.forEach((p) => ct.b.forEach((q) => opponents.push(pairKey(p, q))));
+  return { partners, opponents };
+}
+
+function repeatCost(hist, ct) {
+  const { partners, opponents } = courtPairs(ct);
+  let cost = 0;
+  partners.forEach((k) => {
+    const n = hist.partners.get(k) || 0;
+    cost += n * n * REPEAT_PARTNER_WEIGHT;
+  });
+  opponents.forEach((k) => {
+    const n = hist.opponents.get(k) || 0;
+    cost += n * n * REPEAT_OPPONENT_WEIGHT;
+    if (hist.lastOpponents.has(k)) cost += CONSECUTIVE_OPPONENT_WEIGHT;
+  });
+  return cost;
+}
+
+function recordRound(hist, courts) {
+  const thisRound = new Set();
+  (courts || []).forEach((ct) => {
+    const { partners, opponents } = courtPairs(ct);
+    partners.forEach((k) => hist.partners.set(k, (hist.partners.get(k) || 0) + 1));
+    opponents.forEach((k) => {
+      hist.opponents.set(k, (hist.opponents.get(k) || 0) + 1);
+      thisRound.add(k);
+    });
+  });
+  hist.lastOpponents = thisRound;
 }
 
 function assignCourts(pl, layout) {
@@ -338,23 +381,20 @@ function assignCourts(pl, layout) {
   return courts;
 }
 
-function makeTeams(activePl, layout, used, conflictGroup, playerSkills) {
+function makeTeams(activePl, layout, hist, conflictGroup) {
   let best = null;
   let bestScore = Infinity;
-  for (let att = 0; att < 600; att++) {
+  for (let att = 0; att < MAKE_TEAMS_ATTEMPTS; att++) {
     const s = shuffle(activePl);
     const courts = assignCourts(s, layout);
     let cv = 0;
-    let rv = 0;
-    let sv = 0;
+    let pv = 0;
     courts.forEach((ct) => {
       if (!teamOk(ct.a, conflictGroup)) cv++;
       if (!teamOk(ct.b, conflictGroup)) cv++;
-      if (used.has(teamKey(ct.a))) rv++;
-      if (used.has(teamKey(ct.b))) rv++;
-      sv += skillImbalance(ct, playerSkills);
+      pv += repeatCost(hist, ct);
     });
-    const score = cv * 1000 + rv + sv;
+    const score = cv * 1000 + pv;
     if (score < bestScore) {
       bestScore = score;
       best = courts;
@@ -364,13 +404,13 @@ function makeTeams(activePl, layout, used, conflictGroup, playerSkills) {
   return best;
 }
 
-function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, usedTeams = null, playerSkills = null) {
+function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, history = null) {
   if (sitC === null) {
     sitC = {};
     rawPlayers.forEach((p) => (sitC[p] = 0));
   }
-  if (usedTeams === null) {
-    usedTeams = new Set();
+  if (history === null) {
+    history = createPairHistory();
   }
   const rounds = [];
   for (let r = 0; r < count; r++) {
@@ -378,11 +418,8 @@ function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, u
     const subs = sorted.slice(0, layout.subs);
     subs.forEach((p) => sitC[p]++);
     const activePl = rawPlayers.filter((p) => !subs.includes(p));
-    const courts = makeTeams(activePl, layout, usedTeams, conflictGroup, playerSkills);
-    courts.forEach((ct) => {
-      usedTeams.add(teamKey(ct.a));
-      usedTeams.add(teamKey(ct.b));
-    });
+    const courts = makeTeams(activePl, layout, history, conflictGroup);
+    recordRound(history, courts);
     rounds.push({ subs, courts });
   }
   return rounds;
@@ -525,7 +562,7 @@ async function saveProfiles(env, profiles) {
 }
 
 async function loadProfiles(env) {
-  return getJson(env.SCHEDULES, PROFILES_KEY, { players: [], courtLocation: '' });
+  return getJson(env.SCHEDULES, PROFILES_KEY, { players: [] });
 }
 
 // Canonical join-key so "Ryan", " ryan ", "RYAN" all resolve to one identity
@@ -565,8 +602,18 @@ async function registerPlayers(env, names, dateStr) {
   return registry;
 }
 
-function canonicalPlayerName(registry, name) {
+// Manual overrides for name variants normalizePlayerKey() cannot merge on its
+// own (different name forms for the same person, e.g. "Ryan" vs "Ryan Xu",
+// rather than just casing/whitespace drift). Maps a normalized key straight to
+// the display name to use, so both variants converge on one leaderboard row
+// regardless of which spelling a given week's import used.
+async function loadPlayerAliases(env) {
+  return getJson(env.SCHEDULES, PLAYER_ALIASES_KEY, {});
+}
+
+function canonicalPlayerName(registry, name, aliases = {}) {
   const key = normalizePlayerKey(name);
+  if (aliases[key]) return aliases[key];
   return registry?.[key]?.name || name;
 }
 
@@ -592,7 +639,6 @@ async function createQrDataUrl(text) {
 async function handleGenerateSchedule(c) {
   const body = await c.req.json();
   const {
-    courtLocation,
     numCourts,
     players,
     conflictGroup,
@@ -608,12 +654,6 @@ async function handleGenerateSchedule(c) {
   const playerNames = players
     .map((p) => (typeof p === 'string' ? p : p.name))
     .filter(Boolean);
-  const playerSkills = {};
-  players.forEach((p) => {
-    if (p && typeof p === 'object' && p.name && (p.skill === 1 || p.skill === 2 || p.skill === 3)) {
-      playerSkills[p.name] = p.skill;
-    }
-  });
   const computedLayout = layout || getLayout(playerNames.length, numCourts);
 
   if (!computedLayout) {
@@ -623,7 +663,7 @@ async function handleGenerateSchedule(c) {
   const scheduleCode = generateScheduleCode();
   const roundData = Array.isArray(rounds)
     ? rounds
-    : generateRounds(playerNames, computedLayout, conflictGroup || [], 10, null, null, playerSkills);
+    : generateRounds(playerNames, computedLayout, conflictGroup || [], 10);
   const shareUrl = buildShareUrl(shareBaseUrl || c.req.header('origin'), scheduleCode);
   const qrDataUrl = await createQrDataUrl(shareUrl);
 
@@ -632,9 +672,7 @@ async function handleGenerateSchedule(c) {
     generatedAt: new Date().toISOString(),
     rounds: roundData,
     players: playerNames,
-    playerSkills,
     numCourts,
-    courtLocation: courtLocation || '',
     conflictGroup: Array.isArray(conflictGroup) ? conflictGroup : [],
     layout: computedLayout,
     shareUrl,
@@ -743,15 +781,12 @@ async function handleExtendSchedule(c) {
   }
 
   const sitC = Object.fromEntries((schedule.players || []).map((p) => [p, 0]));
-  const usedTeams = new Set();
+  const history = createPairHistory();
   existingRounds.forEach((rnd) => {
     (rnd.subs || []).forEach((p) => {
       if (p in sitC) sitC[p]++;
     });
-    (rnd.courts || []).forEach((ct) => {
-      usedTeams.add(teamKey(ct.a));
-      usedTeams.add(teamKey(ct.b));
-    });
+    recordRound(history, rnd.courts);
   });
 
   const newRounds = generateRounds(
@@ -760,8 +795,7 @@ async function handleExtendSchedule(c) {
     schedule.conflictGroup || [],
     count,
     sitC,
-    usedTeams,
-    schedule.playerSkills || null,
+    history,
   );
 
   schedule.rounds = [...existingRounds, ...newRounds];
@@ -780,7 +814,7 @@ async function handleExtendSchedule(c) {
 
 async function handleProfiles(c) {
   const body = await c.req.json();
-  const { players, courtLocation } = body ?? {};
+  const { players } = body ?? {};
 
   if (!Array.isArray(players)) {
     return c.json({ error: 'Players must be an array' }, { status: 400 });
@@ -788,21 +822,39 @@ async function handleProfiles(c) {
 
   const profiles = {
     players,
-    courtLocation: courtLocation || '',
   };
 
   await saveProfiles(c.env, profiles);
   return c.json({ ok: true });
 }
 
+// When several registry keys alias to the same canonical name (e.g. "ryan"
+// and "ryan xu"), firstSeen/lastSeen must span all of them, not just whichever
+// key happens to match the canonical name's own normalized form.
+function computeCanonicalSeenDates(registry, aliases) {
+  const result = {};
+  Object.entries(registry).forEach(([key, info]) => {
+    const canonName = aliases[key] || info.name;
+    const cur = result[canonName];
+    if (!cur) {
+      result[canonName] = { firstSeen: info.firstSeen, lastSeen: info.lastSeen };
+    } else {
+      if (info.firstSeen && (!cur.firstSeen || info.firstSeen < cur.firstSeen)) cur.firstSeen = info.firstSeen;
+      if (info.lastSeen && (!cur.lastSeen || info.lastSeen > cur.lastSeen)) cur.lastSeen = info.lastSeen;
+    }
+  });
+  return result;
+}
+
 async function handleLeaderboard(c) {
   const registry = await loadPlayerRegistry(c.env);
+  const aliases = await loadPlayerAliases(c.env);
+  const seenDates = computeCanonicalSeenDates(registry, aliases);
   const index = await loadScheduleIndex(c.env);
   const stats = {};
 
   const ensure = (name) => {
     if (!stats[name]) {
-      const key = normalizePlayerKey(name);
       stats[name] = {
         name,
         games: 0,
@@ -810,8 +862,8 @@ async function handleLeaderboard(c) {
         sessions: 0,
         partners: new Set(),
         opponents: new Set(),
-        firstSeen: registry[key]?.firstSeen || null,
-        lastSeen: registry[key]?.lastSeen || null,
+        firstSeen: seenDates[name]?.firstSeen || null,
+        lastSeen: seenDates[name]?.lastSeen || null,
       };
     }
     return stats[name];
@@ -824,7 +876,7 @@ async function handleLeaderboard(c) {
     const seenThisSession = new Set();
     schedule.rounds.forEach((rnd) => {
       (rnd.subs || []).forEach((p) => {
-        const canon = canonicalPlayerName(registry, p);
+        const canon = canonicalPlayerName(registry, p, aliases);
         ensure(canon).sits += 1;
         seenThisSession.add(canon);
       });
@@ -832,14 +884,14 @@ async function handleLeaderboard(c) {
         [ct.a, ct.b].forEach((team, idx) => {
           const otherTeam = idx === 0 ? ct.b : ct.a;
           team.forEach((p) => {
-            const canon = canonicalPlayerName(registry, p);
+            const canon = canonicalPlayerName(registry, p, aliases);
             const entryStats = ensure(canon);
             entryStats.games += 1;
             seenThisSession.add(canon);
             team
               .filter((q) => q !== p)
-              .forEach((q) => entryStats.partners.add(canonicalPlayerName(registry, q)));
-            otherTeam.forEach((q) => entryStats.opponents.add(canonicalPlayerName(registry, q)));
+              .forEach((q) => entryStats.partners.add(canonicalPlayerName(registry, q, aliases)));
+            otherTeam.forEach((q) => entryStats.opponents.add(canonicalPlayerName(registry, q, aliases)));
           });
         });
       });
@@ -870,7 +922,6 @@ async function handleData(c) {
   return c.json({
     currentSchedule: await loadCurrentSchedule(c.env),
     players: profiles.players || [],
-    courtLocation: profiles.courtLocation || '',
     showCountryLabel: getShowCountryLabelFlag(c.env),
     playerCountryLookup,
     countryLookup: playerCountryLookup,
@@ -1149,7 +1200,6 @@ async function runCalAutoImport(env, options = {}) {
   const roundData = generateRounds(players, layout, [], AUTO_IMPORT_ROUND_COUNT);
   const shareUrl = buildShareUrl(PROD_SHARE_BASE_URL, scheduleCode);
   const qrDataUrl = await createQrDataUrl(shareUrl);
-  const profiles = await loadProfiles(env);
 
   const schedule = {
     code: scheduleCode,
@@ -1157,7 +1207,6 @@ async function runCalAutoImport(env, options = {}) {
     rounds: roundData,
     players,
     numCourts: AUTO_IMPORT_NUM_COURTS,
-    courtLocation: profiles.courtLocation || '',
     conflictGroup: [],
     layout,
     shareUrl,
@@ -1243,6 +1292,7 @@ export {
   handleShareSchedule,
   handleScheduleStream,
   healthPayload,
+  loadPlayerAliases,
   loadPlayerRegistry,
   loadScheduleIndex,
   makeTeams,

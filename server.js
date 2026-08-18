@@ -68,7 +68,7 @@ function loadData() {
   if (fs.existsSync(DATA_FILE)) {
     return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
   }
-  return { players: [], courtLocation: '', currentSchedule: null, archivedSchedules: [] };
+  return { players: [], currentSchedule: null, archivedSchedules: [] };
 }
 
 function saveData(data) {
@@ -245,21 +245,63 @@ function teamOk(t, conflictGroup) {
   return true;
 }
 
-// Skill tiers are 1 (Beginner), 2 (Intermediate), 3 (Advanced). Unrated players
-// are treated as a neutral 2 so they don't skew balancing for rosters without
-// skill data (fully backward compatible with existing schedules).
-const SKILL_IMBALANCE_WEIGHT = 0.1;
+// Repeat costs are squared in how many times a pair has already met, so the search
+// keeps spreading pairings out instead of going blind once every combination has
+// been used once. Back-to-back rematches cost extra because a streak is what
+// players actually notice.
+const REPEAT_PARTNER_WEIGHT = 1;
+const REPEAT_OPPONENT_WEIGHT = 0.6;
+const CONSECUTIVE_OPPONENT_WEIGHT = 3;
+const MAKE_TEAMS_ATTEMPTS = 600;
 
-function getSkill(playerSkills, name) {
-  const v = playerSkills ? playerSkills[name] : undefined;
-  return v === 1 || v === 2 || v === 3 ? v : 2;
+function pairKey(a, b) {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
 
-function skillImbalance(ct, playerSkills) {
-  if (ct.singles || ct.a.length !== 2 || ct.b.length !== 2) return 0;
-  const sa = ct.a.reduce((s, p) => s + getSkill(playerSkills, p), 0);
-  const sb = ct.b.reduce((s, p) => s + getSkill(playerSkills, p), 0);
-  return Math.pow(sa - sb, 2) * SKILL_IMBALANCE_WEIGHT;
+function createPairHistory() {
+  return { partners: new Map(), opponents: new Map(), lastOpponents: new Set() };
+}
+
+function courtPairs(ct) {
+  const partners = [];
+  const opponents = [];
+  [ct.a, ct.b].forEach(team => {
+    for (let i = 0; i < team.length; i++) {
+      for (let j = i + 1; j < team.length; j++) {
+        partners.push(pairKey(team[i], team[j]));
+      }
+    }
+  });
+  ct.a.forEach(p => ct.b.forEach(q => opponents.push(pairKey(p, q))));
+  return { partners, opponents };
+}
+
+function repeatCost(hist, ct) {
+  const { partners, opponents } = courtPairs(ct);
+  let cost = 0;
+  partners.forEach(k => {
+    const n = hist.partners.get(k) || 0;
+    cost += n * n * REPEAT_PARTNER_WEIGHT;
+  });
+  opponents.forEach(k => {
+    const n = hist.opponents.get(k) || 0;
+    cost += n * n * REPEAT_OPPONENT_WEIGHT;
+    if (hist.lastOpponents.has(k)) cost += CONSECUTIVE_OPPONENT_WEIGHT;
+  });
+  return cost;
+}
+
+function recordRound(hist, courts) {
+  const thisRound = new Set();
+  (courts || []).forEach(ct => {
+    const { partners, opponents } = courtPairs(ct);
+    partners.forEach(k => hist.partners.set(k, (hist.partners.get(k) || 0) + 1));
+    opponents.forEach(k => {
+      hist.opponents.set(k, (hist.opponents.get(k) || 0) + 1);
+      thisRound.add(k);
+    });
+  });
+  hist.lastOpponents = thisRound;
 }
 
 function assignCourts(pl, layout) {
@@ -284,23 +326,20 @@ function assignCourts(pl, layout) {
   return courts;
 }
 
-function makeTeams(activePl, layout, used, conflictGroup, playerSkills) {
+function makeTeams(activePl, layout, hist, conflictGroup) {
   let best = null;
   let bestScore = Infinity;
-  for (let att = 0; att < 600; att++) {
+  for (let att = 0; att < MAKE_TEAMS_ATTEMPTS; att++) {
     const s = shuffle(activePl);
     const courts = assignCourts(s, layout);
     let cv = 0;
-    let rv = 0;
-    let sv = 0;
+    let pv = 0;
     courts.forEach(ct => {
       if (!teamOk(ct.a, conflictGroup)) cv++;
       if (!teamOk(ct.b, conflictGroup)) cv++;
-      if (used.has(teamKey(ct.a))) rv++;
-      if (used.has(teamKey(ct.b))) rv++;
-      sv += skillImbalance(ct, playerSkills);
+      pv += repeatCost(hist, ct);
     });
-    const score = cv * 1000 + rv + sv;
+    const score = cv * 1000 + pv;
     if (score < bestScore) {
       bestScore = score;
       best = courts;
@@ -310,13 +349,13 @@ function makeTeams(activePl, layout, used, conflictGroup, playerSkills) {
   return best;
 }
 
-function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, usedTeams = null, playerSkills = null) {
+function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, history = null) {
   if (sitC === null) {
     sitC = {};
     rawPlayers.forEach(p => (sitC[p] = 0));
   }
-  if (usedTeams === null) {
-    usedTeams = new Set();
+  if (history === null) {
+    history = createPairHistory();
   }
   const rounds = [];
   for (let r = 0; r < count; r++) {
@@ -324,11 +363,8 @@ function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, u
     const subs = sorted.slice(0, layout.subs);
     subs.forEach(p => sitC[p]++);
     const activePl = rawPlayers.filter(p => !subs.includes(p));
-    const courts = makeTeams(activePl, layout, usedTeams, conflictGroup, playerSkills);
-    courts.forEach(ct => {
-      usedTeams.add(teamKey(ct.a));
-      usedTeams.add(teamKey(ct.b));
-    });
+    const courts = makeTeams(activePl, layout, history, conflictGroup);
+    recordRound(history, courts);
     rounds.push({ subs, courts });
   }
   return rounds;
@@ -336,19 +372,13 @@ function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, u
 
 app.post('/api/schedule', async (req, res) => {
   try {
-    const { courtLocation, numCourts, players, conflictGroup, layout, rounds, shareBaseUrl } = req.body;
+    const { numCourts, players, conflictGroup, layout, rounds, shareBaseUrl } = req.body;
 
     if (!numCourts || !players || !Array.isArray(players)) {
       return res.status(400).json({ error: 'Invalid input' });
     }
 
     const playerNames = players.map(p => (typeof p === 'string' ? p : p.name)).filter(Boolean);
-    const playerSkills = {};
-    players.forEach(p => {
-      if (p && typeof p === 'object' && p.name && (p.skill === 1 || p.skill === 2 || p.skill === 3)) {
-        playerSkills[p.name] = p.skill;
-      }
-    });
     const computedLayout = layout || getLayout(playerNames.length, numCourts);
 
     if (!computedLayout) {
@@ -356,7 +386,7 @@ app.post('/api/schedule', async (req, res) => {
     }
 
     const scheduleCode = generateScheduleCode();
-    const roundData = Array.isArray(rounds) ? rounds : generateRounds(playerNames, computedLayout, conflictGroup || [], 10, null, null, playerSkills);
+    const roundData = Array.isArray(rounds) ? rounds : generateRounds(playerNames, computedLayout, conflictGroup || [], 10);
     const shareUrl = buildShareUrl(shareBaseUrl || req.get('origin'), scheduleCode);
 
     const qrDataUrl = await QRCode.toDataURL(shareUrl);
@@ -366,9 +396,7 @@ app.post('/api/schedule', async (req, res) => {
       generatedAt: new Date().toISOString(),
       rounds: roundData,
       players: playerNames,
-      playerSkills,
       numCourts,
-      courtLocation: courtLocation || '',
       conflictGroup: Array.isArray(conflictGroup) ? conflictGroup : [],
       layout: computedLayout,
       shareUrl
@@ -431,7 +459,6 @@ app.get('/api/data', (req, res) => {
     res.json({
       currentSchedule: data.currentSchedule,
       players: data.players,
-      courtLocation: data.courtLocation,
       showCountryLabel,
       playerCountryLookup,
       countryLookup: playerCountryLookup
@@ -501,13 +528,13 @@ app.post('/api/schedule/:code/extend', (req, res) => {
 
     const existingRounds = Array.isArray(schedule.rounds) ? schedule.rounds : [];
     const sitC = Object.fromEntries(schedule.players.map(p => [p, 0]));
-    const usedTeams = new Set();
+    const history = createPairHistory();
     existingRounds.forEach(rnd => {
       rnd.subs.forEach(p => { if (p in sitC) sitC[p]++; });
-      rnd.courts.forEach(ct => { usedTeams.add(teamKey(ct.a)); usedTeams.add(teamKey(ct.b)); });
+      recordRound(history, rnd.courts);
     });
 
-    const newRounds = generateRounds(schedule.players, schedule.layout, schedule.conflictGroup, count, sitC, usedTeams, schedule.playerSkills || null);
+    const newRounds = generateRounds(schedule.players, schedule.layout, schedule.conflictGroup, count, sitC, history);
     schedule.rounds = [...existingRounds, ...newRounds];
     touchSchedule(schedule);
     saveData(data);
@@ -520,7 +547,7 @@ app.post('/api/schedule/:code/extend', (req, res) => {
 
 app.post('/api/profiles', (req, res) => {
   try {
-    const { players, courtLocation } = req.body;
+    const { players } = req.body;
 
     if (!Array.isArray(players)) {
       return res.status(400).json({ error: 'Players must be an array' });
@@ -528,9 +555,6 @@ app.post('/api/profiles', (req, res) => {
 
     const data = loadData();
     data.players = players;
-    if (courtLocation) {
-      data.courtLocation = courtLocation;
-    }
     saveData(data);
 
     res.json({ ok: true });
