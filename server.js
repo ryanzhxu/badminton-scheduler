@@ -386,7 +386,7 @@ app.post('/api/schedule', async (req, res) => {
     }
 
     const scheduleCode = generateScheduleCode();
-    const roundData = Array.isArray(rounds) ? rounds : generateRounds(playerNames, computedLayout, conflictGroup || [], 10);
+    const roundData = Array.isArray(rounds) ? rounds : generateRounds(playerNames, computedLayout, conflictGroup || [], 15);
     const shareUrl = buildShareUrl(shareBaseUrl || req.get('origin'), scheduleCode);
 
     const qrDataUrl = await QRCode.toDataURL(shareUrl);

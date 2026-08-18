@@ -664,7 +664,7 @@ async function handleGenerateSchedule(c) {
   const scheduleCode = generateScheduleCode();
   const roundData = Array.isArray(rounds)
     ? rounds
-    : generateRounds(playerNames, computedLayout, conflictGroup || [], 10);
+    : generateRounds(playerNames, computedLayout, conflictGroup || [], 15);
   const shareUrl = buildShareUrl(shareBaseUrl || c.req.header('origin'), scheduleCode);
   const qrDataUrl = await createQrDataUrl(shareUrl);
 
@@ -1030,7 +1030,7 @@ const CAL_API_BASE = 'https://api.cal.com/v2';
 const CAL_EVENT_TYPE_ID_KEY = 'cal:event_type_id';
 const CAL_LAST_PULL_KEY = 'cal:last_pull_date';
 const AUTO_IMPORT_NUM_COURTS = 3;
-const AUTO_IMPORT_ROUND_COUNT = 10;
+const AUTO_IMPORT_ROUND_COUNT = 15;
 const PROD_SHARE_BASE_URL = 'https://trulioo-badminton.onrender.com';
 
 function isEmail(s) {
