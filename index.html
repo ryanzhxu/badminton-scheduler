@@ -79,17 +79,18 @@ textarea:focus{outline:none;border-color:#128BA6;box-shadow:0 0 0 3px rgba(18,13
 .checkin-chip.status-left{background:var(--ers);color:var(--er);border-color:var(--er);text-decoration:line-through;text-decoration-thickness:2px}
 .checkin-chip.status-left .ci-dot{background:var(--er)}
 .checkin-legend{font-size:12px;color:var(--txs);margin-top:8px}
-.ci-shell{display:inline-flex;align-items:stretch;gap:2px}
-.ci-shell .checkin-chip{border-top-right-radius:0;border-bottom-right-radius:0}
-.rename-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;border:1.5px solid var(--bd);border-left:none;border-top-right-radius:10px;border-bottom-right-radius:10px;background:var(--s1);color:var(--txs);cursor:pointer}
-.rename-btn:hover{color:var(--tx);background:var(--s0)}
-.checkin-chip-edit{display:inline-flex;align-items:center;gap:4px;padding:4px;border-radius:10px;border:1.5px solid var(--ia);background:var(--s1)}
-.rename-input{font:inherit;font-size:13px;font-weight:600;font-family:'Libre Franklin',sans-serif;border:1px solid var(--bd);border-radius:6px;padding:6px 8px;width:140px;background:var(--s0);color:var(--tx)}
-.rename-ok{color:var(--ok);border-color:var(--ok)}
-.rename-cancel{color:var(--er);border-color:var(--er)}
-.checkin-chip-edit .rename-btn{border-radius:6px;border-left:1.5px solid var(--bd)}
+.checkin-edit-btn.active{background:var(--ia);color:#fff;border-color:var(--ia)}
+.checkin-name-input{font:inherit;font-size:13px;font-weight:600;font-family:'Libre Franklin',sans-serif;border:1.5px solid var(--ia);border-radius:10px;padding:10px 14px;min-height:44px;width:140px;background:var(--s0);color:var(--tx)}
+.checkin-add-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.checkin-add-input{font:inherit;font-size:13px;font-family:'Libre Franklin',sans-serif;border:1.5px solid var(--bd);border-radius:10px;padding:10px 14px;min-height:44px;flex:1;min-width:160px;background:var(--s0);color:var(--tx)}
 .rnav{display:flex;align-items:center;gap:12px;margin-bottom:1rem;background:var(--s0);border:1px solid var(--bd);border-radius:8px;padding:10px 16px}
 .rnav .rlabel{flex:1;text-align:center;font-size:15px;font-weight:600;color:var(--tx)}
+.session-summary{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:12px;color:var(--txs);margin:-4px 0 12px}
+.session-summary span{display:inline-flex;align-items:center;gap:5px}
+.session-summary i{font-size:13px}
+.val-badge{font-size:10px;font-weight:700;letter-spacing:.02em;padding:2px 8px;border-radius:10px}
+.val-badge.ok{background:var(--oks);color:var(--ok)}
+.val-badge.warn{background:var(--was);color:#7A5D00}
 .sub-banner{background:var(--was);border:1px solid var(--wa);border-radius:6px;padding:10px 16px;color:var(--tx);font-size:13px;font-weight:600;margin-bottom:.75rem}
 .sub-banner span{font-weight:400}
 .courts-grid{display:grid;gap:12px;margin-bottom:1rem}
@@ -166,7 +167,14 @@ body.dark-mode .info-hint{color:var(--blb);background:var(--bls);border-color:va
 .sep-tx{font-size:9px;font-weight:700;color:#316E68;white-space:nowrap;letter-spacing:.02em;font-family:var(--font-sans)}
 body.dark-mode .sep-ln{background:#253C3C}
 body.dark-mode .sep-tx{color:#4A8070}
-@media(max-width:600px){.courts-grid{grid-template-columns:1fr !important}.modal-content{width:95%}}
+@media(max-width:600px){
+  .courts-grid{grid-template-columns:1fr !important}
+  .modal-content{width:95%}
+  .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:16px}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{white-space:nowrap;flex-shrink:0;padding:12px 16px}
+  .session-summary{gap:10px 14px;font-size:11px}
+}
 .hdr-a{text-decoration:none;color:inherit;transition:opacity .15s}
 .hdr-a:hover{opacity:.7}
 </style>
@@ -181,7 +189,7 @@ body.dark-mode .sep-tx{color:#4A8070}
       <div style="width:1px;height:26px;background:rgba(255,255,255,0.2);flex-shrink:0"></div>
       <a href="/" class="hdr-a">
         <div style="font-size:14px;font-weight:600;color:#FFFFFF" data-i18n="appTitle"></div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.04em">Internal Tools</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.04em">Internal Tools <span id="app-version-label" title="App version"></span></div>
       </a>
     </div>
     <div class="hdr-tools">
@@ -315,6 +323,7 @@ body.dark-mode .sep-tx{color:#4A8070}
       </button>
       <button class="btn-s" id="next-btn" onclick="changeRound(1)"><i class="ti ti-chevron-right" style="font-size:15px"></i></button>
     </div>
+    <div id="session-summary" class="session-summary"></div>
     <div id="last-updated-line" style="font-size:12px;color:var(--txs);text-align:center;margin:-6px 0 10px"></div>
     <div id="edit-hint" class="edit-hint" style="display:none" data-i18n="swapHint">Tap two players to swap them</div>
     <div id="sub-banner-wrap"></div>
@@ -329,7 +338,7 @@ body.dark-mode .sep-tx{color:#4A8070}
       <i class="ti ti-circle-check" style="font-size:14px;vertical-align:-2px;margin-right:6px;color:var(--ok)"></i><strong data-i18n="activeSchedule"></strong> <span id="shared-time"></span>
     </div>
     <details class="card">
-      <summary class="slabel" style="margin-bottom:0;display:inline-block" data-i18n="validation"></summary>
+      <summary class="slabel" style="margin-bottom:0;display:inline-flex;align-items:center;gap:8px"><span data-i18n="validation"></span><span id="val-badge" class="val-badge"></span></summary>
       <div id="val-list" style="margin-top:10px"></div>
     </details>
   </div>
@@ -337,9 +346,17 @@ body.dark-mode .sep-tx{color:#4A8070}
     <div class="card" id="checkin-card">
       <div class="checkin-head">
         <div class="slabel" data-i18n="checkInLabel"></div>
-        <button class="btn-p checkin-all-btn" onclick="everyoneHere()"><i class="ti ti-users-group" style="font-size:14px;vertical-align:-2px;margin-right:5px"></i><span data-i18n="everyoneHere"></span></button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-s checkin-edit-btn" id="checkin-edit-toggle" onclick="toggleCheckinEditMode()"><i class="ti ti-pencil" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i><span data-i18n="editNames"></span></button>
+          <button class="btn-p checkin-all-btn" onclick="everyoneHere()"><i class="ti ti-users-group" style="font-size:14px;vertical-align:-2px;margin-right:5px"></i><span data-i18n="everyoneHere"></span></button>
+        </div>
       </div>
       <div class="checkin-chips" id="checkin-chips"></div>
+      <div class="checkin-add-row">
+        <input type="text" id="checkin-add-input" class="checkin-add-input" data-i18n="typeName" data-i18n-type="placeholder" onkeydown="if(event.key==='Enter')addCheckinPlayer();">
+        <button type="button" class="btn-s" onclick="addCheckinPlayer()"><i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i><span data-i18n="addPlayer"></span></button>
+      </div>
+      <div class="checkin-legend" id="checkin-edit-hint" style="display:none" data-i18n="checkInEditHint"></div>
       <div class="checkin-legend" data-i18n="checkInHint"></div>
       <div class="checkin-legend" id="checkin-msg" style="color:var(--er)"></div>
     </div>
@@ -353,6 +370,9 @@ body.dark-mode .sep-tx{color:#4A8070}
   </div>
 </div>
 <script>
+// Bump alongside package.json/worker/package.json on every meaningful change:
+// patch for fixes, minor for new features, major for breaking schedule/API changes.
+const APP_VERSION='1.7.0';
 const BASE_ROUNDS=15,EXTEND_ROUNDS=5;
 let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0;
 // Names injected by the demo helpers, so a session that includes any of them can be
@@ -361,10 +381,10 @@ let demoPlayers=new Set();
 let editingRound=null,editSelectedSlot=null,editHasUnsyncedSwap=false;
 let sitC={},pairHistory=null,currentLayout=null,currentNc=0;
 let attendance={};
-// Name of the player currently being renamed in the Check-in pane (null when
-// no chip is in edit mode), e.g. for correcting a typo or recording that a
-// substitute took over someone's slot mid-session.
-let renamingPlayer=null;
+// True while every Check-in chip is showing an editable name input at once,
+// e.g. for correcting a typo or recording that a substitute took over
+// someone's slot mid-session.
+let checkinEditMode=false;
 const ATTENDANCE_CYCLE={not_arrived:'playing',playing:'left',left:'not_arrived'};
 let currentShareCode='',currentShareUrl='',currentQrDataUrl='',qrSyncToken=0;
 let currentScheduleRevision=0,currentScheduleStream=null,currentScheduleStreamCode='';
@@ -460,12 +480,12 @@ function ctryRow(name,render){
   if(!render)return'';
   return`<div class="ctry-slot"><div class="ctry-sep${name?'':' ctry-gap'}" aria-hidden="${name?'false':'true'}"><span class="sep-ln"></span><span class="sep-tx">${name||''}</span><span class="sep-ln"></span></div></div>`;
 }
-const i18n={en:{appTitle:'Badminton Rotation Scheduler',appDesc:'Fair rotation · 2v2 doubles · 1v1 singles overflow · extendable',setupTab:'Setup',scheduleTab:'Schedule',checkinTab:'Check-in',settings:'Settings',courts:'Courts',numCourts:'Number of courts',courtPlaceholder:'e.g. 3',players:'Players',addPlayer:'Add',removeAll:'Remove all',typeName:'Type a name and press Enter…',bulkImport:'Bulk import from list',bulkDesc:'Paste names or emails — one per line. Emails and role suffixes like "- Organizer" are stripped automatically.',import:'Import',clear:'Clear',demoHelper:'Demo helper',demoDesc:'Load backend-owned country players from player-countries.json, or add random demo players to fill the setup list quickly.',injectDemo:'Load country demo',injectRandomDemo:'Add random demo',demoCount:'Count',conflicts:'Team conflicts',conflictsDesc:'Click players who should never share a team.',generateDesc:'Generate a rotation to create a QR code immediately.',generateBtn:'Generate Schedule',validation:'Constraint validation',roundOf:'Round {round} of {total}',singles:'1v1 singles',courtLabel:'Court {num}',editRound:'Edit round',doneEditing:'Done',swapHint:'Tap two players to swap them',activeSchedule:'ACTIVE SCHEDULE',extendMsg:'End of schedule — still going? Add 5 more rounds.',extendBtn:'Add 5 more rounds',shareBtn:'Share with group',appearance:'Appearance',language:'Language',lightTheme:'☀️ Light',darkTheme:'🌙 Dark',errorNeedMore:'{n} player{plural} — need at least {min} for {nc} court{courtPlural}',errorLayout:'Cannot create a valid layout',errorNoSchedule:'No schedule to share',errorShare:'Error sharing schedule: {error}',sharing:'Sharing...',shared:'✓ Shared',newRotation:'New rotation',shareQr:'Share QR',showQr:'Show QR',hideQr:'Hide QR',showCountryLabel:'Show country labels',hideCountryLabel:'Hide country labels',sittingOut:'Sitting out',vs:'vs',statPlayer:'Player',statPlayed:'Played',statSatOut:'Sat out',statPartners:'Partners',statOpponents:'Opponents',valNoConflicts:'No team conflict violations',valConflicts:'Violations: {list}',valNoRepeats:'No repeated team pairings',valRepeats:'{count} repeated pairing{plural} (rounds: {rounds})',valFairSubs:'Sub rotation fair — {min}–{max} sits per player',valUnfairSubs:'Uneven sub rotation (range {min}–{max})',valSummary:'{rounds} round{rplural} · {courts} court{cplural} · {fmt}',enterCourts:'Enter a number of courts',optionalLabel:'(optional)',conflictNone:'No conflict rules set.',conflictOneMore:'selected — pick at least one more.',conflictGroupSummary:'{count} players in conflict group: {names}.',hintPlayers:'{n} players',hintDoubles:'{count} doubles (2v2)',hintSingles:'{count} singles (1v1)',hintSitsOut:'{n} sit{plural} out per round',demoInjected:'Loaded {n} country demo player{plural} from JSON.',demoCountError:'Enter a count between 1 and 50',demoPlayer:'Demo Player',demoRandomInjected:'Added {n} random demo player{plural}.',leaderboardTab:'Leaderboard',statSessions:'Sessions',leaderboardEmpty:'No sessions recorded yet — check back after the next game.',leaderboardLoading:'Loading leaderboard…',leaderboardError:'Could not load leaderboard.',lastUpdatedLabel:'Last updated',currentLinkActive:'Auto-updating link — always shows this week\u2019s rotation',checkInLabel:'Check-in',everyoneHere:'Everyone\u2019s here',statusNotArrived:'Not arrived',statusPlaying:'Playing',statusLeft:'Left',checkInHint:'Tap a player to cycle: not arrived → playing → left.',renamePlayer:'Rename player',renameSave:'Save name',renameCancel:'Cancel',renameDuplicate:'{name} is already on the roster'},
-'zh-s':{appTitle:'羽毛球轮转调度器',appDesc:'公平轮转 · 2v2双打 · 1v1单打替补 · 可扩展',setupTab:'设置',scheduleTab:'日程',checkinTab:'签到',settings:'设置',courts:'球场',numCourts:'球场数量',courtPlaceholder:'例如 3',players:'运动员',addPlayer:'添加',removeAll:'全部删除',typeName:'输入名字然后按Enter…',bulkImport:'从列表批量导入',bulkDesc:'粘贴姓名或电子邮件 — 每行一个。电子邮件和角色后缀如"- 组织者"会自动删除。',import:'导入',clear:'清除',demoHelper:'演示助手',demoDesc:'添加虚拟运动员进行演示或屏幕录制。这会保留已输入的任何真实名字。',injectDemo:'注入演示运动员',demoCount:'数量',conflicts:'团队冲突',conflictsDesc:'点击不应该在同一队的运动员。',generateDesc:'生成轮转以立即创建二维码。',generateBtn:'生成日程',validation:'约束验证',roundOf:'第{round}轮，共{total}轮',singles:'1v1单打',courtLabel:'球场{num}',editRound:'编辑本轮',doneEditing:'完成',swapHint:'点击两名选手以交换位置',activeSchedule:'日程已激活',extendMsg:'日程已结束 — 还想继续？添加5轮。',extendBtn:'添加5轮',shareBtn:'与小组分享',appearance:'外观',language:'语言',lightTheme:'☀️ 浅色',darkTheme:'🌙 深色',errorNeedMore:'{n}个运动员{plural} — 需要至少{min}个来进行{nc}个球场{courtPlural}',errorLayout:'无法创建有效的布局',errorNoSchedule:'没有日程可分享',errorShare:'分享日程出错：{error}',sharing:'分享中...',shared:'✓ 已分享',newRotation:'新轮换',shareQr:'分享二维码',showQr:'显示二维码',hideQr:'隐藏二维码',showCountryLabel:'显示国家标签',hideCountryLabel:'隐藏国家标签',sittingOut:'休息',vs:'对',statPlayer:'运动员',statPlayed:'上场',statSatOut:'休息',statPartners:'搭档',statOpponents:'对手',valNoConflicts:'无团队冲突违规',valConflicts:'违规：{list}',valNoRepeats:'无重复配对',valRepeats:'{count}次重复配对（轮次：{rounds}）',valFairSubs:'替补轮换公平 — 每人{min}–{max}次休息',valUnfairSubs:'替补轮换不公平（范围{min}–{max}）',valSummary:'{rounds}轮 · {courts}球场 · {fmt}',enterCourts:'请输入球场数量',optionalLabel:'（可选）',conflictNone:'未设置冲突规则。',conflictOneMore:'已选 — 请至少再选一人。',conflictGroupSummary:'{count}名运动员在冲突组：{names}。',hintPlayers:'{n}名运动员',hintDoubles:'{count}双打 (2v2)',hintSingles:'{count}单打 (1v1)',hintSitsOut:'每轮{n}人休息',demoInjected:'已加入{n}名示例玩家。',demoCountError:'请输入1到50之间的数字',demoPlayer:'示例玩家',leaderboardTab:'排行榜',statSessions:'场次',leaderboardEmpty:'暂无历史记录 — 下次比赛后再来看看。',leaderboardLoading:'正在加载排行榜…',leaderboardError:'无法加载排行榜。',lastUpdatedLabel:'最近更新',currentLinkActive:'自动更新链接 — 始终显示本周的轮转',checkInLabel:'签到',everyoneHere:'全员已到',statusNotArrived:'未到',statusPlaying:'在场',statusLeft:'已离开',checkInHint:'点击运动员可循环切换：未到 → 在场 → 已离开。',renamePlayer:'重命名',renameSave:'保存',renameCancel:'取消',renameDuplicate:'{name} 已在名单中'},
-'zh-t':{appTitle:'羽球輪替排程器',appDesc:'公平輪替 · 2v2雙打 · 1v1單打候補 · 可擴充',setupTab:'設定',scheduleTab:'賽程',checkinTab:'簽到',settings:'設定',courts:'球場',numCourts:'球場數量',courtPlaceholder:'例如 3',players:'選手',addPlayer:'新增',removeAll:'全部移除',typeName:'輸入姓名後按Enter…',bulkImport:'從清單批次匯入',bulkDesc:'貼上姓名或電子郵件 — 每行一個。電子郵件及角色後綴如「- 主辦人」將自動移除。',import:'匯入',clear:'清除',demoHelper:'示範小幫手',demoDesc:'新增虛擬選手以進行示範或螢幕錄影。已輸入的真實姓名將會保留。',injectDemo:'加入示範選手',demoCount:'數量',conflicts:'隊伍衝突',conflictsDesc:'點選不應同隊的選手。',generateDesc:'產生輪替並立即建立 QR 碼。',generateBtn:'產生賽程',validation:'規則檢查',roundOf:'第{round}輪，共{total}輪',singles:'1v1單打',courtLabel:'球場{num}',editRound:'編輯本輪',doneEditing:'完成',swapHint:'點選兩位選手以互換位置',activeSchedule:'賽程已啟用',extendMsg:'賽程已結束 — 還要繼續嗎？新增 5 輪。',extendBtn:'新增 5 輪',shareBtn:'與群組分享',appearance:'外觀',language:'語言',lightTheme:'☀️ 淺色',darkTheme:'🌙 深色',errorNeedMore:'{n} 位選手{plural} — {nc} 個球場{courtPlural}至少需要 {min} 位',errorLayout:'無法建立有效的版面配置',errorNoSchedule:'沒有可分享的賽程',errorShare:'分享賽程時發生錯誤：{error}',sharing:'分享中...',shared:'✓ 已分享',newRotation:'新輪替',shareQr:'分享 QR 碼',showQr:'顯示 QR 碼',hideQr:'隱藏 QR 碼',showCountryLabel:'顯示國家標籤',hideCountryLabel:'隱藏國家標籤',sittingOut:'休息中',vs:'vs',statPlayer:'選手',statPlayed:'上場',statSatOut:'休息',statPartners:'搭檔',statOpponents:'對手',valNoConflicts:'無隊伍衝突違規',valConflicts:'違規：{list}',valNoRepeats:'無重複配對',valRepeats:'{count} 次重複配對（輪次：{rounds}）',valFairSubs:'候補輪替公平 — 每人 {min}–{max} 次休息',valUnfairSubs:'候補輪替不公平（範圍 {min}–{max}）',valSummary:'{rounds} 輪 · {courts} 場 · {fmt}',enterCourts:'請輸入球場數量',optionalLabel:'（選填）',conflictNone:'未設定衝突規則。',conflictOneMore:'已選 — 請再選一位。',conflictGroupSummary:'{count} 位選手在衝突群組：{names}。',hintPlayers:'{n} 位選手',hintDoubles:'{count} 雙打 (2v2)',hintSingles:'{count} 單打 (1v1)',hintSitsOut:'每輪 {n} 人休息',demoInjected:'已加入 {n} 位示範選手。',demoCountError:'請輸入 1 到 50 之間的數字',demoPlayer:'示範選手',leaderboardTab:'排行榜',statSessions:'場次',leaderboardEmpty:'尚無歷史紀錄 — 下次比賽後再回來看看。',leaderboardLoading:'正在載入排行榜…',leaderboardError:'無法載入排行榜。',lastUpdatedLabel:'最近更新',currentLinkActive:'自動更新連結 — 一律顯示本週的輪替',checkInLabel:'簽到',everyoneHere:'全員已到',statusNotArrived:'未到',statusPlaying:'在場',statusLeft:'已離開',checkInHint:'點選選手可循環切換：未到 → 在場 → 已離開。',renamePlayer:'重新命名',renameSave:'儲存',renameCancel:'取消',renameDuplicate:'{name} 已在名單中'},
-'ko':{appTitle:'배드민턴 로테이션 스케줄러',appDesc:'공정한 로테이션 · 2v2 복식 · 1v1 단식 오버플로우 · 확장 가능',setupTab:'설정',scheduleTab:'일정',checkinTab:'체크인',settings:'설정',courts:'코트',numCourts:'코트 수',courtPlaceholder:'예: 3',players:'선수',addPlayer:'추가',removeAll:'모두 제거',typeName:'이름을 입력하고 Enter를 누르세요…',bulkImport:'목록에서 일괄 가져오기',bulkDesc:'이름 또는 이메일을 붙여넣으세요 — 한 줄에 하나씩. "- 주최자"와 같은 이메일 및 역할 접미사는 자동으로 제거됩니다.',import:'가져오기',clear:'지우기',demoHelper:'데모 도우미',demoDesc:'데모 또는 화면 녹화용 가짜 선수를 추가합니다. 이미 입력한 실제 이름은 유지됩니다.',injectDemo:'데모 선수 주입',demoCount:'개수',conflicts:'팀 충돌',conflictsDesc:'같은 팀에 있으면 안 되는 선수를 클릭합니다.',generateDesc:'로테이션을 생성하여 즉시 QR 코드를 만듭니다.',generateBtn:'일정 생성',validation:'제약 조건 검증',roundOf:'{round}라운드 / {total}',singles:'1v1 단식',courtLabel:'코트 {num}',editRound:'라운드 편집',doneEditing:'완료',swapHint:'두 선수를 탭하여 위치를 바꾸세요',activeSchedule:'활성 일정',extendMsg:'일정이 끝났습니다 — 계속하시겠습니까? 5 라운드 추가.',extendBtn:'5라운드 추가',shareBtn:'그룹과 공유',appearance:'모양',language:'언어',lightTheme:'☀️ 밝음',darkTheme:'🌙 어두움',errorNeedMore:'{n}명의 선수{plural} — {nc}개 코트{courtPlural}에 최소 {min}명 필요',errorLayout:'유효한 레이아웃을 만들 수 없습니다',errorNoSchedule:'공유할 일정이 없습니다',errorShare:'일정 공유 오류: {error}',sharing:'공유 중...',shared:'✓ 공유됨',newRotation:'새 로테이션',shareQr:'QR 공유',showQr:'QR 표시',hideQr:'QR 숨기기',showCountryLabel:'국가 라벨 표시',hideCountryLabel:'국가 라벨 숨기기',sittingOut:'쉬는 중',vs:'vs',statPlayer:'선수',statPlayed:'경기 수',statSatOut:'쉰 횟수',statPartners:'파트너',statOpponents:'상대',valNoConflicts:'팀 충돌 위반 없음',valConflicts:'위반: {list}',valNoRepeats:'반복된 팀 조합 없음',valRepeats:'{count}번 반복 조합 (라운드: {rounds})',valFairSubs:'교체 순환 공평 — 선수당 {min}–{max}회 휴식',valUnfairSubs:'교체 순환 불공평 (범위 {min}–{max})',valSummary:'{rounds} 라운드 · {courts} 코트 · {fmt}',enterCourts:'코트 수를 입력해 주세요',optionalLabel:'(선택)',conflictNone:'설정된 충돌 규칙 없음.',conflictOneMore:'선택됨 — 한 명 더 선택하세요.',conflictGroupSummary:'충돌 그룹에 {count}명: {names}.',hintPlayers:'{n}명 선수',hintDoubles:'{count} 복식 (2v2)',hintSingles:'{count} 단식 (1v1)',hintSitsOut:'라운드당 {n}명 휴식',demoInjected:'데모 선수 {n}명 추가됨.',demoCountError:'1에서 50 사이의 숫자를 입력하세요',demoPlayer:'데모 선수',leaderboardTab:'리더보드',statSessions:'세션',leaderboardEmpty:'아직 기록된 세션이 없습니다 — 다음 경기 후 확인해 주세요.',leaderboardLoading:'리더보드 불러오는 중…',leaderboardError:'리더보드를 불러올 수 없습니다.',lastUpdatedLabel:'마지막 업데이트',currentLinkActive:'자동 업데이트 링크 — 항상 이번 주 로테이션을 표시합니다',checkInLabel:'체크인',everyoneHere:'모두 도착',statusNotArrived:'미도착',statusPlaying:'참여 중',statusLeft:'퇴장',checkInHint:'선수를 탭하면 순서대로 전환됩니다: 미도착 → 참여 중 → 퇴장.',renamePlayer:'이름 변경',renameSave:'저장',renameCancel:'취소',renameDuplicate:'{name}님은 이미 명단에 있습니다'},
-'hi':{appTitle:'बैडमिंटन रोटेशन शेड्यूलर',appDesc:'निष्पक्ष रोटेशन · 2v2 डबल्स · 1v1 सिंगल्स ओवरफ़्लो · विस्तार योग्य',setupTab:'सेटअप',scheduleTab:'शेड्यूल',checkinTab:'चेक-इन',settings:'सेटिंग्स',courts:'कोर्ट',numCourts:'कोर्ट की संख्या',courtPlaceholder:'जैसे 3',players:'खिलाड़ी',addPlayer:'जोड़ें',removeAll:'सभी हटाएं',typeName:'नाम टाइप करें और Enter दबाएं…',bulkImport:'सूची से बल्क आयात',bulkDesc:'नाम या ईमेल पेस्ट करें — एक प्रति पंक्ति। "- आयोजक" जैसे ईमेल और भूमिका प्रत्यय स्वचालित रूप से हटा दिए जाते हैं।',import:'आयात',clear:'साफ करें',demoHelper:'डेमो सहायक',demoDesc:'डेमो या स्क्रीन रिकॉर्डिंग के लिए नकली खिलाड़ी जोड़ें। पहले से दर्ज कोई भी वास्तविक नाम संरक्षित रहता है।',injectDemo:'डेमो खिलाड़ी इंजेक्ट करें',demoCount:'गिनती',conflicts:'टीम संघर्ष',conflictsDesc:'उन खिलाड़ियों पर क्लिक करें जो एक ही टीम में नहीं होने चाहिए।',generateDesc:'एक रोटेशन जेनरेट करें और तुरंत QR कोड बनाएं।',generateBtn:'शेड्यूल जेनरेट करें',validation:'बाधा सत्यापन',roundOf:'राउंड {round} का {total}',singles:'1v1 सिंगल्स',courtLabel:'कोर्ट {num}',editRound:'राउंड संपादित करें',doneEditing:'पूर्ण',swapHint:'दो खिलाड़ियों को टैप करके स्थान बदलें',activeSchedule:'सक्रिय शेड्यूल',extendMsg:'शेड्यूल समाप्त — अभी भी जा रहे हैं? 5 और राउंड जोड़ें।',extendBtn:'5 और राउंड जोड़ें',shareBtn:'समूह के साथ साझा करें',appearance:'दिखावट',language:'भाषा',lightTheme:'☀️ हल्का',darkTheme:'🌙 गहरा',errorNeedMore:'{n} खिलाड़ी{plural} — {nc} कोर्ट{courtPlural} के लिए कम से कम {min} की आवश्यकता है',errorLayout:'एक मान्य लेआउट नहीं बना सकते',errorNoSchedule:'साझा करने के लिए कोई शेड्यूल नहीं',errorShare:'शेड्यूल साझा करने में त्रुटि: {error}',sharing:'साझा कर रहे हैं...',shared:'✓ साझा',newRotation:'नया रोटेशन',shareQr:'QR शेयर करें',showQr:'QR दिखाएं',hideQr:'QR छिपाएं',showCountryLabel:'देश लेबल दिखाएं',hideCountryLabel:'देश लेबल छिपाएं',sittingOut:'बाहर बैठे',vs:'vs',statPlayer:'खिलाड़ी',statPlayed:'खेले',statSatOut:'बाहर',statPartners:'साथी',statOpponents:'प्रतिद्वंद्वी',valNoConflicts:'कोई टीम संघर्ष उल्लंघन नहीं',valConflicts:'उल्लंघन: {list}',valNoRepeats:'कोई दोहराई गई जोड़ी नहीं',valRepeats:'{count} दोहराई गई जोड़ी (राउंड: {rounds})',valFairSubs:'सब रोटेशन उचित — प्रति खिलाड़ी {min}–{max} बार बाहर',valUnfairSubs:'सब रोटेशन असमान (रेंज {min}–{max})',valSummary:'{rounds} राउंड · {courts} कोर्ट · {fmt}',enterCourts:'कोर्ट की संख्या दर्ज करें',optionalLabel:'(वैकल्पिक)',conflictNone:'कोई संघर्ष नियम नहीं।',conflictOneMore:'चुना गया — एक और चुनें।',conflictGroupSummary:'{count} खिलाड़ी संघर्ष समूह में: {names}.',hintPlayers:'{n} खिलाड़ी',hintDoubles:'{count} डबल्स (2v2)',hintSingles:'{count} सिंगल्स (1v1)',hintSitsOut:'प्रति राउंड {n} बाहर',demoInjected:'{n} डेमो खिलाड़ी जोड़े।',demoCountError:'1 से 50 के बीच संख्या दर्ज करें',demoPlayer:'Demo खिलाड़ी',leaderboardTab:'लीडरबोर्ड',statSessions:'सत्र',leaderboardEmpty:'अभी तक कोई सत्र दर्ज नहीं हुआ — अगले खेल के बाद देखें।',leaderboardLoading:'लीडरबोर्ड लोड हो रहा है…',leaderboardError:'लीडरबोर्ड लोड नहीं हो सका।',lastUpdatedLabel:'अंतिम अपडेट',currentLinkActive:'स्वतः-अपडेट होने वाला लिंक — हमेशा इस सप्ताह का रोटेशन दिखाता है',checkInLabel:'चेक-इन',everyoneHere:'सभी आ गए',statusNotArrived:'नहीं आया',statusPlaying:'खेल रहे हैं',statusLeft:'चले गए',checkInHint:'खिलाड़ी पर टैप करें: नहीं आया → खेल रहे हैं → चले गए।',renamePlayer:'नाम बदलें',renameSave:'सहेजें',renameCancel:'रद्द करें',renameDuplicate:'{name} पहले से सूची में है'},
-'fil':{appTitle:'Badminton Rotation Scheduler',appDesc:'Patas na rotation · 2v2 doubles · 1v1 singles overflow · extendable',setupTab:'Setup',scheduleTab:'Schedule',checkinTab:'Check-in',settings:'Settings',courts:'Mga Court',numCourts:'Bilang ng court',courtPlaceholder:'hal. 3',players:'Mga Manlalaro',addPlayer:'Idagdag',removeAll:'Alisin Lahat',typeName:'Mag-type ng pangalan at pindutin ang Enter…',bulkImport:'Mag-import ng marami mula sa listahan',bulkDesc:'I-paste ang mga pangalan o email — isa bawat linya. Mga email at role suffix tulad ng "- Organizer" ay awtomatikong aalisin.',import:'I-import',clear:'I-clear',demoHelper:'Demo helper',demoDesc:'Mag-dagdag ng mga pekeng manlalaro para sa demo o screen recording. Mananatili ang mga tunay na pangalang na-enter na.',injectDemo:'Mag-dagdag ng demo players',demoCount:'Bilang',conflicts:'Mga team conflict',conflictsDesc:'I-click ang mga manlalarong hindi dapat magka-team.',generateDesc:'Gumawa ng rotation para agad makalikha ng QR code.',generateBtn:'Gumawa ng Schedule',validation:'Pagsusuri ng Patakaran',roundOf:'Round {round} ng {total}',singles:'1v1 singles',courtLabel:'Court {num}',editRound:'I-edit ang round',doneEditing:'Tapos na',swapHint:'I-tap ang dalawang manlalaro para papalitan sila',activeSchedule:'AKTIBONG SCHEDULE',extendMsg:'Tapos na ang schedule — tuloy pa rin? Dagdag ng 5 rounds pa.',extendBtn:'Dagdag ng 5 rounds',shareBtn:'I-share sa grupo',appearance:'Hitsura',language:'Wika',lightTheme:'☀️ Light',darkTheme:'🌙 Dark',errorNeedMore:'{n} manlalaro{plural} — kailangan ng hindi bababa sa {min} para sa {nc} court{courtPlural}',errorLayout:'Hindi makalikha ng valid na layout',errorNoSchedule:'Walang schedule para i-share',errorShare:'Error sa pag-share ng schedule: {error}',sharing:'Nag-sha-share...',shared:'✓ Na-share na',newRotation:'Bagong rotation',shareQr:'I-share ang QR',showQr:'Ipakita ang QR',hideQr:'Itago ang QR',showCountryLabel:'Ipakita ang label ng bansa',hideCountryLabel:'Itago ang label ng bansa',sittingOut:'Nakaupo',vs:'vs',statPlayer:'Manlalaro',statPlayed:'Nilaro',statSatOut:'Nakaupo',statPartners:'Mga kasama',statOpponents:'Mga kalaban',valNoConflicts:'Walang team conflict violations',valConflicts:'Mga violation: {list}',valNoRepeats:'Walang paulit-ulit na team pairing',valRepeats:'{count} paulit-ulit na pairing (rounds: {rounds})',valFairSubs:'Patas ang sub rotation — {min}–{max} beses nakaupo bawat manlalaro',valUnfairSubs:'Hindi patas ang sub rotation (range {min}–{max})',valSummary:'{rounds} round{rplural} · {courts} court{cplural} · {fmt}',enterCourts:'Ilagay ang bilang ng court',optionalLabel:'(optional)',conflictNone:'Walang conflict rules.',conflictOneMore:'napili — pumili pa ng isa.',conflictGroupSummary:'{count} manlalaro sa conflict group: {names}.',hintPlayers:'{n} manlalaro',hintDoubles:'{count} doubles (2v2)',hintSingles:'{count} singles (1v1)',hintSitsOut:'{n} nakaupo bawat round',demoInjected:'Nadagdag ang {n} demo player{plural}.',demoCountError:'Ilagay ang bilang mula 1 hanggang 50',demoPlayer:'Demo Manlalaro',leaderboardTab:'Leaderboard',statSessions:'Sessions',leaderboardEmpty:'Wala pang naitalang session — balikan pagkatapos ng susunod na laro.',leaderboardLoading:'Nilo-load ang leaderboard…',leaderboardError:'Hindi ma-load ang leaderboard.',lastUpdatedLabel:'Huling na-update',currentLinkActive:'Awtomatikong nag-a-update na link — palaging ipinapakita ang rotation ng linggong ito',checkInLabel:'Check-in',everyoneHere:'Nandito na lahat',statusNotArrived:'Hindi pa dumating',statusPlaying:'Naglalaro',statusLeft:'Umalis na',checkInHint:'I-tap ang manlalaro para mag-cycle: hindi pa dumating → naglalaro → umalis na.',renamePlayer:'Palitan ang pangalan',renameSave:'I-save',renameCancel:'Kanselahin',renameDuplicate:'Nasa listahan na ang {name}'}};
+const i18n={en:{appTitle:'Badminton Rotation Scheduler',appDesc:'Fair rotation · 2v2 doubles · 1v1 singles overflow · extendable',setupTab:'Setup',scheduleTab:'Schedule',checkinTab:'Check-in',settings:'Settings',courts:'Courts',numCourts:'Number of courts',courtPlaceholder:'e.g. 3',players:'Players',addPlayer:'Add',removeAll:'Remove all',typeName:'Type a name and press Enter…',bulkImport:'Bulk import from list',bulkDesc:'Paste names or emails — one per line. Emails and role suffixes like "- Organizer" are stripped automatically.',import:'Import',clear:'Clear',demoHelper:'Demo helper',demoDesc:'Load backend-owned country players from player-countries.json, or add random demo players to fill the setup list quickly.',injectDemo:'Load country demo',injectRandomDemo:'Add random demo',demoCount:'Count',conflicts:'Team conflicts',conflictsDesc:'Click players who should never share a team.',generateDesc:'Generate a rotation to create a QR code immediately.',generateBtn:'Generate Schedule',validation:'Constraint validation',roundOf:'Round {round} of {total}',singles:'1v1 singles',courtLabel:'Court {num}',editRound:'Edit round',doneEditing:'Done',swapHint:'Tap two players to swap them',activeSchedule:'ACTIVE SCHEDULE',extendMsg:'End of schedule — still going? Add 5 more rounds.',extendBtn:'Add 5 more rounds',shareBtn:'Share with group',appearance:'Appearance',language:'Language',lightTheme:'☀️ Light',darkTheme:'🌙 Dark',errorNeedMore:'{n} player{plural} — need at least {min} for {nc} court{courtPlural}',errorLayout:'Cannot create a valid layout',errorNoSchedule:'No schedule to share',errorShare:'Error sharing schedule: {error}',sharing:'Sharing...',shared:'✓ Shared',newRotation:'New rotation',shareQr:'Share QR',showQr:'Show QR',hideQr:'Hide QR',showCountryLabel:'Show country labels',hideCountryLabel:'Hide country labels',sittingOut:'Sitting out',vs:'vs',statPlayer:'Player',statPlayed:'Played',statSatOut:'Sat out',statPartners:'Partners',statOpponents:'Opponents',valNoConflicts:'No team conflict violations',valConflicts:'Violations: {list}',valNoRepeats:'No repeated team pairings',valRepeats:'{count} repeated pairing{plural} (rounds: {rounds})',valFairSubs:'Sub rotation fair — {min}–{max} sits per player',valUnfairSubs:'Uneven sub rotation (range {min}–{max})',valSummary:'{rounds} round{rplural} · {courts} court{cplural} · {fmt}',sessionRounds:'{n} rounds',valBadgeOk:'All good',valBadgeIssues:'{count} issue{plural}',enterCourts:'Enter a number of courts',optionalLabel:'(optional)',conflictNone:'No conflict rules set.',conflictOneMore:'selected — pick at least one more.',conflictGroupSummary:'{count} players in conflict group: {names}.',hintPlayers:'{n} players',hintDoubles:'{count} doubles (2v2)',hintSingles:'{count} singles (1v1)',hintSitsOut:'{n} sit{plural} out per round',demoInjected:'Loaded {n} country demo player{plural} from JSON.',demoCountError:'Enter a count between 1 and 50',demoPlayer:'Demo Player',demoRandomInjected:'Added {n} random demo player{plural}.',leaderboardTab:'Leaderboard',statSessions:'Sessions',leaderboardEmpty:'No sessions recorded yet — check back after the next game.',leaderboardLoading:'Loading leaderboard…',leaderboardError:'Could not load leaderboard.',lastUpdatedLabel:'Last updated',currentLinkActive:'Auto-updating link — always shows this week\u2019s rotation',checkInLabel:'Check-in',everyoneHere:'Everyone\u2019s here',statusNotArrived:'Not arrived',statusPlaying:'Playing',statusLeft:'Left',checkInHint:'Tap a player to cycle: not arrived → playing → left.',renameDuplicate:'{name} is already on the roster',editNames:'Edit names',checkInEditHint:'Editing names — click anywhere outside the list to save, or press Escape to cancel.'},
+'zh-s':{appTitle:'羽毛球轮转调度器',appDesc:'公平轮转 · 2v2双打 · 1v1单打替补 · 可扩展',setupTab:'设置',scheduleTab:'日程',checkinTab:'签到',settings:'设置',courts:'球场',numCourts:'球场数量',courtPlaceholder:'例如 3',players:'运动员',addPlayer:'添加',removeAll:'全部删除',typeName:'输入名字然后按Enter…',bulkImport:'从列表批量导入',bulkDesc:'粘贴姓名或电子邮件 — 每行一个。电子邮件和角色后缀如"- 组织者"会自动删除。',import:'导入',clear:'清除',demoHelper:'演示助手',demoDesc:'添加虚拟运动员进行演示或屏幕录制。这会保留已输入的任何真实名字。',injectDemo:'注入演示运动员',demoCount:'数量',conflicts:'团队冲突',conflictsDesc:'点击不应该在同一队的运动员。',generateDesc:'生成轮转以立即创建二维码。',generateBtn:'生成日程',validation:'约束验证',roundOf:'第{round}轮，共{total}轮',singles:'1v1单打',courtLabel:'球场{num}',editRound:'编辑本轮',doneEditing:'完成',swapHint:'点击两名选手以交换位置',activeSchedule:'日程已激活',extendMsg:'日程已结束 — 还想继续？添加5轮。',extendBtn:'添加5轮',shareBtn:'与小组分享',appearance:'外观',language:'语言',lightTheme:'☀️ 浅色',darkTheme:'🌙 深色',errorNeedMore:'{n}个运动员{plural} — 需要至少{min}个来进行{nc}个球场{courtPlural}',errorLayout:'无法创建有效的布局',errorNoSchedule:'没有日程可分享',errorShare:'分享日程出错：{error}',sharing:'分享中...',shared:'✓ 已分享',newRotation:'新轮换',shareQr:'分享二维码',showQr:'显示二维码',hideQr:'隐藏二维码',showCountryLabel:'显示国家标签',hideCountryLabel:'隐藏国家标签',sittingOut:'休息',vs:'对',statPlayer:'运动员',statPlayed:'上场',statSatOut:'休息',statPartners:'搭档',statOpponents:'对手',valNoConflicts:'无团队冲突违规',valConflicts:'违规：{list}',valNoRepeats:'无重复配对',valRepeats:'{count}次重复配对（轮次：{rounds}）',valFairSubs:'替补轮换公平 — 每人{min}–{max}次休息',valUnfairSubs:'替补轮换不公平（范围{min}–{max}）',valSummary:'{rounds}轮 · {courts}球场 · {fmt}',sessionRounds:'{n}轮',valBadgeOk:'一切正常',valBadgeIssues:'{count}个问题',enterCourts:'请输入球场数量',optionalLabel:'（可选）',conflictNone:'未设置冲突规则。',conflictOneMore:'已选 — 请至少再选一人。',conflictGroupSummary:'{count}名运动员在冲突组：{names}。',hintPlayers:'{n}名运动员',hintDoubles:'{count}双打 (2v2)',hintSingles:'{count}单打 (1v1)',hintSitsOut:'每轮{n}人休息',demoInjected:'已加入{n}名示例玩家。',demoCountError:'请输入1到50之间的数字',demoPlayer:'示例玩家',leaderboardTab:'排行榜',statSessions:'场次',leaderboardEmpty:'暂无历史记录 — 下次比赛后再来看看。',leaderboardLoading:'正在加载排行榜…',leaderboardError:'无法加载排行榜。',lastUpdatedLabel:'最近更新',currentLinkActive:'自动更新链接 — 始终显示本周的轮转',checkInLabel:'签到',everyoneHere:'全员已到',statusNotArrived:'未到',statusPlaying:'在场',statusLeft:'已离开',checkInHint:'点击运动员可循环切换：未到 → 在场 → 已离开。',renameDuplicate:'{name} 已在名单中',editNames:'编辑姓名',checkInEditHint:'正在编辑姓名 — 点击列表外的任意位置保存，按 Esc 取消。'},
+'zh-t':{appTitle:'羽球輪替排程器',appDesc:'公平輪替 · 2v2雙打 · 1v1單打候補 · 可擴充',setupTab:'設定',scheduleTab:'賽程',checkinTab:'簽到',settings:'設定',courts:'球場',numCourts:'球場數量',courtPlaceholder:'例如 3',players:'選手',addPlayer:'新增',removeAll:'全部移除',typeName:'輸入姓名後按Enter…',bulkImport:'從清單批次匯入',bulkDesc:'貼上姓名或電子郵件 — 每行一個。電子郵件及角色後綴如「- 主辦人」將自動移除。',import:'匯入',clear:'清除',demoHelper:'示範小幫手',demoDesc:'新增虛擬選手以進行示範或螢幕錄影。已輸入的真實姓名將會保留。',injectDemo:'加入示範選手',demoCount:'數量',conflicts:'隊伍衝突',conflictsDesc:'點選不應同隊的選手。',generateDesc:'產生輪替並立即建立 QR 碼。',generateBtn:'產生賽程',validation:'規則檢查',roundOf:'第{round}輪，共{total}輪',singles:'1v1單打',courtLabel:'球場{num}',editRound:'編輯本輪',doneEditing:'完成',swapHint:'點選兩位選手以互換位置',activeSchedule:'賽程已啟用',extendMsg:'賽程已結束 — 還要繼續嗎？新增 5 輪。',extendBtn:'新增 5 輪',shareBtn:'與群組分享',appearance:'外觀',language:'語言',lightTheme:'☀️ 淺色',darkTheme:'🌙 深色',errorNeedMore:'{n} 位選手{plural} — {nc} 個球場{courtPlural}至少需要 {min} 位',errorLayout:'無法建立有效的版面配置',errorNoSchedule:'沒有可分享的賽程',errorShare:'分享賽程時發生錯誤：{error}',sharing:'分享中...',shared:'✓ 已分享',newRotation:'新輪替',shareQr:'分享 QR 碼',showQr:'顯示 QR 碼',hideQr:'隱藏 QR 碼',showCountryLabel:'顯示國家標籤',hideCountryLabel:'隱藏國家標籤',sittingOut:'休息中',vs:'vs',statPlayer:'選手',statPlayed:'上場',statSatOut:'休息',statPartners:'搭檔',statOpponents:'對手',valNoConflicts:'無隊伍衝突違規',valConflicts:'違規：{list}',valNoRepeats:'無重複配對',valRepeats:'{count} 次重複配對（輪次：{rounds}）',valFairSubs:'候補輪替公平 — 每人 {min}–{max} 次休息',valUnfairSubs:'候補輪替不公平（範圍 {min}–{max}）',valSummary:'{rounds} 輪 · {courts} 場 · {fmt}',sessionRounds:'{n} 輪',valBadgeOk:'一切正常',valBadgeIssues:'{count} 個問題',enterCourts:'請輸入球場數量',optionalLabel:'（選填）',conflictNone:'未設定衝突規則。',conflictOneMore:'已選 — 請再選一位。',conflictGroupSummary:'{count} 位選手在衝突群組：{names}。',hintPlayers:'{n} 位選手',hintDoubles:'{count} 雙打 (2v2)',hintSingles:'{count} 單打 (1v1)',hintSitsOut:'每輪 {n} 人休息',demoInjected:'已加入 {n} 位示範選手。',demoCountError:'請輸入 1 到 50 之間的數字',demoPlayer:'示範選手',leaderboardTab:'排行榜',statSessions:'場次',leaderboardEmpty:'尚無歷史紀錄 — 下次比賽後再回來看看。',leaderboardLoading:'正在載入排行榜…',leaderboardError:'無法載入排行榜。',lastUpdatedLabel:'最近更新',currentLinkActive:'自動更新連結 — 一律顯示本週的輪替',checkInLabel:'簽到',everyoneHere:'全員已到',statusNotArrived:'未到',statusPlaying:'在場',statusLeft:'已離開',checkInHint:'點選選手可循環切換：未到 → 在場 → 已離開。',renameDuplicate:'{name} 已在名單中',editNames:'編輯姓名',checkInEditHint:'正在編輯姓名 — 點擊清單外的任意位置儲存，按 Esc 取消。'},
+'ko':{appTitle:'배드민턴 로테이션 스케줄러',appDesc:'공정한 로테이션 · 2v2 복식 · 1v1 단식 오버플로우 · 확장 가능',setupTab:'설정',scheduleTab:'일정',checkinTab:'체크인',settings:'설정',courts:'코트',numCourts:'코트 수',courtPlaceholder:'예: 3',players:'선수',addPlayer:'추가',removeAll:'모두 제거',typeName:'이름을 입력하고 Enter를 누르세요…',bulkImport:'목록에서 일괄 가져오기',bulkDesc:'이름 또는 이메일을 붙여넣으세요 — 한 줄에 하나씩. "- 주최자"와 같은 이메일 및 역할 접미사는 자동으로 제거됩니다.',import:'가져오기',clear:'지우기',demoHelper:'데모 도우미',demoDesc:'데모 또는 화면 녹화용 가짜 선수를 추가합니다. 이미 입력한 실제 이름은 유지됩니다.',injectDemo:'데모 선수 주입',demoCount:'개수',conflicts:'팀 충돌',conflictsDesc:'같은 팀에 있으면 안 되는 선수를 클릭합니다.',generateDesc:'로테이션을 생성하여 즉시 QR 코드를 만듭니다.',generateBtn:'일정 생성',validation:'제약 조건 검증',roundOf:'{round}라운드 / {total}',singles:'1v1 단식',courtLabel:'코트 {num}',editRound:'라운드 편집',doneEditing:'완료',swapHint:'두 선수를 탭하여 위치를 바꾸세요',activeSchedule:'활성 일정',extendMsg:'일정이 끝났습니다 — 계속하시겠습니까? 5 라운드 추가.',extendBtn:'5라운드 추가',shareBtn:'그룹과 공유',appearance:'모양',language:'언어',lightTheme:'☀️ 밝음',darkTheme:'🌙 어두움',errorNeedMore:'{n}명의 선수{plural} — {nc}개 코트{courtPlural}에 최소 {min}명 필요',errorLayout:'유효한 레이아웃을 만들 수 없습니다',errorNoSchedule:'공유할 일정이 없습니다',errorShare:'일정 공유 오류: {error}',sharing:'공유 중...',shared:'✓ 공유됨',newRotation:'새 로테이션',shareQr:'QR 공유',showQr:'QR 표시',hideQr:'QR 숨기기',showCountryLabel:'국가 라벨 표시',hideCountryLabel:'국가 라벨 숨기기',sittingOut:'쉬는 중',vs:'vs',statPlayer:'선수',statPlayed:'경기 수',statSatOut:'쉰 횟수',statPartners:'파트너',statOpponents:'상대',valNoConflicts:'팀 충돌 위반 없음',valConflicts:'위반: {list}',valNoRepeats:'반복된 팀 조합 없음',valRepeats:'{count}번 반복 조합 (라운드: {rounds})',valFairSubs:'교체 순환 공평 — 선수당 {min}–{max}회 휴식',valUnfairSubs:'교체 순환 불공평 (범위 {min}–{max})',valSummary:'{rounds} 라운드 · {courts} 코트 · {fmt}',sessionRounds:'{n}라운드',valBadgeOk:'문제 없음',valBadgeIssues:'문제 {count}개',enterCourts:'코트 수를 입력해 주세요',optionalLabel:'(선택)',conflictNone:'설정된 충돌 규칙 없음.',conflictOneMore:'선택됨 — 한 명 더 선택하세요.',conflictGroupSummary:'충돌 그룹에 {count}명: {names}.',hintPlayers:'{n}명 선수',hintDoubles:'{count} 복식 (2v2)',hintSingles:'{count} 단식 (1v1)',hintSitsOut:'라운드당 {n}명 휴식',demoInjected:'데모 선수 {n}명 추가됨.',demoCountError:'1에서 50 사이의 숫자를 입력하세요',demoPlayer:'데모 선수',leaderboardTab:'리더보드',statSessions:'세션',leaderboardEmpty:'아직 기록된 세션이 없습니다 — 다음 경기 후 확인해 주세요.',leaderboardLoading:'리더보드 불러오는 중…',leaderboardError:'리더보드를 불러올 수 없습니다.',lastUpdatedLabel:'마지막 업데이트',currentLinkActive:'자동 업데이트 링크 — 항상 이번 주 로테이션을 표시합니다',checkInLabel:'체크인',everyoneHere:'모두 도착',statusNotArrived:'미도착',statusPlaying:'참여 중',statusLeft:'퇴장',checkInHint:'선수를 탭하면 순서대로 전환됩니다: 미도착 → 참여 중 → 퇴장.',renameDuplicate:'{name}님은 이미 명단에 있습니다',editNames:'이름 편집',checkInEditHint:'이름을 편집 중입니다 — 목록 밖을 클릭하면 저장되고, Esc를 누르면 취소됩니다.'},
+'hi':{appTitle:'बैडमिंटन रोटेशन शेड्यूलर',appDesc:'निष्पक्ष रोटेशन · 2v2 डबल्स · 1v1 सिंगल्स ओवरफ़्लो · विस्तार योग्य',setupTab:'सेटअप',scheduleTab:'शेड्यूल',checkinTab:'चेक-इन',settings:'सेटिंग्स',courts:'कोर्ट',numCourts:'कोर्ट की संख्या',courtPlaceholder:'जैसे 3',players:'खिलाड़ी',addPlayer:'जोड़ें',removeAll:'सभी हटाएं',typeName:'नाम टाइप करें और Enter दबाएं…',bulkImport:'सूची से बल्क आयात',bulkDesc:'नाम या ईमेल पेस्ट करें — एक प्रति पंक्ति। "- आयोजक" जैसे ईमेल और भूमिका प्रत्यय स्वचालित रूप से हटा दिए जाते हैं।',import:'आयात',clear:'साफ करें',demoHelper:'डेमो सहायक',demoDesc:'डेमो या स्क्रीन रिकॉर्डिंग के लिए नकली खिलाड़ी जोड़ें। पहले से दर्ज कोई भी वास्तविक नाम संरक्षित रहता है।',injectDemo:'डेमो खिलाड़ी इंजेक्ट करें',demoCount:'गिनती',conflicts:'टीम संघर्ष',conflictsDesc:'उन खिलाड़ियों पर क्लिक करें जो एक ही टीम में नहीं होने चाहिए।',generateDesc:'एक रोटेशन जेनरेट करें और तुरंत QR कोड बनाएं।',generateBtn:'शेड्यूल जेनरेट करें',validation:'बाधा सत्यापन',roundOf:'राउंड {round} का {total}',singles:'1v1 सिंगल्स',courtLabel:'कोर्ट {num}',editRound:'राउंड संपादित करें',doneEditing:'पूर्ण',swapHint:'दो खिलाड़ियों को टैप करके स्थान बदलें',activeSchedule:'सक्रिय शेड्यूल',extendMsg:'शेड्यूल समाप्त — अभी भी जा रहे हैं? 5 और राउंड जोड़ें।',extendBtn:'5 और राउंड जोड़ें',shareBtn:'समूह के साथ साझा करें',appearance:'दिखावट',language:'भाषा',lightTheme:'☀️ हल्का',darkTheme:'🌙 गहरा',errorNeedMore:'{n} खिलाड़ी{plural} — {nc} कोर्ट{courtPlural} के लिए कम से कम {min} की आवश्यकता है',errorLayout:'एक मान्य लेआउट नहीं बना सकते',errorNoSchedule:'साझा करने के लिए कोई शेड्यूल नहीं',errorShare:'शेड्यूल साझा करने में त्रुटि: {error}',sharing:'साझा कर रहे हैं...',shared:'✓ साझा',newRotation:'नया रोटेशन',shareQr:'QR शेयर करें',showQr:'QR दिखाएं',hideQr:'QR छिपाएं',showCountryLabel:'देश लेबल दिखाएं',hideCountryLabel:'देश लेबल छिपाएं',sittingOut:'बाहर बैठे',vs:'vs',statPlayer:'खिलाड़ी',statPlayed:'खेले',statSatOut:'बाहर',statPartners:'साथी',statOpponents:'प्रतिद्वंद्वी',valNoConflicts:'कोई टीम संघर्ष उल्लंघन नहीं',valConflicts:'उल्लंघन: {list}',valNoRepeats:'कोई दोहराई गई जोड़ी नहीं',valRepeats:'{count} दोहराई गई जोड़ी (राउंड: {rounds})',valFairSubs:'सब रोटेशन उचित — प्रति खिलाड़ी {min}–{max} बार बाहर',valUnfairSubs:'सब रोटेशन असमान (रेंज {min}–{max})',valSummary:'{rounds} राउंड · {courts} कोर्ट · {fmt}',sessionRounds:'{n} राउंड',valBadgeOk:'सब ठीक है',valBadgeIssues:'{count} समस्या{plural}',enterCourts:'कोर्ट की संख्या दर्ज करें',optionalLabel:'(वैकल्पिक)',conflictNone:'कोई संघर्ष नियम नहीं।',conflictOneMore:'चुना गया — एक और चुनें।',conflictGroupSummary:'{count} खिलाड़ी संघर्ष समूह में: {names}.',hintPlayers:'{n} खिलाड़ी',hintDoubles:'{count} डबल्स (2v2)',hintSingles:'{count} सिंगल्स (1v1)',hintSitsOut:'प्रति राउंड {n} बाहर',demoInjected:'{n} डेमो खिलाड़ी जोड़े।',demoCountError:'1 से 50 के बीच संख्या दर्ज करें',demoPlayer:'Demo खिलाड़ी',leaderboardTab:'लीडरबोर्ड',statSessions:'सत्र',leaderboardEmpty:'अभी तक कोई सत्र दर्ज नहीं हुआ — अगले खेल के बाद देखें।',leaderboardLoading:'लीडरबोर्ड लोड हो रहा है…',leaderboardError:'लीडरबोर्ड लोड नहीं हो सका।',lastUpdatedLabel:'अंतिम अपडेट',currentLinkActive:'स्वतः-अपडेट होने वाला लिंक — हमेशा इस सप्ताह का रोटेशन दिखाता है',checkInLabel:'चेक-इन',everyoneHere:'सभी आ गए',statusNotArrived:'नहीं आया',statusPlaying:'खेल रहे हैं',statusLeft:'चले गए',checkInHint:'खिलाड़ी पर टैप करें: नहीं आया → खेल रहे हैं → चले गए।',renameDuplicate:'{name} पहले से सूची में है',editNames:'नाम संपादित करें',checkInEditHint:'नाम संपादित हो रहे हैं — सहेजने के लिए सूची के बाहर कहीं भी क्लिक करें, रद्द करने के लिए Escape दबाएं।'},
+'fil':{appTitle:'Badminton Rotation Scheduler',appDesc:'Patas na rotation · 2v2 doubles · 1v1 singles overflow · extendable',setupTab:'Setup',scheduleTab:'Schedule',checkinTab:'Check-in',settings:'Settings',courts:'Mga Court',numCourts:'Bilang ng court',courtPlaceholder:'hal. 3',players:'Mga Manlalaro',addPlayer:'Idagdag',removeAll:'Alisin Lahat',typeName:'Mag-type ng pangalan at pindutin ang Enter…',bulkImport:'Mag-import ng marami mula sa listahan',bulkDesc:'I-paste ang mga pangalan o email — isa bawat linya. Mga email at role suffix tulad ng "- Organizer" ay awtomatikong aalisin.',import:'I-import',clear:'I-clear',demoHelper:'Demo helper',demoDesc:'Mag-dagdag ng mga pekeng manlalaro para sa demo o screen recording. Mananatili ang mga tunay na pangalang na-enter na.',injectDemo:'Mag-dagdag ng demo players',demoCount:'Bilang',conflicts:'Mga team conflict',conflictsDesc:'I-click ang mga manlalarong hindi dapat magka-team.',generateDesc:'Gumawa ng rotation para agad makalikha ng QR code.',generateBtn:'Gumawa ng Schedule',validation:'Pagsusuri ng Patakaran',roundOf:'Round {round} ng {total}',singles:'1v1 singles',courtLabel:'Court {num}',editRound:'I-edit ang round',doneEditing:'Tapos na',swapHint:'I-tap ang dalawang manlalaro para papalitan sila',activeSchedule:'AKTIBONG SCHEDULE',extendMsg:'Tapos na ang schedule — tuloy pa rin? Dagdag ng 5 rounds pa.',extendBtn:'Dagdag ng 5 rounds',shareBtn:'I-share sa grupo',appearance:'Hitsura',language:'Wika',lightTheme:'☀️ Light',darkTheme:'🌙 Dark',errorNeedMore:'{n} manlalaro{plural} — kailangan ng hindi bababa sa {min} para sa {nc} court{courtPlural}',errorLayout:'Hindi makalikha ng valid na layout',errorNoSchedule:'Walang schedule para i-share',errorShare:'Error sa pag-share ng schedule: {error}',sharing:'Nag-sha-share...',shared:'✓ Na-share na',newRotation:'Bagong rotation',shareQr:'I-share ang QR',showQr:'Ipakita ang QR',hideQr:'Itago ang QR',showCountryLabel:'Ipakita ang label ng bansa',hideCountryLabel:'Itago ang label ng bansa',sittingOut:'Nakaupo',vs:'vs',statPlayer:'Manlalaro',statPlayed:'Nilaro',statSatOut:'Nakaupo',statPartners:'Mga kasama',statOpponents:'Mga kalaban',valNoConflicts:'Walang team conflict violations',valConflicts:'Mga violation: {list}',valNoRepeats:'Walang paulit-ulit na team pairing',valRepeats:'{count} paulit-ulit na pairing (rounds: {rounds})',valFairSubs:'Patas ang sub rotation — {min}–{max} beses nakaupo bawat manlalaro',valUnfairSubs:'Hindi patas ang sub rotation (range {min}–{max})',valSummary:'{rounds} round{rplural} · {courts} court{cplural} · {fmt}',sessionRounds:'{n} rounds',valBadgeOk:'Ayos naman',valBadgeIssues:'{count} isyu',enterCourts:'Ilagay ang bilang ng court',optionalLabel:'(optional)',conflictNone:'Walang conflict rules.',conflictOneMore:'napili — pumili pa ng isa.',conflictGroupSummary:'{count} manlalaro sa conflict group: {names}.',hintPlayers:'{n} manlalaro',hintDoubles:'{count} doubles (2v2)',hintSingles:'{count} singles (1v1)',hintSitsOut:'{n} nakaupo bawat round',demoInjected:'Nadagdag ang {n} demo player{plural}.',demoCountError:'Ilagay ang bilang mula 1 hanggang 50',demoPlayer:'Demo Manlalaro',leaderboardTab:'Leaderboard',statSessions:'Sessions',leaderboardEmpty:'Wala pang naitalang session — balikan pagkatapos ng susunod na laro.',leaderboardLoading:'Nilo-load ang leaderboard…',leaderboardError:'Hindi ma-load ang leaderboard.',lastUpdatedLabel:'Huling na-update',currentLinkActive:'Awtomatikong nag-a-update na link — palaging ipinapakita ang rotation ng linggong ito',checkInLabel:'Check-in',everyoneHere:'Nandito na lahat',statusNotArrived:'Hindi pa dumating',statusPlaying:'Naglalaro',statusLeft:'Umalis na',checkInHint:'I-tap ang manlalaro para mag-cycle: hindi pa dumating → naglalaro → umalis na.',renameDuplicate:'Nasa listahan na ang {name}',editNames:'I-edit ang mga pangalan',checkInEditHint:'Ineedit ang mga pangalan — i-click ang labas ng listahan para i-save, o pindutin ang Escape para kanselahin.'}};
 function t(key,vars={}){const str=i18n[currentLanguage]?.[key]||i18n.en[key]||key;let result=str;Object.entries(vars).forEach(([k,v])=>{result=result.replace(`{${k}}`,v);});return result;}
 function translateUI(){document.querySelectorAll('[data-i18n]').forEach(el=>{const key=el.getAttribute('data-i18n');const type=el.getAttribute('data-i18n-type')||'text';if(type==='text'){el.textContent=t(key);}else if(type==='placeholder'){el.placeholder=t(key);}else if(type==='title'){el.title=t(key);}});}
 function getShareBaseUrl(){return location.protocol==='file:'?'https://trulioo-badminton.onrender.com':location.origin;}
@@ -816,49 +836,85 @@ function playingRoster(){return rawPlayers.filter(p=>attendance[p]==='playing');
 function renderCheckIn(){
   const wrap=document.getElementById('checkin-chips');
   if(!wrap)return;
-  if(renamingPlayer!==null&&!rawPlayers.includes(renamingPlayer))renamingPlayer=null;
   const dn=computeDisplayNames(rawPlayers);
-  wrap.innerHTML=rawPlayers.map((p,i)=>{
-    if(p===renamingPlayer){
+  const editBtn=document.getElementById('checkin-edit-toggle');
+  if(editBtn)editBtn.classList.toggle('active',checkinEditMode);
+  const editHint=document.getElementById('checkin-edit-hint');
+  if(editHint)editHint.style.display=checkinEditMode?'block':'none';
+  if(checkinEditMode){
+    wrap.innerHTML=rawPlayers.map(p=>{
       const safeVal=p.replace(/"/g,'&quot;');
-      return `<span class="checkin-chip checkin-chip-edit"><input type="text" id="rename-input" class="rename-input" value="${safeVal}" onkeydown="if(event.key==='Enter')commitRenamePlayer(${i});if(event.key==='Escape')cancelRenamePlayer();"><button type="button" class="rename-btn rename-ok" title="${t('renameSave')}" onclick="commitRenamePlayer(${i})"><i class="ti ti-check" style="font-size:14px"></i></button><button type="button" class="rename-btn rename-cancel" title="${t('renameCancel')}" onclick="cancelRenamePlayer()"><i class="ti ti-x" style="font-size:14px"></i></button></span>`;
-    }
+      return `<input type="text" class="checkin-name-input" data-orig="${safeVal}" value="${safeVal}" onkeydown="if(event.key==='Enter')saveCheckinEdits();if(event.key==='Escape')cancelCheckinEdits();">`;
+    }).join('');
+    return;
+  }
+  wrap.innerHTML=rawPlayers.map(p=>{
     const status=attendance[p]||'playing';
     const label=t(status==='not_arrived'?'statusNotArrived':status==='left'?'statusLeft':'statusPlaying');
     const safe=p.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return `<span class="ci-shell"><button type="button" class="checkin-chip status-${status}" title="${label}" onclick="cycleAttendance('${safe}')"><span class="ci-dot" aria-hidden="true"></span><span style="pointer-events:none">${dn[p]||p}</span></button><button type="button" class="rename-btn" title="${t('renamePlayer')}" onclick="startRenamePlayer('${safe}')"><i class="ti ti-pencil" style="font-size:12px"></i></button></span>`;
+    return `<button type="button" class="checkin-chip status-${status}" title="${label}" onclick="cycleAttendance('${safe}')"><span class="ci-dot" aria-hidden="true"></span><span style="pointer-events:none">${dn[p]||p}</span></button>`;
   }).join('');
-  const input=document.getElementById('rename-input');
-  if(input){input.focus();input.select();}
 }
-function startRenamePlayer(name){
-  renamingPlayer=name;
+// One "Edit names" toggle governs every chip at once — all names become text
+// inputs together, since renaming a substitute mid-roster often means fixing
+// more than one name in the same pass. A document-level click listener saves
+// (or cancels via Escape) as soon as the user clicks anywhere outside the
+// input row, so there is no separate per-player save button to hunt for.
+function toggleCheckinEditMode(){
+  if(checkinEditMode){saveCheckinEdits();return;}
+  checkinEditMode=true;
+  renderCheckIn();
+  setTimeout(()=>document.addEventListener('mousedown',handleCheckinOutsideClick),0);
+}
+function handleCheckinOutsideClick(e){
+  if(e.target.closest('#checkin-chips')||e.target.closest('#checkin-edit-toggle'))return;
+  saveCheckinEdits();
+}
+function exitCheckinEditMode(){
+  checkinEditMode=false;
+  document.removeEventListener('mousedown',handleCheckinOutsideClick);
   renderCheckIn();
 }
-function cancelRenamePlayer(){
-  renamingPlayer=null;
-  renderCheckIn();
+function cancelCheckinEdits(){
+  exitCheckinEditMode();
 }
-function commitRenamePlayer(i){
-  const oldName=rawPlayers[i];
-  const input=document.getElementById('rename-input');
-  const raw=input?input.value:'';
-  const newName=raw.trim().split(/\s+/).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(' ');
-  renamingPlayer=null;
-  if(!newName||newName===oldName){renderCheckIn();return;}
-  if(rawPlayers.some((p,pi)=>pi!==i&&p.toLowerCase()===newName.toLowerCase())){
-    document.getElementById('checkin-msg').textContent=t('renameDuplicate',{name:newName});
-    renderCheckIn();
-    return;
+// Reads every input in the chip row at once, applies whichever names actually
+// changed, and skips (with a message) any edit that would collide with another
+// player's name — so one bad edit doesn't block saving the rest.
+function saveCheckinEdits(){
+  const inputs=[...document.querySelectorAll('#checkin-chips .checkin-name-input')];
+  if(!inputs.length){exitCheckinEditMode();return;}
+  const proposals=inputs.map(inp=>{
+    const oldName=inp.dataset.orig;
+    const raw=inp.value.trim();
+    const newName=raw?raw.split(/\s+/).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(' '):oldName;
+    return {oldName,newName};
+  });
+  const finalNames=proposals.map(p=>p.newName);
+  const skipped=[];
+  const applied=proposals.filter((p,i)=>{
+    if(p.newName===p.oldName)return false;
+    const dupIdx=finalNames.findIndex((n,ni)=>ni!==i&&n.toLowerCase()===p.newName.toLowerCase());
+    if(dupIdx!==-1){skipped.push(p.newName);return false;}
+    return true;
+  });
+  applied.forEach(({oldName,newName})=>renamePlayerRaw(oldName,newName));
+  if(applied.length){
+    rebuildSchedulingState();
+    renderAll();
+    renderSchedule();
+    if(schedule.length)syncShareQr();
   }
-  document.getElementById('checkin-msg').textContent='';
-  renamePlayer(oldName,newName);
+  document.getElementById('checkin-msg').textContent=skipped.length?t('renameDuplicate',{name:skipped.join(', ')}):'';
+  exitCheckinEditMode();
 }
 // Repoints every reference to a player's old name — roster, attendance, conflicts,
 // demo tracking, and every round already generated (past and upcoming) — so a
 // mid-session correction (typo, or a substitute taking over someone's slot)
 // stays consistent everywhere instead of splitting the same person into two names.
-function renamePlayer(oldName,newName){
+// Pure state mutation with no rendering/sync side effects, so callers can batch
+// several renames before re-rendering once.
+function renamePlayerRaw(oldName,newName){
   const idx=rawPlayers.indexOf(oldName);
   if(idx===-1)return;
   rawPlayers[idx]=newName;
@@ -873,10 +929,24 @@ function renamePlayer(oldName,newName){
       ct.b=ct.b.map(p=>p===oldName?newName:p);
     });
   });
-  rebuildSchedulingState();
+}
+// Lets a viewer add a late arrival straight from Check-in, without the Setup
+// tab — which is hidden entirely once a rotation is shared (see isSharedView).
+function addCheckinPlayer(){
+  const input=document.getElementById('checkin-add-input');
+  const raw=parseRawName(input.value)||input.value.trim();
+  if(!raw)return;
+  const name=raw.split(/\s+/).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(' ');
+  if(rawPlayers.some(p=>p.toLowerCase()===name.toLowerCase())){
+    document.getElementById('checkin-msg').textContent=t('renameDuplicate',{name});
+    return;
+  }
+  document.getElementById('checkin-msg').textContent='';
+  rawPlayers.push(name);
+  attendance[name]='playing';
+  input.value='';
   renderAll();
-  renderSchedule();
-  if(schedule.length)syncShareQr();
+  if(schedule.length)regenerateUpcomingRounds();
 }
 function cycleAttendance(name){
   const from=attendance[name]||'playing';
@@ -1086,17 +1156,11 @@ function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.fl
 function conflictPair(a,b){const act=[...conflictGroup].filter(r=>rawPlayers.includes(r));return act.length>=2&&conflictGroup.has(a)&&conflictGroup.has(b);}
 function teamOk(t){for(let i=0;i<t.length;i++)for(let j=i+1;j<t.length;j++)if(conflictPair(t[i],t[j]))return false;return true;}
 function teamKey(t){return [...t].sort().join('|');}
-function assignCourts(pl,layout){
-  const courts=[];let idx=0;
-  for(let c=0;c<layout.doubles;c++){courts.push({a:[pl[idx],pl[idx+1]],b:[pl[idx+2],pl[idx+3]],singles:false});idx+=4;}
-  for(let c=0;c<layout.singles;c++){courts.push({a:[pl[idx]],b:[pl[idx+1]],singles:true});idx+=2;}
-  return courts;
-}
 // Repeat costs are squared in how many times a pair has already met, so the search
 // keeps spreading pairings out instead of going blind once every combination has
 // been used once. Back-to-back rematches cost extra because a streak is what
 // players actually notice.
-const REPEAT_PARTNER_WEIGHT=1,REPEAT_OPPONENT_WEIGHT=0.6,CONSECUTIVE_OPPONENT_WEIGHT=3,MAKE_TEAMS_ATTEMPTS=600;
+const REPEAT_PARTNER_WEIGHT=1,REPEAT_OPPONENT_WEIGHT=0.6,CONSECUTIVE_OPPONENT_WEIGHT=3;
 function pairKey(a,b){return a<b?`${a}|${b}`:`${b}|${a}`;}
 function createPairHistory(){return {partners:new Map(),opponents:new Map(),lastOpponents:new Set()};}
 function courtPairs(ct){
@@ -1104,12 +1168,6 @@ function courtPairs(ct){
   [ct.a,ct.b].forEach(team=>{for(let i=0;i<team.length;i++)for(let j=i+1;j<team.length;j++)partners.push(pairKey(team[i],team[j]));});
   ct.a.forEach(p=>ct.b.forEach(q=>opponents.push(pairKey(p,q))));
   return {partners,opponents};
-}
-function repeatCost(hist,ct){
-  const {partners,opponents}=courtPairs(ct);let cost=0;
-  partners.forEach(k=>{const n=hist.partners.get(k)||0;cost+=n*n*REPEAT_PARTNER_WEIGHT;});
-  opponents.forEach(k=>{const n=hist.opponents.get(k)||0;cost+=n*n*REPEAT_OPPONENT_WEIGHT;if(hist.lastOpponents.has(k))cost+=CONSECUTIVE_OPPONENT_WEIGHT;});
-  return cost;
 }
 function recordRound(hist,courts){
   const thisRound=new Set();
@@ -1120,14 +1178,88 @@ function recordRound(hist,courts){
   });
   hist.lastOpponents=thisRound;
 }
-function makeTeams(activePl,layout,hist){
-  let best=null,bestScore=Infinity;
-  for(let att=0;att<MAKE_TEAMS_ATTEMPTS;att++){
-    const s=shuffle(activePl);const courts=assignCourts(s,layout);let cv=0,pv=0;
-    courts.forEach(ct=>{if(!teamOk(ct.a))cv++;if(!teamOk(ct.b))cv++;pv+=repeatCost(hist,ct);});
-    const score=cv*1000+pv;if(score<bestScore){bestScore=score;best=courts;if(!score)break;}
+// Generic greedy minimum-cost perfect matching over an even-length list. Builds
+// every candidate pair, shuffles first so equal-cost ties vary from run to run,
+// then stable-sorts by cost and greedily accepts the cheapest pair whose two
+// items are both still free. This is not a guaranteed-optimal assignment (a
+// true optimum needs a full blossom algorithm), but for our small squared
+// repeat costs it reliably beats random sampling once a group is bigger than a
+// handful of players, and it runs in a single pass instead of hundreds of
+// random restarts.
+function greedyMatch(items,costFn){
+  const pool=shuffle(items);
+  const remaining=new Set(pool);
+  const candidates=[];
+  for(let i=0;i<pool.length;i++)for(let j=i+1;j<pool.length;j++)candidates.push([pool[i],pool[j],costFn(pool[i],pool[j])]);
+  candidates.sort((x,y)=>x[2]-y[2]);
+  const pairs=[];
+  candidates.forEach(([a,b,c])=>{
+    if(c===Infinity)return;
+    if(remaining.has(a)&&remaining.has(b)){pairs.push([a,b]);remaining.delete(a);remaining.delete(b);}
+  });
+  // Anything left over means every remaining option was forbidden -- pair them
+  // off by lowest cost anyway, since a schedule must still be produced. This is
+  // the only path that can leave a conflict-group pair together.
+  const leftover=[...remaining];
+  while(leftover.length>=2){
+    const a=leftover.shift();
+    let bestIdx=0,bestCost=Infinity;
+    for(let i=0;i<leftover.length;i++){const c=costFn(a,leftover[i]);if(c<bestCost){bestCost=c;bestIdx=i;}}
+    pairs.push([a,leftover[bestIdx]]);
+    leftover.splice(bestIdx,1);
   }
-  return best;
+  return pairs;
+}
+// The single global conflict group behaves like one "no two of these may be
+// teammates" clique. Matching its members first, while non-clique partners are
+// still plentiful, is what actually guarantees zero conflict violations
+// whenever a valid pairing exists -- a plain greedy pass over everyone can
+// paint itself into a corner and force an avoidable violation just from bad
+// luck in candidate order.
+function matchPartnersRespectingConflicts(activePl,hist){
+  const partnerCost=(a,b)=>{const n=hist.partners.get(pairKey(a,b))||0;return n*n*REPEAT_PARTNER_WEIGHT;};
+  const cliqueActive=activePl.filter(p=>conflictGroup.has(p));
+  if(cliqueActive.length<2)return greedyMatch(activePl,partnerCost);
+  const cliqueSet=new Set(cliqueActive);
+  const nonClique=shuffle(activePl.filter(p=>!cliqueSet.has(p)));
+  const clique=shuffle(cliqueActive);
+  const pairs=[];
+  const usedNonClique=new Set();
+  clique.forEach(p=>{
+    const available=nonClique.filter(q=>!usedNonClique.has(q));
+    if(!available.length)return;
+    let bestQ=available[0],bestCost=partnerCost(p,available[0]);
+    for(let i=1;i<available.length;i++){const c=partnerCost(p,available[i]);if(c<bestCost){bestCost=c;bestQ=available[i];}}
+    usedNonClique.add(bestQ);
+    pairs.push([p,bestQ]);
+  });
+  const matchedClique=new Set(pairs.map(pr=>pr[0]));
+  const leftoverClique=clique.filter(p=>!matchedClique.has(p));
+  const leftoverNonClique=nonClique.filter(q=>!usedNonClique.has(q));
+  pairs.push(...greedyMatch([...leftoverClique,...leftoverNonClique],partnerCost));
+  return pairs;
+}
+// Builds one round's courts: splits the active pool into the singles slots and
+// the doubles pool, pairs up doubles partners with conflicts respected (above),
+// then matches those partner-pairs against each other -- and matches singles
+// opponents directly -- to minimize repeated opponents, with an extra penalty
+// for an immediate rematch.
+function buildRoundCourts(activePl,layout,hist){
+  const shuffled=shuffle(activePl);
+  const singlesCount=layout.singles*2;
+  const singlesPl=shuffled.slice(0,singlesCount);
+  const doublesPl=shuffled.slice(singlesCount);
+  const opponentCost=(a,b)=>{
+    const k=pairKey(a,b);const n=hist.opponents.get(k)||0;
+    let c=n*n*REPEAT_OPPONENT_WEIGHT;
+    if(hist.lastOpponents.has(k))c+=CONSECUTIVE_OPPONENT_WEIGHT;
+    return c;
+  };
+  const partnerPairs=matchPartnersRespectingConflicts(doublesPl,hist);
+  const courtPairCost=(pairA,pairB)=>{let c=0;pairA.forEach(p=>pairB.forEach(q=>{c+=opponentCost(p,q);}));return c;};
+  const doublesCourts=greedyMatch(partnerPairs,courtPairCost).map(([a,b])=>({a,b,singles:false}));
+  const singlesCourts=greedyMatch(singlesPl,opponentCost).map(([a,b])=>({a:[a],b:[b],singles:true}));
+  return [...doublesCourts,...singlesCourts];
 }
 function generateRounds(count,roster){
   const pool=roster||playingRoster();
@@ -1136,7 +1268,7 @@ function generateRounds(count,roster){
   for(let r=0;r<count;r++){
     const sorted=shuffle(pool).sort((a,b)=>(sitC[a]||0)-(sitC[b]||0));const subs=sorted.slice(0,currentLayout.subs);
     subs.forEach(p=>sitC[p]=(sitC[p]||0)+1);const activePl=pool.filter(p=>!subs.includes(p));
-    const courts=makeTeams(activePl,currentLayout,pairHistory);
+    const courts=buildRoundCourts(activePl,currentLayout,pairHistory);
     recordRound(pairHistory,courts);
     rounds.push({subs,courts});
   }
@@ -1224,9 +1356,26 @@ function exitEditMode(){
   // there's no dedicated "update in place" endpoint, so this just re-POSTs the full schedule.
   if(hadSwap)syncShareQr();
 }
+// Shared by the session-summary strip and the Validation panel so the two
+// never disagree about the court format string.
+function computeFormatSummary(){
+  if(!schedule.length)return null;
+  const dc=schedule[0].courts.filter(c=>!c.singles).length;
+  const sc=schedule[0].courts.filter(c=>c.singles).length;
+  const fmt=[dc>0?`${dc}×2v2`:'',sc>0?`${sc}×1v1`:''].filter(Boolean).join(' + ');
+  return {dc,sc,fmt,nc:schedule[0].courts.length,rounds:schedule.length};
+}
+function renderSessionSummary(){
+  const el=document.getElementById('session-summary');
+  if(!el)return;
+  const info=computeFormatSummary();
+  if(!info){el.innerHTML='';return;}
+  el.innerHTML=`<span><i class="ti ti-users" aria-hidden="true"></i>${playingRoster().length} ${t('players')}</span><span><i class="ti ti-layout-grid" aria-hidden="true"></i>${info.fmt}</span><span><i class="ti ti-repeat" aria-hidden="true"></i>${t('sessionRounds',{n:info.rounds})}</span>`;
+}
 function renderSchedule(){
   const R=schedule.length;
   document.getElementById('rlabel').textContent=t('roundOf',{round:currentRound+1,total:R});
+  renderSessionSummary();
   renderLastUpdated();
   document.getElementById('prev-btn').disabled=currentRound===0;document.getElementById('next-btn').disabled=currentRound===R-1;
   const rnd=schedule[currentRound];const dn=computeDisplayNames(rawPlayers);const nc=rnd.courts.length;
@@ -1261,15 +1410,21 @@ function renderValidation(){
   schedule.forEach((rnd,ri)=>{rnd.courts.forEach((ct,ci)=>{[ct.a,ct.b].forEach((t,ti)=>{for(let i=0;i<t.length;i++)for(let j=i+1;j<t.length;j++)if(conflictPair(t[i],t[j]))viols.push(`R${ri+1} C${ci+1} ${ti?'B':'A'}: ${dn[t[i]]||t[i]} & ${dn[t[j]]||t[j]}`);const k=teamKey(t);if(seen.has(k))rpts.push(`R${ri+1}`);seen.add(k);});});});
   const so=Object.fromEntries(rawPlayers.map(p=>[p,0]));schedule.forEach(r=>r.subs.forEach(p=>so[p]++));
   const vals=Object.values(so),mn=vals.length?Math.min(...vals):0,mx=vals.length?Math.max(...vals):0;
-  const R=schedule.length;const dc=schedule[0].courts.filter(c=>!c.singles).length;const sc=schedule[0].courts.filter(c=>c.singles).length;
-  const fmt=[dc>0?`${dc}×2v2`:'',sc>0?`${sc}×1v1`:''].filter(Boolean).join(' + ');
-  const nc=schedule[0].courts.length;
-  document.getElementById('val-list').innerHTML=[
+  const info=computeFormatSummary();
+  const R=schedule.length,nc=info.nc,fmt=info.fmt;
+  const rows=[
     {ok:viols.length===0,label:viols.length===0?t('valNoConflicts'):t('valConflicts',{list:viols.join('; ')})},
     {ok:rpts.length===0,label:rpts.length===0?t('valNoRepeats'):t('valRepeats',{count:rpts.length,plural:rpts.length!==1?'s':'',rounds:rpts.join(', ')})},
     {ok:mx-mn<=1,label:mx-mn<=1?t('valFairSubs',{min:mn,max:mx}):t('valUnfairSubs',{min:mn,max:mx})},
     {ok:true,label:t('valSummary',{rounds:R,rplural:R!==1?'s':'',courts:nc,cplural:nc!==1?'s':'',fmt})},
-  ].map(c=>`<div class="vrow"><div class="${c.ok?'dok':'derr'}"></div><span>${c.label}</span></div>`).join('');
+  ];
+  document.getElementById('val-list').innerHTML=rows.map(c=>`<div class="vrow"><div class="${c.ok?'dok':'derr'}"></div><span>${c.label}</span></div>`).join('');
+  const issueCount=rows.filter(c=>!c.ok).length;
+  const badge=document.getElementById('val-badge');
+  if(badge){
+    badge.textContent=issueCount===0?t('valBadgeOk'):t('valBadgeIssues',{count:issueCount,plural:issueCount!==1?'s':''});
+    badge.className='val-badge'+(issueCount===0?' ok':' warn');
+  }
 }
 function changeRound(d){
   if(editingRound!==null)exitEditMode();
@@ -1345,6 +1500,8 @@ async function loadScheduleFromCode(code){
   }
 }
 async function initApp(){
+  const versionLabel=document.getElementById('app-version-label');
+  if(versionLabel)versionLabel.textContent=`· v${APP_VERSION}`;
   await loadBackendCountryLookup();
   loadSettings();
   const initialCode=new URLSearchParams(location.search).get('scheduleCode');

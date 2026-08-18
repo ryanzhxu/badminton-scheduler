@@ -87,9 +87,9 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
   - Greedy search: iterate `s` from 0 up, prefer minimal substitutions
   - Example: 13 players, 3 courts → 3 doubles + 1 sub per round
 
-**Scheduling** (`generateRounds()`, `makeTeams()`):
+**Scheduling** (`generateRounds()`, `buildRoundCourts()`):
   - For each round: shuffle players, sort by sit-out count, extract `layout.subs` lowest-count players
-  - `makeTeams()`: 600 random shuffles, score by conflict violations (1000×) + repeated pairings
+  - `buildRoundCourts()`: deterministic clique-first greedy matching (see "Key Algorithms" below) — no random-restart search
   - Track used team keys in `usedTeams` to prevent repeats across rounds
   - Fair rotation: ensures sit-out count variance ≤ 1 (optimal fairness)
 
@@ -121,18 +121,16 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 - Example: 13 players, 3 courts → 3 doubles (12 in play) + 1 sub per round
 - If no perfect fit exists, falls back to maximizing doubles with overflow subs
 
-**Team generation via stochastic search** (`makeTeams(activePl, layout, hist, conflictGroup)`):
-- **Why stochastic**: Finding the absolute-best team assignment is NP-hard; `MAKE_TEAMS_ATTEMPTS` (600) random attempts with greedy scoring is pragmatic
-- **Scoring**: for each configuration, sum:
-  - Conflict violations × 1000 (dominates all other concerns)
-  - `repeatCost()` — pairing variety, see below
-- **Why 600 attempts**: empirically sufficient for 12–30 players; larger groups may need tuning
-- Early exit if score = 0 (perfect: no conflicts, no repeats) — rare after the first couple of rounds
+**Team generation via clique-first greedy matching** (`buildRoundCourts`, `matchPartnersRespectingConflicts`, `greedyMatch`):
+- **History (Aug 2026)**: the algorithm used to be a stochastic search — `MAKE_TEAMS_ATTEMPTS` (600) random shuffles, scored by conflict violations (×1000, to dominate everything else) plus `repeatCost()`, keeping the best of the batch. That constant was never tuned against a benchmark; it was a fixed literal since the project's very first commit and only ever rationalized after the fact. It was replaced with a deterministic construction that both guarantees zero conflict violations (when mathematically feasible) and minimizes partner/opponent repeats directly, instead of hoping enough random attempts stumble onto a good one.
+- **`greedyMatch(items, costFn)`**: a generic greedy minimum-cost perfect matching over an even-length list. Builds every candidate pair, shuffles first (so equal-cost ties vary run to run), stable-sorts by cost ascending, then greedily accepts the cheapest pair whose both items are still free. Not a guaranteed-optimal assignment (true optimality needs a full blossom algorithm), but effective for our small squared costs and runs once instead of hundreds of random restarts.
+- **`matchPartnersRespectingConflicts(activePl, hist, conflictGroup)`**: the single global conflict group behaves like one "no two of these may be teammates" clique. This function matches clique members to non-clique partners *first*, while non-clique supply is still plentiful, which is what actually guarantees zero conflict violations whenever a valid pairing exists (a plain unconstrained greedy pass can paint itself into a corner and force an avoidable violation purely from bad candidate-order luck). A violation is only possible when the clique is larger than half the active doubles pool (`k > n/2`) — genuinely infeasible to avoid, not an algorithm bug.
+- **`buildRoundCourts(activePl, layout, hist, conflictGroup)`**: splits the shuffled active pool into the singles slots and the doubles pool; runs `matchPartnersRespectingConflicts` on the doubles pool to form partner-pairs; then runs `greedyMatch` again on those partner-pairs (cost = summed cross-pair opponent-repeat cost) to decide which pairs face each other on a court, and separately on the singles pool (cost = opponent-repeat cost directly, since singles has no partners and no conflict restriction) — layering the same opponent-variety cost function from the old scoring on top of the deterministic partner construction.
 - **No skill-based balancing**: an earlier skill-tier feature (rate players Beginner/Intermediate/Advanced, balance court totals) was removed (Aug 2026) in favor of relying solely on team conflicts for fairness — see "Conflict & Team Validation" above. Do not reintroduce a skill field without re-adding the removed UI, i18n keys, and `playerSkills` plumbing across all three copies.
 
-**Pairing variety** (`pairHistory`, `repeatCost`, `recordRound`):
+**Pairing variety** (`pairHistory`, `recordRound`):
 - `createPairHistory()` returns `{ partners: Map, opponents: Map, lastOpponents: Set }`, counting how many times each pair has been teammates and how many times they have faced each other. It is derived state — never persisted in the schedule JSON — and is rebuilt by replaying rounds (`rebuildSchedulingState()` in the SPA, and the extend handlers in both backends).
-- Cost per pair is **squared** in the number of prior meetings (`n² × REPEAT_PARTNER_WEIGHT` for teammates, `n² × REPEAT_OPPONENT_WEIGHT` for opponents). Squaring matters: a flat/binary penalty stops discriminating once every combination has been used once.
+- Cost per pair is **squared** in the number of prior meetings (`n² × REPEAT_PARTNER_WEIGHT` for teammates, `n² × REPEAT_OPPONENT_WEIGHT` for opponents), fed straight into the `greedyMatch` cost functions above. Squaring matters: a flat/binary penalty stops discriminating once every combination has been used once.
 - Facing the same opponent in the immediately preceding round costs an extra `CONSECUTIVE_OPPONENT_WEIGHT`, because a back-to-back streak is what players actually notice and report. Locked in by `tests/scheduling.test.js`.
 
 **Fair sit-out rotation** (`sitC` tracking):
@@ -239,6 +237,14 @@ Validation is also built into the UI:
   - Summary: total rounds, court count, format (e.g., "3×2v2 + 1×1v1")
 - **Stats table** (`renderStats()`) tracks per-player games, sits, unique partners, unique opponents
 - **Manual testing approach**: add players, set conflicts, generate, visually inspect stats and validation panel
+
+## Versioning
+
+The app shows its version in a small label under the header title ("Internal Tools · vX.Y.Z"), so it is visible at a glance that the app is maintained. There is no build step, so the version is not read from `package.json` at runtime — it is a plain `APP_VERSION` constant in `index.html`.
+
+- **Source of truth**: bump `APP_VERSION` in `index.html`, `version` in `package.json`, and `version` in `worker/package.json` together, on every meaningful change. They should always match.
+- **Scheme**: semantic versioning (`MAJOR.MINOR.PATCH`) — patch for fixes and small tweaks, minor for new user-facing features, major for a breaking change to the schedule data shape or a public API endpoint.
+- **History note**: the project had no formal versioning before `1.6.0` — no git tags, and `package.json` had been stuck at the npm-init default (`1.0.0`) since the very first commit. `1.6.0` is a reconstruction from the commit history's feature milestones (share/QR, i18n, dark mode, Cloudflare Worker migration, brand redesign ≈ 1.0; cal.com auto-import + leaderboard ≈ 1.1; manual round editing ≈ 1.2; check-in/attendance ≈ 1.3; skill-tier balancing ≈ 1.4; the pairing-fairness overhaul + skill-tier removal + regression suite ≈ 1.5; the Setup-hiding/check-in-rename/15-round-default batch ≈ 1.6), not a set of real historical releases.
 
 ## Verification
 

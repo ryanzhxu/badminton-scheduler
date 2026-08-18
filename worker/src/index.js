@@ -307,8 +307,6 @@ function teamOk(t, conflictGroup) {
 const REPEAT_PARTNER_WEIGHT = 1;
 const REPEAT_OPPONENT_WEIGHT = 0.6;
 const CONSECUTIVE_OPPONENT_WEIGHT = 3;
-const MAKE_TEAMS_ATTEMPTS = 600;
-
 function pairKey(a, b) {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
@@ -331,21 +329,6 @@ function courtPairs(ct) {
   return { partners, opponents };
 }
 
-function repeatCost(hist, ct) {
-  const { partners, opponents } = courtPairs(ct);
-  let cost = 0;
-  partners.forEach((k) => {
-    const n = hist.partners.get(k) || 0;
-    cost += n * n * REPEAT_PARTNER_WEIGHT;
-  });
-  opponents.forEach((k) => {
-    const n = hist.opponents.get(k) || 0;
-    cost += n * n * REPEAT_OPPONENT_WEIGHT;
-    if (hist.lastOpponents.has(k)) cost += CONSECUTIVE_OPPONENT_WEIGHT;
-  });
-  return cost;
-}
-
 function recordRound(hist, courts) {
   const thisRound = new Set();
   (courts || []).forEach((ct) => {
@@ -359,49 +342,120 @@ function recordRound(hist, courts) {
   hist.lastOpponents = thisRound;
 }
 
-function assignCourts(pl, layout) {
-  const courts = [];
-  let idx = 0;
-  for (let c = 0; c < layout.doubles; c++) {
-    courts.push({
-      a: [pl[idx], pl[idx + 1]],
-      b: [pl[idx + 2], pl[idx + 3]],
-      singles: false,
-    });
-    idx += 4;
-  }
-  for (let c = 0; c < layout.singles; c++) {
-    courts.push({
-      a: [pl[idx]],
-      b: [pl[idx + 1]],
-      singles: true,
-    });
-    idx += 2;
-  }
-  return courts;
-}
-
-function makeTeams(activePl, layout, hist, conflictGroup) {
-  let best = null;
-  let bestScore = Infinity;
-  for (let att = 0; att < MAKE_TEAMS_ATTEMPTS; att++) {
-    const s = shuffle(activePl);
-    const courts = assignCourts(s, layout);
-    let cv = 0;
-    let pv = 0;
-    courts.forEach((ct) => {
-      if (!teamOk(ct.a, conflictGroup)) cv++;
-      if (!teamOk(ct.b, conflictGroup)) cv++;
-      pv += repeatCost(hist, ct);
-    });
-    const score = cv * 1000 + pv;
-    if (score < bestScore) {
-      bestScore = score;
-      best = courts;
-      if (!score) break;
+// Generic greedy minimum-cost perfect matching over an even-length list. Builds
+// every candidate pair, shuffles first so equal-cost ties vary from run to run,
+// then stable-sorts by cost and greedily accepts the cheapest pair whose two
+// items are both still free. This is not a guaranteed-optimal assignment (a
+// true optimum needs a full blossom algorithm), but for our small squared
+// repeat costs it reliably beats random sampling once a group is bigger than a
+// handful of players, and it runs in a single pass instead of hundreds of
+// random restarts.
+function greedyMatch(items, costFn) {
+  const pool = shuffle(items);
+  const remaining = new Set(pool);
+  const candidates = [];
+  for (let i = 0; i < pool.length; i++) {
+    for (let j = i + 1; j < pool.length; j++) {
+      candidates.push([pool[i], pool[j], costFn(pool[i], pool[j])]);
     }
   }
-  return best;
+  candidates.sort((x, y) => x[2] - y[2]);
+  const pairs = [];
+  candidates.forEach(([a, b, c]) => {
+    if (c === Infinity) return;
+    if (remaining.has(a) && remaining.has(b)) {
+      pairs.push([a, b]);
+      remaining.delete(a);
+      remaining.delete(b);
+    }
+  });
+  // Anything left over means every remaining option was forbidden -- pair them
+  // off by lowest cost anyway, since a schedule must still be produced. This is
+  // the only path that can leave a conflict-group pair together.
+  const leftover = [...remaining];
+  while (leftover.length >= 2) {
+    const a = leftover.shift();
+    let bestIdx = 0;
+    let bestCost = Infinity;
+    for (let i = 0; i < leftover.length; i++) {
+      const c = costFn(a, leftover[i]);
+      if (c < bestCost) {
+        bestCost = c;
+        bestIdx = i;
+      }
+    }
+    pairs.push([a, leftover[bestIdx]]);
+    leftover.splice(bestIdx, 1);
+  }
+  return pairs;
+}
+
+// The single global conflict group behaves like one "no two of these may be
+// teammates" clique. Matching its members first, while non-clique partners are
+// still plentiful, is what actually guarantees zero conflict violations
+// whenever a valid pairing exists -- a plain greedy pass over everyone can
+// paint itself into a corner and force an avoidable violation just from bad
+// luck in candidate order.
+function matchPartnersRespectingConflicts(activePl, hist, conflictGroup) {
+  const partnerCost = (a, b) => {
+    const n = hist.partners.get(pairKey(a, b)) || 0;
+    return n * n * REPEAT_PARTNER_WEIGHT;
+  };
+  const cliqueActive = activePl.filter((p) => conflictGroup.includes(p));
+  if (cliqueActive.length < 2) return greedyMatch(activePl, partnerCost);
+  const cliqueSet = new Set(cliqueActive);
+  const nonClique = shuffle(activePl.filter((p) => !cliqueSet.has(p)));
+  const clique = shuffle(cliqueActive);
+  const pairs = [];
+  const usedNonClique = new Set();
+  clique.forEach((p) => {
+    const available = nonClique.filter((q) => !usedNonClique.has(q));
+    if (!available.length) return;
+    let bestQ = available[0];
+    let bestCost = partnerCost(p, available[0]);
+    for (let i = 1; i < available.length; i++) {
+      const c = partnerCost(p, available[i]);
+      if (c < bestCost) {
+        bestCost = c;
+        bestQ = available[i];
+      }
+    }
+    usedNonClique.add(bestQ);
+    pairs.push([p, bestQ]);
+  });
+  const matchedClique = new Set(pairs.map((pr) => pr[0]));
+  const leftoverClique = clique.filter((p) => !matchedClique.has(p));
+  const leftoverNonClique = nonClique.filter((q) => !usedNonClique.has(q));
+  pairs.push(...greedyMatch([...leftoverClique, ...leftoverNonClique], partnerCost));
+  return pairs;
+}
+
+// Builds one round's courts: splits the active pool into the singles slots and
+// the doubles pool, pairs up doubles partners with conflicts respected (above),
+// then matches those partner-pairs against each other -- and matches singles
+// opponents directly -- to minimize repeated opponents, with an extra penalty
+// for an immediate rematch.
+function buildRoundCourts(activePl, layout, hist, conflictGroup) {
+  const shuffled = shuffle(activePl);
+  const singlesCount = layout.singles * 2;
+  const singlesPl = shuffled.slice(0, singlesCount);
+  const doublesPl = shuffled.slice(singlesCount);
+  const opponentCost = (a, b) => {
+    const k = pairKey(a, b);
+    const n = hist.opponents.get(k) || 0;
+    let c = n * n * REPEAT_OPPONENT_WEIGHT;
+    if (hist.lastOpponents.has(k)) c += CONSECUTIVE_OPPONENT_WEIGHT;
+    return c;
+  };
+  const partnerPairs = matchPartnersRespectingConflicts(doublesPl, hist, conflictGroup);
+  const courtPairCost = (pairA, pairB) => {
+    let c = 0;
+    pairA.forEach((p) => pairB.forEach((q) => { c += opponentCost(p, q); }));
+    return c;
+  };
+  const doublesCourts = greedyMatch(partnerPairs, courtPairCost).map(([a, b]) => ({ a, b, singles: false }));
+  const singlesCourts = greedyMatch(singlesPl, opponentCost).map(([a, b]) => ({ a: [a], b: [b], singles: true }));
+  return [...doublesCourts, ...singlesCourts];
 }
 
 function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, history = null) {
@@ -418,7 +472,7 @@ function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, h
     const subs = sorted.slice(0, layout.subs);
     subs.forEach((p) => sitC[p]++);
     const activePl = rawPlayers.filter((p) => !subs.includes(p));
-    const courts = makeTeams(activePl, layout, history, conflictGroup);
+    const courts = buildRoundCourts(activePl, layout, history, conflictGroup);
     recordRound(history, courts);
     rounds.push({ subs, courts });
   }
@@ -1279,7 +1333,7 @@ function createWorkerApp() {
 
 export {
   addToScheduleIndex,
-  assignCourts,
+  buildRoundCourts,
   buildShareUrl,
   canonicalPlayerName,
   conflictPair,
@@ -1289,6 +1343,7 @@ export {
   generateRounds,
   generateScheduleCode,
   getLayout,
+  greedyMatch,
   handleCalImportNow,
   handleData,
   handleExtendSchedule,
@@ -1302,7 +1357,7 @@ export {
   loadPlayerAliases,
   loadPlayerRegistry,
   loadScheduleIndex,
-  makeTeams,
+  matchPartnersRespectingConflicts,
   matchPath,
   normalizePath,
   normalizePlayerKey,
