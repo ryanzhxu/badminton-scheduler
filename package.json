@@ -1,6 +1,6 @@
 {
   "name": "badminton-scheduler-api",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Express.js backend for badminton rotation scheduler",
   "main": "server.js",
   "scripts": {

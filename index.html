@@ -372,7 +372,7 @@ body.dark-mode .sep-tx{color:#4A8070}
 <script>
 // Bump alongside package.json/worker/package.json on every meaningful change:
 // patch for fixes, minor for new features, major for breaking schedule/API changes.
-const APP_VERSION='1.7.0';
+const APP_VERSION='1.7.1';
 const BASE_ROUNDS=15,EXTEND_ROUNDS=5;
 let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0;
 // Names injected by the demo helpers, so a session that includes any of them can be
@@ -392,12 +392,15 @@ let isScheduleShared=false,sharedByOrganizerName='Ryan Xu';
 let currentScheduleUpdatedAt=null,isCurrentLinkMode=false,currentLinkPollHandle=null;
 // True when the app was opened via ?scheduleCode=... (a viewer following a share
 // link/QR), as opposed to the organizer's own browser building a new rotation.
-// The rotation is finalized by that point, so Setup is hidden entirely.
+// The Setup tab button is hidden to keep the tab bar simple for casual viewers,
+// but the "\u2190 Setup" / "New rotation" shortcut in the Schedule pane stays
+// available (schedule-setup-actions) so whoever has the link can still start a
+// fresh rotation -- roster/court-count state is already populated from the
+// loaded schedule (see applyScheduleSnapshot), so this works without ever
+// showing the Setup tab itself.
 let isSharedView=false;
 function applySharedViewMode(){
   document.getElementById('tab-setup').style.display=isSharedView?'none':'';
-  const actions=document.getElementById('schedule-setup-actions');
-  if(actions)actions.style.display=isSharedView?'none':'flex';
 }
 const CURRENT_LINK_POLL_MS=45000;
 let currentLanguage='en';
