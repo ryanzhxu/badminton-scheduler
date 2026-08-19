@@ -177,19 +177,33 @@ body.dark-mode .sep-tx{color:#4A8070}
 }
 .hdr-a{text-decoration:none;color:inherit;transition:opacity .15s}
 .hdr-a:hover{opacity:.7}
+.hdr-titlewrap{flex:1;min-width:0;overflow:hidden}
+.hdr-title{font-size:14px;font-weight:600;color:#FFFFFF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr-subtitle{font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:480px){
+  .hdr-inner{gap:8px}
+  .hdr-brandwrap{gap:8px}
+  .hdr-subtitle-label{display:none}
+  .hdr-divider{display:none}
+  .btn-icon-hdr{width:32px;height:32px;font-size:18px}
+  .hdr-tools{gap:2px}
+}
+@media(max-width:360px){
+  .hdr-title{font-size:12.5px}
+}
 </style>
 </head>
 <body>
 <header class="hdr">
   <div class="hdr-inner">
-    <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0">
+    <div class="hdr-brandwrap" style="display:flex;align-items:center;gap:14px;flex:1;min-width:0">
       <a href="https://www.trulioo.com" target="_blank" rel="noopener noreferrer" class="hdr-a" style="color:#FFFFFF;display:flex;align-items:center;flex-shrink:0">
         <svg xmlns="http://www.w3.org/2000/svg" height="19" viewBox="0 0 328.940 80.690" fill="currentColor" aria-label="Trulioo"><path d="M 325.46 74.21 L 324.58 74.21 L 324.58 75.43 L 325.46 75.43 C 325.85 75.43 326.12 75.2 326.12 74.82 C 326.12 74.44 325.85 74.21 325.46 74.21 Z M 326.15 77.58 L 325.33 75.93 L 324.59 75.93 L 324.59 77.58 L 324 77.58 L 324 73.67 L 325.51 73.67 C 326.25 73.67 326.72 74.15 326.72 74.81 C 326.72 75.37 326.38 75.73 325.94 75.85 L 326.84 77.58 L 326.15 77.58 L 326.15 77.58 Z M 325.23 72.45 C 323.46 72.45 322.02 73.89 322.02 75.66 C 322.02 77.43 323.46 78.87 325.23 78.87 C 327 78.87 328.44 77.43 328.44 75.66 C 328.44 73.89 327 72.45 325.23 72.45 Z M 325.23 79.36 C 323.19 79.36 321.52 77.7 321.52 75.65 C 321.52 73.6 323.18 71.94 325.23 71.94 C 327.28 71.94 328.94 73.6 328.94 75.65 C 328.94 77.7 327.28 79.36 325.23 79.36 Z M 18.38 79.36 L 46 79.36 L 46 76.59 C 41.17 75.36 38.92 72.59 38.92 66.02 L 38.92 8.75 L 45.18 8.75 C 53.19 8.75 58.22 12.45 60.89 19.43 L 64.28 19.43 L 64.28 2.59 L 0 2.59 L 0 19.43 L 3.49 19.43 C 6.16 12.45 11.19 8.75 19.2 8.75 L 25.46 8.75 L 25.46 66.01 C 25.46 72.58 23.1 75.35 18.38 76.58 L 18.38 79.35 L 18.38 79.36 Z M 57.89 79.36 L 79.66 79.36 L 79.66 76.59 C 76.07 75.46 74.22 73.3 74.22 66.84 L 74.22 37.48 C 77.3 34.61 78.43 33.78 79.35 33.37 C 80.27 37.48 82.94 40.56 86.95 40.56 C 91.16 40.56 94.44 37.07 94.44 32.65 C 94.44 28.23 91.36 24.95 86.84 24.95 C 83.76 24.95 80.47 26.59 74.21 31.93 L 74.21 24.64 L 57.89 30.18 L 57.89 32.95 C 60.66 33.98 62.3 36.24 62.3 43.52 L 62.3 66.83 C 62.3 73.3 60.97 75.35 57.89 76.58 L 57.89 79.35 L 57.89 79.36 Z M 98.22 32.95 C 101.3 34.18 102.63 36.24 102.63 42.4 L 102.63 64.27 C 102.63 74.84 107.56 80.39 117 80.39 C 123.78 80.39 129.11 77.62 134.56 72.07 L 134.56 80.69 L 151.09 76.48 L 151.09 73.71 C 148.01 72.48 146.47 70.42 146.47 64.06 L 146.47 24.64 L 130.15 30.18 L 130.15 32.95 C 133.33 34.18 134.67 36.24 134.67 42.4 L 134.57 66.22 C 130.05 70.74 126.25 72.89 121.84 72.89 C 117.12 72.89 114.45 70.53 114.45 63.44 L 114.45 24.64 L 98.23 30.18 L 98.23 32.95 L 98.22 32.95 Z M 157.14 79.36 L 177.88 79.36 L 177.88 76.59 C 175.11 75.36 173.36 73.3 173.36 66.84 L 173.36 0 L 157.14 5.65 L 157.14 8.32 C 159.91 9.55 161.55 11.61 161.55 18.07 L 161.55 66.84 C 161.55 73.31 159.91 75.36 157.14 76.59 L 157.14 79.36 Z M 184.74 79.36 L 205.48 79.36 L 205.48 76.59 C 202.71 75.36 201.07 73.3 201.07 66.84 L 201.07 24.44 L 184.75 30.09 L 184.75 32.76 C 187.52 33.99 189.27 36.05 189.27 42.51 L 189.27 66.84 C 189.27 73.31 187.52 75.36 184.75 76.59 L 184.75 79.36 L 184.74 79.36 Z M 186.07 10.16 C 186.07 14.78 189.87 18.48 194.39 18.48 C 198.91 18.48 202.71 14.78 202.71 10.16 C 202.71 5.54 199.01 1.84 194.39 1.84 C 189.77 1.84 186.07 5.54 186.07 10.16 Z M 237.9 25.46 C 221.17 25.46 210.69 36.55 210.69 53.28 C 210.69 70.01 220.85 80.38 236.87 80.38 C 252.89 80.38 264.08 69.19 264.08 52.35 C 264.08 35.51 253.92 25.45 237.9 25.45 L 237.9 25.46 Z M 237.8 76.49 C 229.59 76.49 224.25 67.15 224.25 51.64 C 224.25 37.88 228.77 29.36 236.67 29.36 C 244.99 29.36 250.53 38.81 250.53 53.9 C 250.53 68.17 245.6 76.49 237.8 76.49 Z M 296.54 25.46 C 279.81 25.46 269.33 36.55 269.33 53.28 C 269.33 69.6 279.49 80.38 295.41 80.38 C 311.33 80.38 322.72 69.19 322.72 52.35 C 322.72 35.51 312.35 25.45 296.54 25.45 L 296.54 25.46 Z M 296.44 76.49 C 288.23 76.49 282.79 67.15 282.79 51.64 C 282.79 37.88 287.41 29.36 295.21 29.36 C 303.53 29.36 309.07 38.81 309.07 53.9 C 309.07 68.17 304.24 76.49 296.44 76.49 L 296.44 76.49 Z" fill="currentColor" fill-rule="nonzero"/></svg>
       </a>
-      <div style="width:1px;height:26px;background:rgba(255,255,255,0.2);flex-shrink:0"></div>
-      <a href="/" class="hdr-a">
-        <div style="font-size:14px;font-weight:600;color:#FFFFFF" data-i18n="appTitle"></div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.04em">Internal Tools <span id="app-version-label" title="App version"></span></div>
+      <div class="hdr-divider" style="width:1px;height:26px;background:rgba(255,255,255,0.2);flex-shrink:0"></div>
+      <a href="/" class="hdr-a hdr-titlewrap">
+        <div class="hdr-title" data-i18n="appTitle"></div>
+        <div class="hdr-subtitle"><span class="hdr-subtitle-label">Internal Tools</span> <span id="app-version-label" title="App version"></span></div>
       </a>
     </div>
     <div class="hdr-tools">
