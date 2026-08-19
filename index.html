@@ -312,7 +312,7 @@ body.dark-mode .sep-tx{color:#4A8070}
   </div>
   <div id="pane-schedule" style="display:none">
     <div id="schedule-setup-actions" style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
-      <button class="btn-s" onclick="switchTab('setup')"><i class="ti ti-arrow-left" style="font-size:13px;vertical-align:-2px"></i> <span data-i18n="setupTab"></span></button>
+      <button class="btn-s" id="back-to-setup-btn" onclick="switchTab('setup')"><i class="ti ti-arrow-left" style="font-size:13px;vertical-align:-2px"></i> <span data-i18n="setupTab"></span></button>
       <button class="btn-s" onclick="generateFresh()"><i class="ti ti-refresh" style="font-size:13px;vertical-align:-2px"></i> <span data-i18n="newRotation"></span></button>
     </div>
     <div class="rnav">
@@ -372,7 +372,7 @@ body.dark-mode .sep-tx{color:#4A8070}
 <script>
 // Bump alongside package.json/worker/package.json on every meaningful change:
 // patch for fixes, minor for new features, major for breaking schedule/API changes.
-const APP_VERSION='1.7.1';
+const APP_VERSION='1.7.2';
 const BASE_ROUNDS=15,EXTEND_ROUNDS=5;
 let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0;
 // Names injected by the demo helpers, so a session that includes any of them can be
@@ -392,15 +392,16 @@ let isScheduleShared=false,sharedByOrganizerName='Ryan Xu';
 let currentScheduleUpdatedAt=null,isCurrentLinkMode=false,currentLinkPollHandle=null;
 // True when the app was opened via ?scheduleCode=... (a viewer following a share
 // link/QR), as opposed to the organizer's own browser building a new rotation.
-// The Setup tab button is hidden to keep the tab bar simple for casual viewers,
-// but the "\u2190 Setup" / "New rotation" shortcut in the Schedule pane stays
-// available (schedule-setup-actions) so whoever has the link can still start a
-// fresh rotation -- roster/court-count state is already populated from the
-// loaded schedule (see applyScheduleSnapshot), so this works without ever
-// showing the Setup tab itself.
+// The Setup tab button and the "\u2190 Setup" shortcut both stay hidden so a
+// casual viewer never sees the roster editor, but "New rotation" stays
+// available so whoever has the link can still start a fresh rotation --
+// roster/court-count state is already populated from the loaded schedule (see
+// applyScheduleSnapshot), so generateFresh() works without ever showing Setup.
 let isSharedView=false;
 function applySharedViewMode(){
   document.getElementById('tab-setup').style.display=isSharedView?'none':'';
+  const backBtn=document.getElementById('back-to-setup-btn');
+  if(backBtn)backBtn.style.display=isSharedView?'none':'';
 }
 const CURRENT_LINK_POLL_MS=45000;
 let currentLanguage='en';
