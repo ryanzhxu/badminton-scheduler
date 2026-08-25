@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file is the canonical guidance for any coding agent (Claude Code, Codex, or otherwise) working in this repo. See `CLAUDE.md` for a short pointer back here.
+This file is the canonical guidance for any coding agent (Claude Code, Codex, or otherwise) working in this repo. See `CLAUDE.md` for a short pointer back here, and see `REFACTOR.md` for the deploy shape, the frozen production contracts, and the current refactor plan — read it before touching anything deploy-related.
 
 ## Working Style
 
@@ -34,7 +34,7 @@ This file is the canonical guidance for any coding agent (Claude Code, Codex, or
 ## How It Runs
 
 - The API starts with `npm start` or `node server.js`.
-- The server listens on `PORT` and defaults to `3000`.
+- The server listens on `PORT` and defaults to `5000` (matches `index.html`'s local-dev `API_BASE` target of `http://localhost:5000`).
 - `npm run dev` currently aliases `npm start`.
 - `.env.example` documents the expected local env shape: `PORT`, `NODE_ENV`, and any Worker-facing flags mirrored for local dev.
 - The UI can still be opened directly from `index.html`, but that path does not exercise the API.
@@ -47,9 +47,11 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 
 ### 1. HTML Structure
 - Header with title and settings buttons (theme, language, tabs)
-- Tab interface: Setup and Schedule views
+- Tab interface: Setup, Schedule, Check-in, Leaderboard
 - **Setup pane**: courts input, player management (add/bulk import/demo injection), conflict picker, generate button
-- **Schedule pane**: round navigation, court grid, sit-out banner, QR share card, player stats table, constraint validation panel
+- **Schedule pane**: round navigation, court grid, sit-out banner, QR share card, constraint validation panel — kept deliberately minimal; per-player stats live only on the Leaderboard tab, not here
+- **Check-in pane**: per-player attendance status (Not arrived/Playing/Left), a global "Edit names" toggle covering every chip at once, an always-visible "+ Add player" row for late arrivals
+- **Leaderboard pane**: cross-session stats table (games, sits, sessions, unique partners/opponents) per canonical player, backed by `GET /api/leaderboard` (Worker only)
 - **Internationalization**: all user-facing text via `data-i18n` attributes; UI auto-translates on language switch
 
 ### 2. CSS Styling
@@ -61,11 +63,12 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 
 ### 3. JavaScript Logic
 **State** (all in global scope):
-  - `rawPlayers`, `conflictGroup` (Set), `schedule`, `sitC` (sit-out counts), `usedTeams` (team dedup keys)
+  - `rawPlayers`, `conflictGroup` (Set), `schedule`, `sitC` (sit-out counts), `pairHistory` (`{partners, opponents, lastOpponents}` — see "Pairing variety" below)
   - `currentLanguage`, `currentLayout`, `currentNc`, `currentRound`
   - QR-related: `currentShareCode`, `currentShareUrl`, `currentQrDataUrl`, `qrSyncToken` (race-condition prevention)
   - Live sync: `currentScheduleRevision`, `currentScheduleStream` (an `EventSource`), `currentScheduleStreamCode`
-  - `i18n` object: 7 language branches (en, zh-s, zh-t, ko, hi, fil, th) with 100+ keys each
+  - Check-in: `attendance` (per-player status), `demoPlayers` (Set, excludes demo players from the leaderboard/registry)
+  - `i18n` object: 6 language branches (en, zh-s, zh-t, ko, hi, fil) with 100+ keys each — Thai (`th`) was added, then removed; do not reintroduce without a fresh instruction
 
 **i18n System**:
   - `i18n` = object with language keys mapping to term dictionaries
@@ -90,13 +93,13 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 **Scheduling** (`generateRounds()`, `buildRoundCourts()`):
   - For each round: shuffle players, sort by sit-out count, extract `layout.subs` lowest-count players
   - `buildRoundCourts()`: deterministic clique-first greedy matching (see "Key Algorithms" below) — no random-restart search
-  - Track used team keys in `usedTeams` to prevent repeats across rounds
+  - Repeat pairings are discouraged via `pairHistory` cost, not a hard "used team" exclusion — see "Pairing variety" below
   - Fair rotation: ensures sit-out count variance ≤ 1 (optimal fairness)
 
 **Display**:
-  - `renderSchedule()` — show current round's courts with dynamic grid columns
-  - `renderStats()` — player stats table (games played, sits, unique partners/opponents)
+  - `renderSchedule()` — show current round's courts with dynamic grid columns; also calls `renderValidation()` and `renderCheckIn()`
   - `renderValidation()` — constraint panel (conflicts, repeats, sit-out fairness, summary)
+  - `loadLeaderboard()` — fetches `GET /api/leaderboard` and renders the cross-session stats table (games, sits, sessions, unique partners/opponents) on the Leaderboard tab; this replaced an earlier per-schedule stats table that used to live on the Schedule pane
   - All text driven by `i18n` keys
 
 **Share & Sync**:
@@ -110,7 +113,7 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 **Conflict & Team Validation**:
   - `conflictPair(a, b)` — returns true if both players in `conflictGroup`
   - `teamOk(t)` — rejects a team (one side of a court) if any pair within it has a conflict; this is only ever evaluated per-side, never across the two teams sharing a court, so conflicted players can face off as opponents, just not partner up
-  - `teamKey(t)` — canonical team ID for dedup (sorted player names joined by `|`)
+  - `teamKey(t)` — canonical team ID (sorted player names joined by `|`), used by `renderValidation()` to flag an exact team repeated across rounds
 
 ## Key Algorithms
 
@@ -210,11 +213,11 @@ Cross-session stats require a stable player identity, since names are otherwise 
   - Live sync → viewers on the same share code hold an SSE connection to `/api/schedule/:code/stream` and re-apply the schedule snapshot as it changes
 - **Display names**: auto-abbreviated when first names collide (e.g., "John Doe" & "John Smith" → "John D." & "John S.") to save space
 - **Race condition protection**: `qrSyncToken` increments on each `syncShareQr()` call; old responses discarded if a new sync starts. Similarly, `currentScheduleRevision` guards against applying stale streamed snapshots.
-- **Team deduplication** via `teamKey(t)`: canonical form is `"player1|player2|..."` (sorted) for set-based lookups in `usedTeams`
+- **Team identity** via `teamKey(t)`: canonical form is `"player1|player2|..."` (sorted); used only by `renderValidation()`'s repeat-pairing check, not by the generator itself, which discourages repeats through `pairHistory` cost instead of a hard exclusion set
 - **i18n template substitution**: `t('roundOf', {round: 1, total: 10})` replaces `{round}` and `{total}` in the i18n key's string
 - **UI state synchronization**:
-  - `renderAll()` → calls `renderPlayers()`, `renderConflictPicker()`, `updateHint()`
-  - `renderSchedule()` → calls `renderStats()` and `renderValidation()`
+  - `renderAll()` → calls `syncPlayerCountries()`, `syncAttendance()`, `renderPlayers()`, `renderConflictPicker()`, `updateHint()`, `renderCheckIn()`
+  - `renderSchedule()` → calls `renderValidation()` and `renderCheckIn()`
 - **Shorthand CSS classes**: `.cx` (conflict chips), `.pchip` (player pills), `.vrow` (validation row), `.pa`/`.pb` (team A/B badges)
 - **Error messages in i18n**: all error strings (e.g., `errorNeedMore`, `errorLayout`) support template vars for pluralization and counts
 
@@ -235,8 +238,8 @@ Validation is also built into the UI:
   - ✓/✗ Repeated team pairings (any team used twice)
   - ✓/✗ Sit-out fairness (range of sit-out counts; fair if max − min ≤ 1)
   - Summary: total rounds, court count, format (e.g., "3×2v2 + 1×1v1")
-- **Stats table** (`renderStats()`) tracks per-player games, sits, unique partners, unique opponents
-- **Manual testing approach**: add players, set conflicts, generate, visually inspect stats and validation panel
+- **Leaderboard tab** (`loadLeaderboard()`) tracks per-player games, sits, sessions, unique partners, unique opponents — cross-session, not per-schedule
+- **Manual testing approach**: add players, set conflicts, generate, visually inspect the validation panel and (separately) the Leaderboard tab
 
 ## Versioning
 
