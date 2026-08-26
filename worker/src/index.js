@@ -1014,6 +1014,14 @@ async function handleLeaderboard(c) {
   return c.json({ leaderboard, sessionCount: index.length });
 }
 
+// Reads only the index key — no schedule loads — so this stays fast regardless
+// of how much history accumulates.
+async function handleSessions(c) {
+  const index = await loadScheduleIndex(c.env);
+  const sessions = [...index].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  return c.json({ sessions });
+}
+
 async function handleData(c) {
   const profiles = await loadProfiles(c.env);
   return c.json({
@@ -1367,6 +1375,7 @@ function createWorkerApp() {
   app.post('/api/profiles', handleProfiles);
   app.get('/api/data', handleData);
   app.get('/api/leaderboard', handleLeaderboard);
+  app.get('/api/sessions', handleSessions);
   app.post('/api/cal/run-import', handleCalImportNow);
   return app;
 }
@@ -1391,6 +1400,7 @@ export {
   handleGetSchedule,
   handleLeaderboard,
   handleProfiles,
+  handleSessions,
   handleShareSchedule,
   handleScheduleStream,
   healthPayload,

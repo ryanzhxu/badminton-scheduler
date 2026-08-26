@@ -13,6 +13,7 @@ const UNCALLED_BY_SPA = [
   'GET /health',              // bare health check, used by uptime monitoring
   'GET /api/health',
   'POST /api/profiles',       // server-side profile storage; the SPA never posts to it
+  'GET /api/sessions',        // TEMPORARY: caller lands in Task 8, remove then
   'POST /api/cal/run-import', // token-guarded manual cron trigger
 ];
 
