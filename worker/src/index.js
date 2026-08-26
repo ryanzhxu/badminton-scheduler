@@ -745,7 +745,7 @@ async function handleGenerateSchedule(c) {
   // for testing/screen recording, not real attendance — keep them out of the
   // cross-session player registry and leaderboard.
   if (!schedule.isDemo) {
-    const genDateStr = schedule.generatedAt.slice(0, 10);
+    const genDateStr = pacificDateStr(new Date(schedule.generatedAt));
     await registerPlayers(c.env, playerNames, genDateStr);
     await addToScheduleIndex(c.env, {
       code: scheduleCode,
@@ -1106,14 +1106,18 @@ function parseAttendeeName(raw) {
 // UTC offset for that date (handles PST/PDT without manual toggling).
 // Pass `dateOverride` (YYYY-MM-DD) to build the window for a specific day
 // (e.g. testing an upcoming Wednesday) instead of "today".
-function pacificDateWindow(dateOverride) {
-  const referenceDate = dateOverride ? new Date(`${dateOverride}T12:00:00Z`) : new Date();
-  const dateStr = dateOverride || new Intl.DateTimeFormat('en-CA', {
+function pacificDateStr(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Los_Angeles',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(referenceDate);
+  }).format(date);
+}
+
+function pacificDateWindow(dateOverride) {
+  const referenceDate = dateOverride ? new Date(`${dateOverride}T12:00:00Z`) : new Date();
+  const dateStr = dateOverride || pacificDateStr(referenceDate);
 
   const offsetParts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Los_Angeles',
