@@ -84,3 +84,25 @@ test('a Trulioo-shaped index is returned untouched when no TTL is set', () => {
   const out = filterAge(idx, undefined, Date.parse('2027-01-01T00:00:00Z'));
   assert.deepStrictEqual(out, idx, 'no-TTL deployments must never lose an entry, however old');
 });
+
+const publicModeCode = extractDeclaration(src, 'isPublicMode');
+assert.ok(publicModeCode, 'isPublicMode not found in worker/src/index.js');
+
+const publicModeContext = vm.createContext({ Number });
+vm.runInContext(publicModeCode, publicModeContext);
+const isPublicMode = (env) => {
+  publicModeContext.__env = env;
+  return vm.runInContext('isPublicMode(__env)', publicModeContext);
+};
+
+test('isPublicMode is false for a Trulioo-shaped env (no TTL set at all)', () => {
+  assert.strictEqual(isPublicMode({}), false);
+});
+
+test('isPublicMode is false when SCHEDULE_TTL_SECONDS is explicitly zero', () => {
+  assert.strictEqual(isPublicMode({ SCHEDULE_TTL_SECONDS: '0' }), false);
+});
+
+test('isPublicMode is true when SCHEDULE_TTL_SECONDS is a positive TTL (Courtly)', () => {
+  assert.strictEqual(isPublicMode({ SCHEDULE_TTL_SECONDS: '604800' }), true);
+});

@@ -15,6 +15,13 @@ const PLAYER_REGISTRY_KEY = 'players:registry';
 const PLAYER_ALIASES_KEY = 'players:aliases';
 const SCHEDULE_INDEX_KEY = 'schedules:index';
 
+// Courtly's config (worker/wrangler.courtly.toml) sets SCHEDULE_TTL_SECONDS so
+// public schedules self-expire; Trulioo's worker/wrangler.toml does not set it.
+// Single source of truth for every public-vs-private branch in this file.
+function isPublicMode(env) {
+  return Number(env.SCHEDULE_TTL_SECONDS) > 0;
+}
+
 function normalizePlayerName(name) {
   return String(name || '')
     .trim()
@@ -608,6 +615,12 @@ async function loadSchedule(env, code) {
 }
 
 async function saveCurrentSchedule(env, schedule) {
+  // A single namespace-wide "current" pointer cannot be shared safely between
+  // unrelated public groups -- whichever group last wrote it would leak into
+  // every other group's ?scheduleCode=current link. Courtly users share
+  // explicit ?scheduleCode=BADM-XXXX links instead, so skip this key entirely
+  // in public mode. Trulioo sets no TTL, so it keeps writing this key as before.
+  if (isPublicMode(env)) return;
   await putJson(env.SCHEDULES, CURRENT_SCHEDULE_KEY, schedule);
 }
 
@@ -800,7 +813,14 @@ async function handleShareSchedule(c) {
   // (see handleGenerateSchedule), this entry keeps pointing at the final roster.
   if (!schedule.isDemo) {
     const sessionDate = pacificDateStr(new Date(schedule.generatedAt));
-    await registerPlayers(c.env, schedule.players || [], sessionDate);
+    // The player registry is namespace-global with no TTL (see handleProfiles);
+    // writing to it in public mode would leak one group's names into every
+    // other group's leaderboard, permanently. Skip it in public mode --
+    // leaderboard stats still work from the schedules themselves, falling
+    // back to the raw name via canonicalPlayerName when the registry has none.
+    if (!isPublicMode(c.env)) {
+      await registerPlayers(c.env, schedule.players || [], sessionDate);
+    }
     // A cron-imported session that is later re-shared from the UI must keep its
     // 'cal-auto-import' provenance — addToScheduleIndex dedupes by replacing.
     const priorIndex = await loadScheduleIndex(c.env);
@@ -825,7 +845,12 @@ async function handleGetSchedule(c) {
   const code = c.req.param('code');
   // "current" is a stable pseudo-code (not a real schedule code) that always
   // resolves to whichever schedule is presently active — used for a durable
-  // share link (?scheduleCode=current) that auto-updates week to week.
+  // share link (?scheduleCode=current) that auto-updates week to week. In
+  // public mode saveCurrentSchedule never writes this key (see above), so
+  // resolving it would only ever return stale or cross-group data; 404 instead.
+  if (code === 'current' && isPublicMode(c.env)) {
+    return c.json({ error: 'Not found' }, { status: 404 });
+  }
   const schedule = code === 'current' ? await loadCurrentSchedule(c.env) : await loadSchedule(c.env, code);
 
   if (!schedule) {
@@ -912,6 +937,13 @@ async function handleProfiles(c) {
 
   if (!Array.isArray(players)) {
     return c.json({ error: 'Players must be an array' }, { status: 400 });
+  }
+
+  // Profiles are a namespace-global key with no TTL; writing them in public
+  // mode would leak one group's roster to every other group, permanently.
+  // The SPA calls this opportunistically, so no-op rather than error.
+  if (isPublicMode(c.env)) {
+    return c.json({ ok: true, skipped: true });
   }
 
   const profiles = {
@@ -1058,7 +1090,9 @@ async function handleSessions(c) {
 }
 
 async function handleData(c) {
-  const profiles = await loadProfiles(c.env);
+  // profiles.players is a namespace-global registry; never return it in
+  // public mode, or one group's names would leak into every other group's.
+  const profiles = isPublicMode(c.env) ? { players: [] } : await loadProfiles(c.env);
   return c.json({
     currentSchedule: await loadCurrentSchedule(c.env),
     players: profiles.players || [],

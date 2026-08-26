@@ -622,6 +622,14 @@ function ensureGroup(){
   return k;
 }
 function groupParam(){return IS_COURTLY&&currentGroup?`?group=${encodeURIComponent(currentGroup)}`:'';}
+// Share links must carry the group so a recipient's loadGroup() (called before
+// any share URL is built) inherits it, instead of falling back to their own
+// localStorage and minting a different group on their first share. For
+// Trulioo (IS_COURTLY false) this returns the URL unchanged.
+function appendGroupToShareUrl(url){
+  if(!IS_COURTLY||!currentGroup||!url)return url;
+  return url+(url.includes('?')?'&':'?')+'group='+encodeURIComponent(currentGroup);
+}
 function applyBrand(){
   document.documentElement.setAttribute('data-brand',BRAND.id);
   const logo=document.querySelector('.hdr-brandwrap .hdr-a[href*="trulioo.com"]');
@@ -725,7 +733,7 @@ async function pollCurrentSchedule(){
   }catch(e){/* silent — will retry on next poll */}
 }
 function applyCurrentLinkShareDisplay(){
-  currentShareUrl=`${getShareBaseUrl()}/?scheduleCode=current`;
+  currentShareUrl=appendGroupToShareUrl(`${getShareBaseUrl()}/?scheduleCode=current`);
   currentQrDataUrl='';
   const status=document.getElementById('qr-status');
   const codeEl=document.getElementById('qr-code');
@@ -1639,7 +1647,7 @@ async function loadScheduleFromCode(code){
       startCurrentLinkPolling();
     }else{
       stopCurrentLinkPolling();
-      currentShareUrl=sch.shareUrl||`${location.origin}/?scheduleCode=${encodeURIComponent(currentShareCode)}`;
+      currentShareUrl=appendGroupToShareUrl(sch.shareUrl||`${location.origin}/?scheduleCode=${encodeURIComponent(currentShareCode)}`);
       currentQrDataUrl='';
       const status=document.getElementById('qr-status');
       const codeEl=document.getElementById('qr-code');
