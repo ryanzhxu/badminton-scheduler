@@ -192,6 +192,20 @@ body.dark-mode .sep-tx{color:#4A8070}
 @media(max-width:360px){
   .hdr-title{font-size:12.5px}
 }
+:root[data-brand="courtly"]{
+  --p:#0E2A1E;--ph:#17402E;--ia:#12855A;
+  --nav:#0E2A1E;--s0:#FFFFFF;--s1:#F4F6F5;--s2:#EAEEEC;
+  --bd:#D6DEDA;--bdm:#8FA39B;
+  --tx:#101614;--txs:#5C6B65;--txd:#8FA39B;
+}
+:root[data-brand="courtly"] .hdr{background:var(--court-surface,#1F7A3D);border-bottom:3px solid rgba(255,255,255,.9)}
+:root[data-brand="courtly"] .court-card .ch{background:var(--court-surface,#1F7A3D)}
+:root[data-brand="courtly"] .court-card{border:2px solid rgba(255,255,255,.9);box-shadow:0 0 0 1px var(--bd)}
+:root[data-sport="badminton"]{--court-surface:#1F7A3D}
+:root[data-sport="pickleball"]{--court-surface:#1D5FA8}
+:root[data-sport="tennis"]{--court-surface:#1B6E9E}
+:root[data-sport="padel"]{--court-surface:#123E6B}
+:root[data-sport="tabletennis"]{--court-surface:#243044}
 </style>
 </head>
 <body>
@@ -269,6 +283,10 @@ body.dark-mode .sep-tx{color:#4A8070}
     <button class="tab" onclick="switchTab('leaderboard')" id="tab-leaderboard" data-i18n="leaderboardTab"></button>
   </div>
   <div id="pane-setup">
+    <div class="card" id="sport-card" style="display:none">
+      <div class="slabel" style="margin-bottom:8px">Sport</div>
+      <select id="sport-select" onchange="setSport(this.value)" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:4px;font-family:inherit;font-size:13px;background:var(--s0);color:var(--tx)"></select>
+    </div>
     <div class="card">
       <div class="slabel" data-i18n="courts"></div>
       <div class="row">
@@ -435,7 +453,12 @@ const QR_STYLES={
   court:{border:'#004C45',dotsOptions:{color:'#172D2D',type:'dots'},backgroundOptions:{color:'#F3FAF5'},cornersSquareOptions:{color:'#004C45',type:'extra-rounded'},cornersDotOptions:{color:'#172D2D',type:'dot'}},
   smash:{border:'#172D2D',dotsOptions:{color:'#172D2D',type:'classy-rounded'},backgroundOptions:{color:'#FAFAF7'},cornersSquareOptions:{color:'#172D2D',type:'square'},cornersDotOptions:{color:'#004C45',type:'square'}}
 };
-const API_BASE=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'http://localhost:5000':'https://badminton-scheduler-api.rxlab.workers.dev';
+const COURTLY_HOSTS=['courtly.ryanxu.dev','courtly-web.onrender.com'];
+const IS_COURTLY=COURTLY_HOSTS.includes(location.hostname);
+const BRAND=IS_COURTLY
+  ?{id:'courtly',name:'Courtly',subtitle:'',showTruliooLogo:false,showCountryLabels:false,multiSport:true}
+  :{id:'trulioo',name:'Badminton Rotation Scheduler',subtitle:'Internal Tools',showTruliooLogo:true,showCountryLabels:true,multiSport:false};
+const API_BASE=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'http://localhost:5000':(IS_COURTLY?'https://courtly-api.rxlab.workers.dev':'https://badminton-scheduler-api.rxlab.workers.dev');
 let playerCountries={};
 let countryLookup={};
 const COUNTRY_DEMO_PRIORITY=['CN','KR','PH','SG','TW','IN','ID','JP','US','CA','AU','GB'];
@@ -457,7 +480,7 @@ function applyCountryLookup(lookup){
   });
 }
 function resolvePlayerCountry(name){return countryLookup[normalizePlayerName(name)]||'';}
-function syncPlayerCountries(){playerCountries=Object.fromEntries(rawPlayers.map(name=>[name,resolvePlayerCountry(name)]).filter(([,code])=>code));}
+function syncPlayerCountries(){if(!BRAND.showCountryLabels)return;playerCountries=Object.fromEntries(rawPlayers.map(name=>[name,resolvePlayerCountry(name)]).filter(([,code])=>code));}
 async function loadBackendCountryLookup(){
   try{
     const res=await fetch(`${API_BASE}/api/data`,{cache:'no-store'});
@@ -567,6 +590,60 @@ function setLanguage(lang){
   updateQrToggleState();
   renderAll();
   if(schedule.length)renderSchedule();
+}
+const SPORTS={
+  badminton:{label:'Badminton',venue:'court',formats:[4,2],surface:'#1F7A3D'},
+  pickleball:{label:'Pickleball',venue:'court',formats:[4,2],surface:'#1D5FA8'},
+  tennis:{label:'Tennis',venue:'court',formats:[4,2],surface:'#1B6E9E'},
+  padel:{label:'Padel',venue:'court',formats:[4],surface:'#123E6B'},
+  tabletennis:{label:'Table tennis',venue:'table',formats:[2,4],surface:'#243044'},
+};
+let currentSport='badminton';
+function setSport(s){
+  if(!SPORTS[s])return;
+  currentSport=s;
+  document.documentElement.setAttribute('data-sport',s);
+  try{localStorage.setItem('sport',s);}catch(_e){}
+  const sel=document.getElementById('sport-select');
+  if(sel&&sel.value!==s)sel.value=s;
+}
+let currentGroup='';
+function loadGroup(){
+  const fromUrl=new URLSearchParams(location.search).get('group')||'';
+  if(fromUrl){currentGroup=fromUrl;try{localStorage.setItem('group',fromUrl);}catch(_e){}return;}
+  try{currentGroup=localStorage.getItem('group')||'';}catch(_e){currentGroup='';}
+}
+function ensureGroup(){
+  if(currentGroup)return currentGroup;
+  const chars='abcdefghijkmnpqrstuvwxyz23456789';
+  let k='';for(let i=0;i<8;i++)k+=chars.charAt(Math.floor(Math.random()*chars.length));
+  currentGroup=k;
+  try{localStorage.setItem('group',k);}catch(_e){}
+  return k;
+}
+function groupParam(){return IS_COURTLY&&currentGroup?`?group=${encodeURIComponent(currentGroup)}`:'';}
+function applyBrand(){
+  document.documentElement.setAttribute('data-brand',BRAND.id);
+  const logo=document.querySelector('.hdr-brandwrap .hdr-a[href*="trulioo.com"]');
+  const divider=document.querySelector('.hdr-divider');
+  if(!BRAND.showTruliooLogo){
+    if(logo)logo.style.display='none';
+    if(divider)divider.style.display='none';
+  }
+  const sub=document.querySelector('.hdr-subtitle-label');
+  if(sub)sub.textContent=BRAND.subtitle;
+  if(IS_COURTLY)document.title='Courtly — fair rotations for racquet sports';
+  if(BRAND.multiSport){
+    const card=document.getElementById('sport-card');
+    const sel=document.getElementById('sport-select');
+    if(sel){sel.innerHTML=Object.entries(SPORTS).map(([k,v])=>`<option value="${k}">${escapeHtml(v.label)}</option>`).join('');}
+    if(card)card.style.display='block';
+    let saved='badminton';
+    try{saved=localStorage.getItem('sport')||'badminton';}catch(_e){}
+    setSport(saved);
+  }else{
+    setSport('badminton');
+  }
 }
 function loadSettings(){
   const theme=localStorage.getItem('theme')||'light';
@@ -704,7 +781,7 @@ async function shareSchedule(){
     const res=await fetch(`${API_BASE}/api/schedule/share`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({scheduleCode:currentShareCode,organizer:sharedByOrganizerName}),
+      body:JSON.stringify({scheduleCode:currentShareCode,organizer:sharedByOrganizerName,group:IS_COURTLY?ensureGroup():undefined}),
     });
     const data=await res.json();
     if(!res.ok)throw new Error(data?.error||`HTTP ${res.status}`);
@@ -1483,7 +1560,7 @@ function setLeaderboardView(v){
 async function loadSessions(){
   const tbl=document.getElementById('sessions-tbl');
   try{
-    const res=await fetch(`${API_BASE}/api/sessions`);
+    const res=await fetch(`${API_BASE}/api/sessions`+groupParam());
     if(!res.ok)throw new Error(`HTTP ${res.status}`);
     const {sessions}=await res.json();
     if(!sessions.length){tbl.innerHTML=`<tbody><tr><td>${t('noSessions')}</td></tr></tbody>`;return;}
@@ -1501,7 +1578,7 @@ async function loadPlayerPage(name){
   setLeaderboardView('player');
   box.innerHTML=`<div class="hint">${t('leaderboardLoading')}</div>`;
   try{
-    const res=await fetch(`${API_BASE}/api/player/${encodeURIComponent(name)}`);
+    const res=await fetch(`${API_BASE}/api/player/${encodeURIComponent(name)}${groupParam()}`);
     if(!res.ok)throw new Error(`HTTP ${res.status}`);
     const {player:p}=await res.json();
     const combined=new Map();
@@ -1531,7 +1608,7 @@ async function loadLeaderboard(){
   statusEl.textContent=t('leaderboardLoading');
   tblEl.innerHTML='';
   try{
-    const res=await fetch(`${API_BASE}/api/leaderboard`);
+    const res=await fetch(`${API_BASE}/api/leaderboard`+groupParam());
     if(!res.ok)throw new Error(`HTTP ${res.status}`);
     const data=await res.json();
     const rows=Array.isArray(data.leaderboard)?data.leaderboard:[];
@@ -1586,6 +1663,8 @@ async function initApp(){
   const versionLabel=document.getElementById('app-version-label');
   if(versionLabel)versionLabel.textContent=`· v${APP_VERSION}`;
   await loadBackendCountryLookup();
+  applyBrand();
+  loadGroup();
   loadSettings();
   const initialCode=new URLSearchParams(location.search).get('scheduleCode');
   if(initialCode){
