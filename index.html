@@ -382,8 +382,7 @@ body.dark-mode .sep-tx{color:#4A8070}
         <button class="btn-s" id="lb-view-players" onclick="setLeaderboardView('players')" data-i18n="viewPlayers"></button>
         <button class="btn-s" id="lb-view-sessions" onclick="setLeaderboardView('sessions')" data-i18n="viewSessions"></button>
       </div>
-      <div id="lb-status" class="hint"></div>
-      <div id="lb-players"><div style="overflow-x:auto"><table class="stats-tbl" id="leaderboard-tbl"></table></div></div>
+      <div id="lb-players"><div id="lb-status" class="hint"></div><div style="overflow-x:auto"><table class="stats-tbl" id="leaderboard-tbl"></table></div></div>
       <div id="lb-sessions" style="display:none"><div style="overflow-x:auto"><table class="stats-tbl" id="sessions-tbl"></table></div></div>
       <div id="lb-player" style="display:none"></div>
     </div>
@@ -605,7 +604,7 @@ function applyScheduleSnapshot(sch,{preserveRound=false}={}){
   currentScheduleUpdatedAt=sch.updatedAt||sch.generatedAt||null;
   document.getElementById('num-courts').value=currentNc||'';
 
-  attendance=Object.fromEntries(rawPlayers.map(p=>[p,'playing']));
+  attendance=Object.fromEntries(rawPlayers.map(p=>[p,attendance[p]||'playing']));
   rebuildSchedulingState();
   renderAll();
   currentRound=preserveRound?Math.max(0,Math.min(previousRound,schedule.length-1)):0;
@@ -1466,7 +1465,7 @@ function switchTab(t){
   document.getElementById('tab-checkin').className='tab'+(t==='checkin'?' active':'');
   document.getElementById('tab-leaderboard').className='tab'+(t==='leaderboard'?' active':'');
   if(t==='checkin')renderCheckIn();
-  if(t==='leaderboard')loadLeaderboard();
+  if(t==='leaderboard'){setLeaderboardView('players');loadLeaderboard();}
 }
 let leaderboardView='players';
 function setLeaderboardView(v){

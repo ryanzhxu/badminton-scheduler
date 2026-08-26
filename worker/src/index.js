@@ -1363,7 +1363,7 @@ async function handleCalImportNow(c) {
 }
 
 async function handlePlayer(c) {
-  const requested = decodeURIComponent(c.req.param('name') || '');
+  const requested = c.req.param('name') || '';
   if (!requested) return c.json({ error: 'Missing player name' }, { status: 400 });
 
   const registry = await loadPlayerRegistry(c.env);
@@ -1444,6 +1444,7 @@ export {
   handleGenerateSchedule,
   handleGetSchedule,
   handleLeaderboard,
+  handlePlayer,
   handleProfiles,
   handleSessions,
   handleShareSchedule,
