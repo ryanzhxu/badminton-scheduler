@@ -1090,15 +1090,21 @@ async function handleSessions(c) {
 }
 
 async function handleData(c) {
+  const publicMode = isPublicMode(c.env);
   // profiles.players is a namespace-global registry; never return it in
   // public mode, or one group's names would leak into every other group's.
-  const profiles = isPublicMode(c.env) ? { players: [] } : await loadProfiles(c.env);
+  const profiles = publicMode ? { players: [] } : await loadProfiles(c.env);
+  // player-countries.json is imported at the top of this file, so it is BUNDLED
+  // into every deployment of this source regardless of which KV namespace is
+  // bound. It maps real people's names to their nationalities and must never be
+  // served from the public product.
+  const countries = publicMode ? {} : playerCountryLookup;
   return c.json({
     currentSchedule: await loadCurrentSchedule(c.env),
     players: profiles.players || [],
     showCountryLabel: getShowCountryLabelFlag(c.env),
-    playerCountryLookup,
-    countryLookup: playerCountryLookup,
+    playerCountryLookup: countries,
+    countryLookup: countries,
   });
 }
 

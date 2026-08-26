@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "deploy:courtly": "wrangler deploy --config wrangler.courtly.toml",
+    "deploy:courtly": "npx wrangler deploy --config wrangler.courtly.toml",
     "check": "node --check src/index.js"
   },
   "devDependencies": {
