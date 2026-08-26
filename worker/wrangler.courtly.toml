@@ -1,0 +1,34 @@
+# Courtly — the public, multi-sport deployment.
+#
+# Same Worker source as Trulioo (src/index.js), different bindings. The KV
+# binding is deliberately still named SCHEDULES so the shared code needs no
+# brand awareness; only the namespace id differs.
+#
+# Deliberately absent, and must stay absent:
+#   - [triggers]      the cal.com cron is Trulioo-only
+#   - CAL_USERNAME / CAL_EVENT_SLUG / the CAL_API_KEY secret
+name = "courtly-api"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[kv_namespaces]]
+binding = "SCHEDULES"
+id = "d298d5d847974d08b9616c435224c6f4"
+
+[[durable_objects.bindings]]
+name = "SCHEDULE_ROOMS"
+class_name = "ScheduleRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ScheduleRoom"]
+
+[vars]
+SHOW_COUNTRY_LABELS = "false"
+# Public schedules self-expire after one week. Trulioo sets no TTL and keeps
+# its schedules indefinitely.
+SCHEDULE_TTL_SECONDS = "604800"
+
+[observability]
+enabled = true
