@@ -59,6 +59,7 @@ textarea:focus{outline:none;border-color:#128BA6;box-shadow:0 0 0 3px rgba(18,13
 .btn-p:hover{background:#253C3C}
 .btn-s{background:var(--s0);color:var(--tx);border:1px solid var(--bdm);padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500}
 .btn-s:hover{background:var(--s1)}
+.btn-s.active{background:var(--ia);color:#fff;border-color:var(--ia)}
 .btn-danger{background:var(--s0);color:var(--er);border:1px solid #D2D2D2;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500}
 .btn-danger:hover{background:var(--ers);border-color:var(--er)}
 .btn-extend{background:#172D2D;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Libre Franklin',sans-serif;width:100%}
@@ -737,6 +738,7 @@ function getLayout(n,nc){
   return{doubles:0,singles:nc,subs:n-nc*2};
 }
 
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function isEmail(s){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());}
 function parseRawName(line){
   let s=line.trim();if(!s||isEmail(s))return null;
@@ -1500,15 +1502,15 @@ async function loadPlayerPage(name){
     const res=await fetch(`${API_BASE}/api/player/${encodeURIComponent(name)}`);
     if(!res.ok)throw new Error(`HTTP ${res.status}`);
     const {player:p}=await res.json();
-    const list=(arr)=>arr.length?arr.map(x=>`<tr><td>${x.name}</td><td>${x.count} ${t('timesLabel')}</td></tr>`).join(''):`<tr><td>—</td><td></td></tr>`;
+    const list=(arr)=>arr.length?arr.map(x=>`<tr><td>${escapeHtml(x.name)}</td><td>${x.count} ${t('timesLabel')}</td></tr>`).join(''):`<tr><td>—</td><td></td></tr>`;
     box.innerHTML=
       `<button class="btn-s" onclick="setLeaderboardView('players')" data-i18n="backToLeaderboard">${t('backToLeaderboard')}</button>`+
-      `<div class="slabel" style="margin:12px 0 8px">${p.name}</div>`+
+      `<div class="slabel" style="margin:12px 0 8px">${escapeHtml(p.name)}</div>`+
       `<div class="hint">${t('statSessions')}: ${p.sessions} · ${t('statPlayed')}: ${p.games} · ${t('statSatOut')}: ${p.sits}</div>`+
       `<div class="slabel" style="margin:14px 0 6px">${t('playedWith')}</div>`+
       `<table class="stats-tbl"><tbody>${list(p.partners)}</tbody></table>`+
       `<div class="slabel" style="margin:14px 0 6px">${t('neverPartnered')}</div>`+
-      `<div class="hint">${p.neverPartnered.length?p.neverPartnered.join(', '):'—'}</div>`+
+      `<div class="hint">${p.neverPartnered.length?p.neverPartnered.map(escapeHtml).join(', '):'—'}</div>`+
       `<div class="slabel" style="margin:14px 0 6px">${t('playedAgainst')}</div>`+
       `<table class="stats-tbl"><tbody>${list(p.opponents)}</tbody></table>`;
   }catch(err){
@@ -1532,7 +1534,7 @@ async function loadLeaderboard(){
     }
     statusEl.textContent='';
     tblEl.innerHTML=`<thead><tr><th style="width:22%">${t('statPlayer')}</th><th>${t('statSessions')}</th><th>${t('statPlayed')}</th><th>${t('statSatOut')}</th><th>${t('statPartners')}</th><th>${t('statOpponents')}</th></tr></thead><tbody>`+
-      rows.map(r=>`<tr style="cursor:pointer" onclick="loadPlayerPage(${JSON.stringify(r.name).replace(/"/g,'&quot;')})"><td style="font-weight:600">${r.name}</td><td>${r.sessions}</td><td><span class="badge-in">${r.games}</span></td><td>${r.sits?`<span class="badge-out">${r.sits}</span>`:'—'}</td><td>${r.uniquePartners}</td><td>${r.uniqueOpponents}</td></tr>`).join('')+
+      rows.map(r=>`<tr style="cursor:pointer" onclick="loadPlayerPage(${JSON.stringify(r.name).replace(/"/g,'&quot;')})"><td style="font-weight:600">${escapeHtml(r.name)}</td><td>${r.sessions}</td><td><span class="badge-in">${r.games}</span></td><td>${r.sits?`<span class="badge-out">${r.sits}</span>`:'—'}</td><td>${r.uniquePartners}</td><td>${r.uniqueOpponents}</td></tr>`).join('')+
       `</tbody>`;
   }catch(err){
     statusEl.textContent=t('leaderboardError');
