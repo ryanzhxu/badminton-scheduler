@@ -932,60 +932,71 @@ function computeCanonicalSeenDates(registry, aliases) {
   return result;
 }
 
+// Pure so it can be unit-tested without KV. `canon` maps a raw roster name to
+// its canonical spelling; the caller owns the registry and alias lookups.
+function aggregateSessions(sessions, canon) {
+  const stats = {};
+  const ensure = (name) => {
+    if (!stats[name]) {
+      stats[name] = { name, games: 0, sits: 0, sessions: 0, partners: {}, opponents: {}, dates: [] };
+    }
+    return stats[name];
+  };
+
+  for (const { date, schedule } of sessions) {
+    if (!schedule || !Array.isArray(schedule.rounds)) continue;
+    const seenThisSession = new Set();
+
+    schedule.rounds.forEach((rnd) => {
+      (rnd.subs || []).forEach((p) => {
+        const name = canon(p);
+        ensure(name).sits += 1;
+        seenThisSession.add(name);
+      });
+      (rnd.courts || []).forEach((ct) => {
+        [ct.a, ct.b].forEach((team, idx) => {
+          const otherTeam = idx === 0 ? ct.b : ct.a;
+          (team || []).forEach((p) => {
+            const name = canon(p);
+            const entry = ensure(name);
+            entry.games += 1;
+            seenThisSession.add(name);
+            team.filter((q) => q !== p).forEach((q) => {
+              const k = canon(q);
+              entry.partners[k] = (entry.partners[k] || 0) + 1;
+            });
+            (otherTeam || []).forEach((q) => {
+              const k = canon(q);
+              entry.opponents[k] = (entry.opponents[k] || 0) + 1;
+            });
+          });
+        });
+      });
+    });
+
+    seenThisSession.forEach((name) => {
+      const entry = ensure(name);
+      entry.sessions += 1;
+      if (date) entry.dates.push(date);
+    });
+  }
+
+  return stats;
+}
+
 async function handleLeaderboard(c) {
   const registry = await loadPlayerRegistry(c.env);
   const aliases = await loadPlayerAliases(c.env);
   const seenDates = computeCanonicalSeenDates(registry, aliases);
   const index = await loadScheduleIndex(c.env);
-  const stats = {};
 
-  const ensure = (name) => {
-    if (!stats[name]) {
-      stats[name] = {
-        name,
-        games: 0,
-        sits: 0,
-        sessions: 0,
-        partners: new Set(),
-        opponents: new Set(),
-        firstSeen: seenDates[name]?.firstSeen || null,
-        lastSeen: seenDates[name]?.lastSeen || null,
-      };
-    }
-    return stats[name];
-  };
-
+  const canon = (name) => canonicalPlayerName(registry, name, aliases);
+  const sessions = [];
   for (const entry of index) {
     const schedule = await loadSchedule(c.env, entry.code);
-    if (!schedule || !Array.isArray(schedule.rounds)) continue;
-
-    const seenThisSession = new Set();
-    schedule.rounds.forEach((rnd) => {
-      (rnd.subs || []).forEach((p) => {
-        const canon = canonicalPlayerName(registry, p, aliases);
-        ensure(canon).sits += 1;
-        seenThisSession.add(canon);
-      });
-      (rnd.courts || []).forEach((ct) => {
-        [ct.a, ct.b].forEach((team, idx) => {
-          const otherTeam = idx === 0 ? ct.b : ct.a;
-          team.forEach((p) => {
-            const canon = canonicalPlayerName(registry, p, aliases);
-            const entryStats = ensure(canon);
-            entryStats.games += 1;
-            seenThisSession.add(canon);
-            team
-              .filter((q) => q !== p)
-              .forEach((q) => entryStats.partners.add(canonicalPlayerName(registry, q, aliases)));
-            otherTeam.forEach((q) => entryStats.opponents.add(canonicalPlayerName(registry, q, aliases)));
-          });
-        });
-      });
-    });
-    seenThisSession.forEach((name) => {
-      ensure(name).sessions += 1;
-    });
+    if (schedule) sessions.push({ date: entry.date, schedule });
   }
+  const stats = aggregateSessions(sessions, canon);
 
   const leaderboard = Object.values(stats)
     .map((s) => ({
@@ -993,10 +1004,10 @@ async function handleLeaderboard(c) {
       sessions: s.sessions,
       games: s.games,
       sits: s.sits,
-      uniquePartners: s.partners.size,
-      uniqueOpponents: s.opponents.size,
-      firstSeen: s.firstSeen,
-      lastSeen: s.lastSeen,
+      uniquePartners: Object.keys(s.partners).length,
+      uniqueOpponents: Object.keys(s.opponents).length,
+      firstSeen: seenDates[s.name]?.firstSeen || null,
+      lastSeen: seenDates[s.name]?.lastSeen || null,
     }))
     .sort((a, b) => b.games - a.games || b.sessions - a.sessions);
 
