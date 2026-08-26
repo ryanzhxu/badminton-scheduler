@@ -22,12 +22,24 @@ function workerRoutes() {
     .map((m) => `${m[1].toUpperCase()} ${m[2]}`);
 }
 
+// Matches `fetch(\`${API_BASE}/path\`, {...})` and `new EventSource(\`${API_BASE}/path\`)`.
+// EventSource is always GET. fetch defaults to GET unless the options object -
+// captured as a bounded window right after its opening brace - declares a method.
+const CALL_RE = /(new\s+EventSource|fetch)\(\s*`\$\{API_BASE\}(\/[^`'"?\s]*)`(?:\s*,\s*\{([\s\S]{0,80}))?/g;
+
 function spaCalls() {
   const script = readInlineScript(path.join(REPO_ROOT, 'index.html'));
   const calls = [];
-  for (const m of script.matchAll(/\$\{API_BASE\}(\/[^`'"?\s]*)/g)) {
+  for (const m of script.matchAll(CALL_RE)) {
+    const isEventSource = /EventSource/.test(m[1]);
     // `${code}` in a path is one path segment; normalize it to a :param marker.
-    calls.push(m[1].replace(/\$\{[^}]*\}/g, ':param'));
+    const callPath = m[2].replace(/\$\{[^}]*\}/g, ':param');
+    let method = 'GET';
+    if (!isEventSource && m[3]) {
+      const methodMatch = /method\s*:\s*['"]([a-zA-Z]+)['"]/.exec(m[3]);
+      if (methodMatch) method = methodMatch[1].toUpperCase();
+    }
+    calls.push(`${method} ${callPath}`);
   }
   return [...new Set(calls)];
 }
@@ -41,11 +53,19 @@ function pathMatches(routePath, callPath) {
   return r.every((seg, i) => seg.startsWith(':') || c[i].startsWith(':') || seg === c[i]);
 }
 
+// Both a route and a call are `METHOD /path` strings; the method must match
+// exactly and the path must match under the Worker's segment rules.
+function routeMatches(route, call) {
+  const [routeMethod, routePath] = route.split(' ');
+  const [callMethod, callPath] = call.split(' ');
+  return routeMethod === callMethod && pathMatches(routePath, callPath);
+}
+
 test('every SPA call resolves to a registered Worker route', () => {
-  const routes = workerRoutes().map((r) => r.split(' ')[1]);
+  const routes = workerRoutes();
   for (const call of spaCalls()) {
     assert.ok(
-      routes.some((rp) => pathMatches(rp, call)),
+      routes.some((r) => routeMatches(r, call)),
       `index.html calls ${call} but no Worker route matches it`,
     );
   }
@@ -55,9 +75,8 @@ test('every Worker route has a caller in the SPA or is allowlisted', () => {
   const calls = spaCalls();
   for (const route of workerRoutes()) {
     if (UNCALLED_BY_SPA.includes(route)) continue;
-    const routePath = route.split(' ')[1];
     assert.ok(
-      calls.some((c) => pathMatches(routePath, c)),
+      calls.some((c) => routeMatches(route, c)),
       `Worker route ${route} has no caller in index.html and is not in UNCALLED_BY_SPA`,
     );
   }
