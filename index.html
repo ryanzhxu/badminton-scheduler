@@ -1132,6 +1132,7 @@ async function syncShareQr(){
         rounds:schedule,
         shareBaseUrl:getShareBaseUrl(),
         isDemo:rawPlayers.some(p=>demoPlayers.has(p)),
+        scheduleCode:currentShareCode||undefined,
       }),
     });
     if(!res.ok)throw new Error(`HTTP ${res.status}`);

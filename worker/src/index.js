@@ -700,6 +700,7 @@ async function handleGenerateSchedule(c) {
     rounds,
     shareBaseUrl,
     isDemo,
+    scheduleCode: requestedCode,
   } = body ?? {};
 
   if (!numCourts || !players || !Array.isArray(players)) {
@@ -715,7 +716,11 @@ async function handleGenerateSchedule(c) {
     return c.json({ error: 'Cannot create valid layout' }, { status: 400 });
   }
 
-  const scheduleCode = generateScheduleCode();
+  // Reusing the code keeps one session to one record. Minting a new code on
+  // every edit is what produced 46 schedules for a single Wednesday, and it
+  // also silently stales any link already shared with the group.
+  const existing = requestedCode ? await loadSchedule(c.env, requestedCode) : null;
+  const scheduleCode = existing ? existing.code : generateScheduleCode();
   const roundData = Array.isArray(rounds)
     ? rounds
     : generateRounds(playerNames, computedLayout, conflictGroup || [], 15);
@@ -724,7 +729,7 @@ async function handleGenerateSchedule(c) {
 
   const schedule = {
     code: scheduleCode,
-    generatedAt: new Date().toISOString(),
+    generatedAt: existing?.generatedAt || new Date().toISOString(),
     rounds: roundData,
     players: playerNames,
     numCourts,
@@ -734,6 +739,14 @@ async function handleGenerateSchedule(c) {
     isDemo: !!isDemo,
   };
 
+  if (existing) {
+    schedule.revision = getScheduleRevision(existing);
+    if (existing.sharedAt) {
+      schedule.sharedAt = existing.sharedAt;
+      schedule.sharedBy = existing.sharedBy;
+    }
+  }
+
   touchSchedule(schedule);
 
   await saveSchedule(c.env, schedule);
@@ -741,6 +754,10 @@ async function handleGenerateSchedule(c) {
   // the durable ?scheduleCode=current link always reflects the latest rotation
   // without requiring a separate explicit "share" click each week.
   await saveCurrentSchedule(c.env, schedule);
+  if (existing) {
+    // Only a reused code has a Durable Object room with viewers in it.
+    await notifyScheduleRoom(c.env, scheduleCode, 'schedule-updated', scheduleStreamPayload(schedule));
+  }
   // Demo rosters (from the Setup pane's demo helpers) are fake names generated
   // for testing/screen recording, not real attendance — keep them out of the
   // cross-session player registry and leaderboard.
