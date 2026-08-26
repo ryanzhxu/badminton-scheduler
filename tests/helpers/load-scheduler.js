@@ -229,4 +229,4 @@ function loadImplementations() {
   ];
 }
 
-module.exports = { loadImplementations, mulberry32, REQUIRED_NAMES };
+module.exports = { loadImplementations, mulberry32, REQUIRED_NAMES, readInlineScript, extractDeclaration };

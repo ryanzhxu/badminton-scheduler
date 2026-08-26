@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node --test tests/scheduling.test.js",
+    "test": "node --test tests/*.test.js",
     "check": "node --check server.js && node --check worker/src/index.js"
   },
   "keywords": ["badminton", "scheduler", "express"],
