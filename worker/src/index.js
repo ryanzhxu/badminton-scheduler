@@ -1362,6 +1362,50 @@ async function handleCalImportNow(c) {
   return c.json(result);
 }
 
+async function handlePlayer(c) {
+  const requested = decodeURIComponent(c.req.param('name') || '');
+  if (!requested) return c.json({ error: 'Missing player name' }, { status: 400 });
+
+  const registry = await loadPlayerRegistry(c.env);
+  const aliases = await loadPlayerAliases(c.env);
+  const canon = (name) => canonicalPlayerName(registry, name, aliases);
+  const target = canon(requested);
+
+  const index = await loadScheduleIndex(c.env);
+  const sessions = [];
+  for (const entry of index) {
+    const schedule = await loadSchedule(c.env, entry.code);
+    if (schedule) sessions.push({ date: entry.date, schedule });
+  }
+
+  const stats = aggregateSessions(sessions, canon);
+  const me = stats[target];
+  if (!me) return c.json({ error: 'Player not found' }, { status: 404 });
+
+  const rank = (counts) => Object.entries(counts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || (a.name < b.name ? -1 : 1));
+
+  // The point of the feature: variety is what this app optimizes for, so show
+  // who it has not yet paired you with.
+  const neverPartnered = Object.keys(stats)
+    .filter((n) => n !== target && !me.partners[n])
+    .sort();
+
+  return c.json({
+    player: {
+      name: me.name,
+      sessions: me.sessions,
+      games: me.games,
+      sits: me.sits,
+      partners: rank(me.partners),
+      opponents: rank(me.opponents),
+      neverPartnered,
+      dates: [...me.dates].sort().reverse(),
+    },
+  });
+}
+
 function createWorkerApp() {
   const app = new Hono();
   app.use('*', cors());
@@ -1376,6 +1420,7 @@ function createWorkerApp() {
   app.get('/api/data', handleData);
   app.get('/api/leaderboard', handleLeaderboard);
   app.get('/api/sessions', handleSessions);
+  app.get('/api/player/:name', handlePlayer);
   app.post('/api/cal/run-import', handleCalImportNow);
   return app;
 }
