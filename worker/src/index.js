@@ -719,7 +719,11 @@ async function handleGenerateSchedule(c) {
   // Reusing the code keeps one session to one record. Minting a new code on
   // every edit is what produced 46 schedules for a single Wednesday, and it
   // also silently stales any link already shared with the group.
-  const existing = requestedCode ? await loadSchedule(c.env, requestedCode) : null;
+  const validCode = typeof requestedCode === 'string' && /^BADM-[A-Z0-9]{4}$/.test(requestedCode);
+  const candidate = validCode ? await loadSchedule(c.env, requestedCode) : null;
+  // A demo-flag flip must not reuse: the code may already sit in schedules:index
+  // from a real session, and the leaderboard never re-checks isDemo.
+  const existing = candidate && !!candidate.isDemo === !!isDemo ? candidate : null;
   const scheduleCode = existing ? existing.code : generateScheduleCode();
   const roundData = Array.isArray(rounds)
     ? rounds
