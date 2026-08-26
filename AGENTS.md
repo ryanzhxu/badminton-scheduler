@@ -162,7 +162,7 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 
 ## Cal.com Auto-Import (Worker only)
 
-A Cloudflare Cron Trigger (`0 20 * * 3` in `worker/wrangler.toml`, ≈ noon Pacific every Wednesday, with an inherent ~1hr DST drift twice a year) runs `scheduled()` in `worker/src/index.js`, which calls `runCalAutoImport(env)`:
+Three Cloudflare Cron Triggers (`0 20 * * 3`, `0 22 * * 3`, `0 0 * * 4` in `worker/wrangler.toml`, ≈ 1pm/3pm/5pm Pacific every Wednesday, with an inherent ~1hr DST drift twice a year) each run `scheduled()` in `worker/src/index.js`, which calls `runCalAutoImport(env)`. These are retries, not three sessions: the first firing that publishes wins, and every later firing that day skips.
 
 1. `resolveCalEventTypeId` — resolves and KV-caches the cal.com event type ID for `CAL_USERNAME`/`CAL_EVENT_SLUG` (vars in `wrangler.toml`) via `GET /v2/event-types`.
 2. `fetchCalAttendeeNames` — paginates `GET /v2/bookings` for that event type within the current Pacific-calendar-day window (`pacificDateWindow`, DST-aware), flattening/deduping attendee names through the same name-cleanup logic as manual bulk import.

@@ -1273,6 +1273,15 @@ async function runCalAutoImport(env, options = {}) {
     if (lastPull === window.dateStr) {
       return { skipped: true, reason: 'already-ran-today', date: window.dateStr };
     }
+    // A human may have generated and shared this session manually between
+    // firings. handleShareSchedule does not write CAL_LAST_PULL_KEY, so the
+    // key alone cannot see that. Never publish a second schedule for a day
+    // that already has one — it would repoint the shared QR mid-session and
+    // put two entries in schedules:index for one date.
+    const index = await loadScheduleIndex(env);
+    if (index.some((e) => e.date === window.dateStr)) {
+      return { skipped: true, reason: 'already-published-today', date: window.dateStr };
+    }
   }
 
   const eventTypeId = await resolveCalEventTypeId(env);
