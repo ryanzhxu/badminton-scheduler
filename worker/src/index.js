@@ -584,11 +584,11 @@ async function getJson(binding, key, fallback = null) {
   }
 }
 
-async function putJson(binding, key, value) {
+async function putJson(binding, key, value, options) {
   if (!binding?.put) {
     throw new Error('SCHEDULES KV binding is missing');
   }
-  await binding.put(key, JSON.stringify(value));
+  await binding.put(key, JSON.stringify(value), options);
 }
 
 function scheduleKey(code) {
@@ -596,7 +596,11 @@ function scheduleKey(code) {
 }
 
 async function saveSchedule(env, schedule) {
-  await putJson(env.SCHEDULES, scheduleKey(schedule.code), schedule);
+  // Courtly sets SCHEDULE_TTL_SECONDS so public schedules self-expire after a
+  // week. Trulioo does not set it, so its schedules are kept indefinitely.
+  const ttl = Number(env.SCHEDULE_TTL_SECONDS) || 0;
+  const options = ttl > 0 ? { expirationTtl: ttl } : undefined;
+  await putJson(env.SCHEDULES, scheduleKey(schedule.code), schedule, options);
 }
 
 async function loadSchedule(env, code) {
@@ -772,7 +776,7 @@ async function handleGenerateSchedule(c) {
 
 async function handleShareSchedule(c) {
   const body = await c.req.json();
-  const { scheduleCode, organizer } = body ?? {};
+  const { scheduleCode, organizer, group } = body ?? {};
 
   if (!scheduleCode || !organizer) {
     return c.json({ error: 'Missing scheduleCode or organizer' }, { status: 400 });
@@ -801,12 +805,16 @@ async function handleShareSchedule(c) {
     // 'cal-auto-import' provenance — addToScheduleIndex dedupes by replacing.
     const priorIndex = await loadScheduleIndex(c.env);
     const priorSource = priorIndex.find((e) => e.code === schedule.code)?.source;
-    await addToScheduleIndex(c.env, {
+    const indexEntry = {
       code: schedule.code,
       date: sessionDate,
       playerCount: (schedule.players || []).length,
       source: priorSource || 'manual',
-    });
+    };
+    // Only public (Courtly) clients send a group. Omitting the key entirely
+    // keeps Trulioo's entries exactly as they were.
+    if (typeof group === 'string' && group) indexEntry.group = group;
+    await addToScheduleIndex(c.env, indexEntry);
   }
   await notifyScheduleRoom(c.env, scheduleCode, 'schedule-shared', scheduleStreamPayload(schedule));
 
@@ -988,7 +996,7 @@ async function handleLeaderboard(c) {
   const registry = await loadPlayerRegistry(c.env);
   const aliases = await loadPlayerAliases(c.env);
   const seenDates = computeCanonicalSeenDates(registry, aliases);
-  const index = await loadScheduleIndex(c.env);
+  const index = filterIndexByGroup(await loadScheduleIndex(c.env), c.req.query('group'));
 
   const canon = (name) => canonicalPlayerName(registry, name, aliases);
   const sessions = [];
@@ -1014,10 +1022,18 @@ async function handleLeaderboard(c) {
   return c.json({ leaderboard, sessionCount: index.length });
 }
 
+// Scopes the schedule index to one group. A falsy group means "ungrouped only",
+// which is what keeps the single-tenant Trulioo deployment behaving exactly as
+// before: its entries carry no group field and its client sends no group param.
+function filterIndexByGroup(index, group) {
+  if (!group) return index.filter((e) => !e.group);
+  return index.filter((e) => e.group === group);
+}
+
 // Reads only the index key — no schedule loads — so this stays fast regardless
 // of how much history accumulates.
 async function handleSessions(c) {
-  const index = await loadScheduleIndex(c.env);
+  const index = filterIndexByGroup(await loadScheduleIndex(c.env), c.req.query('group'));
   const sessions = [...index].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   return c.json({ sessions });
 }
@@ -1382,7 +1398,7 @@ async function handlePlayer(c) {
   const canon = (name) => canonicalPlayerName(registry, name, aliases);
   const target = canon(requested);
 
-  const index = await loadScheduleIndex(c.env);
+  const index = filterIndexByGroup(await loadScheduleIndex(c.env), c.req.query('group'));
   const sessions = [];
   for (const entry of index) {
     const schedule = await loadSchedule(c.env, entry.code);
