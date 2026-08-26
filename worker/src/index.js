@@ -762,20 +762,6 @@ async function handleGenerateSchedule(c) {
     // Only a reused code has a Durable Object room with viewers in it.
     await notifyScheduleRoom(c.env, scheduleCode, 'schedule-updated', scheduleStreamPayload(schedule));
   }
-  // Demo rosters (from the Setup pane's demo helpers) are fake names generated
-  // for testing/screen recording, not real attendance — keep them out of the
-  // cross-session player registry and leaderboard.
-  if (!schedule.isDemo) {
-    const genDateStr = pacificDateStr(new Date(schedule.generatedAt));
-    await registerPlayers(c.env, playerNames, genDateStr);
-    await addToScheduleIndex(c.env, {
-      code: scheduleCode,
-      date: genDateStr,
-      playerCount: playerNames.length,
-      source: 'manual',
-    });
-  }
-
   return c.json({
     scheduleCode,
     shareUrl,
@@ -804,6 +790,20 @@ async function handleShareSchedule(c) {
 
   await saveSchedule(c.env, schedule);
   await saveCurrentSchedule(c.env, schedule);
+  // A real session is always shared with the group; a smoke test never is.
+  // Indexing here — rather than on every generate — is what keeps one session
+  // to one leaderboard record. Because the code is now reused across edits
+  // (see handleGenerateSchedule), this entry keeps pointing at the final roster.
+  if (!schedule.isDemo) {
+    const sessionDate = pacificDateStr(new Date(schedule.generatedAt));
+    await registerPlayers(c.env, schedule.players || [], sessionDate);
+    await addToScheduleIndex(c.env, {
+      code: schedule.code,
+      date: sessionDate,
+      playerCount: (schedule.players || []).length,
+      source: 'manual',
+    });
+  }
   await notifyScheduleRoom(c.env, scheduleCode, 'schedule-shared', scheduleStreamPayload(schedule));
 
   return c.json({ ok: true, sharedAt, sharedBy: organizer, schedule });
