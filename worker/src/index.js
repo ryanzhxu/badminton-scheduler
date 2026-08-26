@@ -996,7 +996,10 @@ async function handleLeaderboard(c) {
   const registry = await loadPlayerRegistry(c.env);
   const aliases = await loadPlayerAliases(c.env);
   const seenDates = computeCanonicalSeenDates(registry, aliases);
-  const index = filterIndexByGroup(await loadScheduleIndex(c.env), c.req.query('group'));
+  const index = filterIndexByGroup(
+    filterIndexByAge(await loadScheduleIndex(c.env), c.env.SCHEDULE_TTL_SECONDS, Date.now()),
+    c.req.query('group'),
+  );
 
   const canon = (name) => canonicalPlayerName(registry, name, aliases);
   const sessions = [];
@@ -1030,10 +1033,26 @@ function filterIndexByGroup(index, group) {
   return index.filter((e) => e.group === group);
 }
 
+// Index entries outlive the schedules they point at once SCHEDULE_TTL_SECONDS
+// is set, so drop entries older than that window at read time. Trulioo sets no
+// TTL, so nothing is ever dropped there.
+function filterIndexByAge(index, ttlSeconds, now) {
+  const ttl = Number(ttlSeconds) || 0;
+  if (ttl <= 0) return index;
+  const cutoffMs = now - ttl * 1000;
+  return index.filter((e) => {
+    const t = Date.parse(`${e.date}T23:59:59Z`);
+    return Number.isNaN(t) ? true : t >= cutoffMs;
+  });
+}
+
 // Reads only the index key — no schedule loads — so this stays fast regardless
 // of how much history accumulates.
 async function handleSessions(c) {
-  const index = filterIndexByGroup(await loadScheduleIndex(c.env), c.req.query('group'));
+  const index = filterIndexByGroup(
+    filterIndexByAge(await loadScheduleIndex(c.env), c.env.SCHEDULE_TTL_SECONDS, Date.now()),
+    c.req.query('group'),
+  );
   const sessions = [...index].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   return c.json({ sessions });
 }
@@ -1398,7 +1417,10 @@ async function handlePlayer(c) {
   const canon = (name) => canonicalPlayerName(registry, name, aliases);
   const target = canon(requested);
 
-  const index = filterIndexByGroup(await loadScheduleIndex(c.env), c.req.query('group'));
+  const index = filterIndexByGroup(
+    filterIndexByAge(await loadScheduleIndex(c.env), c.env.SCHEDULE_TTL_SECONDS, Date.now()),
+    c.req.query('group'),
+  );
   const sessions = [];
   for (const entry of index) {
     const schedule = await loadSchedule(c.env, entry.code);

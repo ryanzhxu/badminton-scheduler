@@ -51,3 +51,36 @@ test('an empty index is safe', () => {
   assert.deepStrictEqual(filter([], 'g1'), []);
   assert.deepStrictEqual(filter([], undefined), []);
 });
+
+const ageCode = extractDeclaration(src, 'filterIndexByAge');
+assert.ok(ageCode, 'filterIndexByAge not found in worker/src/index.js');
+
+const ageContext = vm.createContext({ Array, Object, Number, Date });
+vm.runInContext(ageCode, ageContext);
+const filterAge = (index, ttlSeconds, now) => {
+  ageContext.__i = index; ageContext.__ttl = ttlSeconds; ageContext.__now = now;
+  return vm.runInContext('filterIndexByAge(__i, __ttl, __now)', ageContext);
+};
+
+test('no TTL keeps every entry', () => {
+  const idx = [{ code: 'A', date: '2020-01-01' }, { code: 'B', date: '2026-08-19' }];
+  assert.strictEqual(filterAge(idx, undefined, Date.parse('2026-08-26T00:00:00Z')).length, 2);
+  assert.strictEqual(filterAge(idx, '0', Date.parse('2026-08-26T00:00:00Z')).length, 2);
+});
+
+test('a TTL drops entries older than the window', () => {
+  const now = Date.parse('2026-08-26T00:00:00Z');
+  const idx = [{ code: 'old', date: '2026-08-01' }, { code: 'new', date: '2026-08-25' }];
+  assert.deepStrictEqual(filterAge(idx, '604800', now).map((e) => e.code), ['new']);
+});
+
+test('a malformed date is kept, not silently dropped', () => {
+  const now = Date.parse('2026-08-26T00:00:00Z');
+  assert.deepStrictEqual(filterAge([{ code: 'X', date: 'not-a-date' }], '604800', now).map((e) => e.code), ['X']);
+});
+
+test('a Trulioo-shaped index is returned untouched when no TTL is set', () => {
+  const idx = [{ code: 'BADM-WUJ7', date: '2026-07-08' }, { code: 'BADM-ARSJ', date: '2026-08-19' }];
+  const out = filterAge(idx, undefined, Date.parse('2027-01-01T00:00:00Z'));
+  assert.deepStrictEqual(out, idx, 'no-TTL deployments must never lose an entry, however old');
+});
