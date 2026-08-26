@@ -797,11 +797,15 @@ async function handleShareSchedule(c) {
   if (!schedule.isDemo) {
     const sessionDate = pacificDateStr(new Date(schedule.generatedAt));
     await registerPlayers(c.env, schedule.players || [], sessionDate);
+    // A cron-imported session that is later re-shared from the UI must keep its
+    // 'cal-auto-import' provenance — addToScheduleIndex dedupes by replacing.
+    const priorIndex = await loadScheduleIndex(c.env);
+    const priorSource = priorIndex.find((e) => e.code === schedule.code)?.source;
     await addToScheduleIndex(c.env, {
       code: schedule.code,
       date: sessionDate,
       playerCount: (schedule.players || []).length,
-      source: 'manual',
+      source: priorSource || 'manual',
     });
   }
   await notifyScheduleRoom(c.env, scheduleCode, 'schedule-shared', scheduleStreamPayload(schedule));
