@@ -612,6 +612,12 @@ function loadGroup(){
   const fromUrl=new URLSearchParams(location.search).get('group')||'';
   if(fromUrl){currentGroup=fromUrl;try{localStorage.setItem('group',fromUrl);}catch(_e){}return;}
   try{currentGroup=localStorage.getItem('group')||'';}catch(_e){currentGroup='';}
+  // Courtly-only: a first-time visitor has no ?group= and no localStorage
+  // entry yet. Mint one now, at startup, so every share URL built afterwards
+  // -- including the very first QR shown right after generating a schedule,
+  // before any explicit "Share" click -- already carries a group. Trulioo
+  // (IS_COURTLY false) never mints, so currentGroup stays '' there.
+  if(IS_COURTLY&&!currentGroup)ensureGroup();
 }
 function ensureGroup(){
   if(currentGroup)return currentGroup;
@@ -1140,8 +1146,17 @@ function showShareQrPending(){
 }
 function showShareQr(payload){
   currentShareCode=payload.scheduleCode||'';
-  currentShareUrl=payload.shareUrl||'';
-  currentQrDataUrl=payload.qrDataUrl||'';
+  const rawShareUrl=payload.shareUrl||'';
+  currentShareUrl=appendGroupToShareUrl(rawShareUrl);
+  // The server's qrDataUrl is a static image encoding rawShareUrl verbatim, so
+  // once the group is appended above the two would disagree. Below,
+  // renderStyledQr(currentShareUrl) already re-renders the QR client-side from
+  // this same grouped string via QRCodeStyling -- the primary path, so QR and
+  // text agree. currentQrDataUrl is only a fallback image for when that
+  // library fails to load; drop it in that case (same as the other two
+  // share-URL sites, which always clear it) rather than show a stale,
+  // ungrouped QR. Trulioo's URL never changes, so its fallback is untouched.
+  currentQrDataUrl=currentShareUrl===rawShareUrl?(payload.qrDataUrl||''):'';
   currentScheduleRevision=getScheduleRevision(payload.schedule||payload);
   currentScheduleUpdatedAt=(payload.schedule||payload).updatedAt||(payload.schedule||payload).generatedAt||null;
   renderLastUpdated();
