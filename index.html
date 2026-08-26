@@ -1504,17 +1504,22 @@ async function loadPlayerPage(name){
     const res=await fetch(`${API_BASE}/api/player/${encodeURIComponent(name)}`);
     if(!res.ok)throw new Error(`HTTP ${res.status}`);
     const {player:p}=await res.json();
-    const list=(arr)=>arr.length?arr.map(x=>`<tr><td>${escapeHtml(x.name)}</td><td>${x.count} ${t('timesLabel')}</td></tr>`).join(''):`<tr><td>—</td><td></td></tr>`;
+    const combined=new Map();
+    p.partners.forEach(x=>{combined.set(x.name,{name:x.name,with:x.count,against:0});});
+    p.opponents.forEach(x=>{
+      const row=combined.get(x.name);
+      if(row)row.against=x.count;
+      else combined.set(x.name,{name:x.name,with:0,against:x.count});
+    });
+    const rows=[...combined.values()].sort((a,b)=>b.with-a.with||b.against-a.against||a.name.localeCompare(b.name));
+    const rowsHtml=rows.length?rows.map(x=>`<tr><td>${escapeHtml(x.name)}</td><td>${x.with}</td><td>${x.against}</td></tr>`).join(''):`<tr><td>—</td><td></td><td></td></tr>`;
     box.innerHTML=
       `<button class="btn-s" onclick="setLeaderboardView('players')" data-i18n="backToLeaderboard">${t('backToLeaderboard')}</button>`+
       `<div class="slabel" style="margin:12px 0 8px">${escapeHtml(p.name)}</div>`+
       `<div class="hint">${t('statSessions')}: ${p.sessions} · ${t('statPlayed')}: ${p.games} · ${t('statSatOut')}: ${p.sits}</div>`+
-      `<div class="slabel" style="margin:14px 0 6px">${t('playedWith')}</div>`+
-      `<table class="stats-tbl"><tbody>${list(p.partners)}</tbody></table>`+
+      `<table class="stats-tbl" style="margin-top:14px"><thead><tr><th>${t('statPlayer')}</th><th>${t('playedWith')}</th><th>${t('playedAgainst')}</th></tr></thead><tbody>${rowsHtml}</tbody></table>`+
       `<div class="slabel" style="margin:14px 0 6px">${t('neverPartnered')}</div>`+
-      `<div class="hint">${p.neverPartnered.length?p.neverPartnered.map(escapeHtml).join(', '):'—'}</div>`+
-      `<div class="slabel" style="margin:14px 0 6px">${t('playedAgainst')}</div>`+
-      `<table class="stats-tbl"><tbody>${list(p.opponents)}</tbody></table>`;
+      `<div class="hint">${p.neverPartnered.length?p.neverPartnered.map(escapeHtml).join(', '):'—'}</div>`;
   }catch(err){
     box.innerHTML=`<button class="btn-s" onclick="setLeaderboardView('players')">${t('backToLeaderboard')}</button>`+
       `<div class="hint" style="margin-top:12px">${t('playerNotFound')}</div>`;
