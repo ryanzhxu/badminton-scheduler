@@ -1280,7 +1280,9 @@ async function runCalAutoImport(env, options = {}) {
 
   const layout = getLayout(players.length, AUTO_IMPORT_NUM_COURTS);
   if (!layout) {
-    if (!dryRun) await putJson(env.SCHEDULES, CAL_LAST_PULL_KEY, window.dateStr);
+    // Do not write CAL_LAST_PULL_KEY here: it means "a schedule was published
+    // for this day", not "a run was attempted". Leaving it unset lets a later
+    // run the same day (once more players sign up) still publish.
     return {
       skipped: true,
       reason: 'not-enough-players',

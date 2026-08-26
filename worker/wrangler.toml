@@ -3,6 +3,9 @@ main = "src/index.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+[observability]
+enabled = true
+
 [[kv_namespaces]]
 binding = "SCHEDULES"
 id = "0bd932cd779942858e051712755f4cee"
