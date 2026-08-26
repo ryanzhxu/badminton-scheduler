@@ -635,6 +635,9 @@ async function pollCurrentSchedule(){
     const sch=data.schedule;
     if(!sch)return;
     if(sch.code!==currentShareCode){
+      // Different code means a different session (e.g. next week's rotation) — prior
+      // check-in state must not carry over onto same-named players in the new roster.
+      attendance={};
       applyScheduleSnapshot(sch,{preserveRound:false});
       currentShareCode=sch.code;
       applyCurrentLinkShareDisplay();
