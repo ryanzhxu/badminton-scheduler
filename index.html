@@ -456,8 +456,8 @@ const QR_STYLES={
 const COURTLY_HOSTS=['courtly.ryanxu.dev','courtly-web.onrender.com','courtly-api.rxlab.workers.dev'];
 const IS_COURTLY=COURTLY_HOSTS.includes(location.hostname);
 const BRAND=IS_COURTLY
-  ?{id:'courtly',name:'Courtly',subtitle:'',showTruliooLogo:false,showCountryLabels:false,multiSport:true}
-  :{id:'trulioo',name:'Badminton Rotation Scheduler',subtitle:'Internal Tools',showTruliooLogo:true,showCountryLabels:true,multiSport:false};
+  ?{id:'courtly',name:'Courtly',subtitle:'Fair rotations for racquet sports',showTruliooLogo:false,showCountryLabels:false,multiSport:true,showLeaderboard:false}
+  :{id:'trulioo',name:'Badminton Rotation Scheduler',subtitle:'Internal Tools',showTruliooLogo:true,showCountryLabels:true,multiSport:false,showLeaderboard:true};
 const API_BASE=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'http://localhost:5000':(IS_COURTLY?'https://courtly-api.rxlab.workers.dev':'https://badminton-scheduler-api.rxlab.workers.dev');
 let playerCountries={};
 let countryLookup={};
@@ -646,7 +646,17 @@ function applyBrand(){
   }
   const sub=document.querySelector('.hdr-subtitle-label');
   if(sub)sub.textContent=BRAND.subtitle;
-  if(IS_COURTLY)document.title='Courtly — fair rotations for racquet sports';
+  if(IS_COURTLY){
+    document.title='Courtly — fair rotations for racquet sports';
+    const titleEl=document.querySelector('.hdr-title');
+    if(titleEl){titleEl.removeAttribute('data-i18n');titleEl.textContent=BRAND.name;}
+  }
+  if(!BRAND.showLeaderboard){
+    const lbTab=document.getElementById('tab-leaderboard');
+    const lbPane=document.getElementById('pane-leaderboard');
+    if(lbTab)lbTab.style.display='none';
+    if(lbPane)lbPane.style.display='none';
+  }
   if(BRAND.multiSport){
     const card=document.getElementById('sport-card');
     const sel=document.getElementById('sport-select');
@@ -1559,6 +1569,7 @@ function changeRound(d){
   currentRound=Math.max(0,Math.min(schedule.length-1,currentRound+d));renderSchedule();
 }
 function switchTab(t){
+  if(t==='leaderboard'&&!BRAND.showLeaderboard)return;
   document.getElementById('pane-setup').style.display=t==='setup'?'block':'none';
   document.getElementById('pane-schedule').style.display=t==='schedule'?'block':'none';
   document.getElementById('pane-checkin').style.display=t==='checkin'?'block':'none';
@@ -1699,7 +1710,7 @@ async function initApp(){
     resetShareQr();
   }
   const initialPlayer=new URLSearchParams(location.search).get('player');
-  if(initialPlayer){switchTab('leaderboard');loadPlayerPage(initialPlayer);}
+  if(initialPlayer&&BRAND.showLeaderboard){switchTab('leaderboard');loadPlayerPage(initialPlayer);}
 }
 initApp();
 </script>
