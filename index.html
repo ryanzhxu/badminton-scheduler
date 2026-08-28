@@ -453,7 +453,7 @@ const QR_STYLES={
   court:{border:'#004C45',dotsOptions:{color:'#172D2D',type:'dots'},backgroundOptions:{color:'#F3FAF5'},cornersSquareOptions:{color:'#004C45',type:'extra-rounded'},cornersDotOptions:{color:'#172D2D',type:'dot'}},
   smash:{border:'#172D2D',dotsOptions:{color:'#172D2D',type:'classy-rounded'},backgroundOptions:{color:'#FAFAF7'},cornersSquareOptions:{color:'#172D2D',type:'square'},cornersDotOptions:{color:'#004C45',type:'square'}}
 };
-const COURTLY_HOSTS=['courtly.ryanxu.dev','courtly-web.onrender.com'];
+const COURTLY_HOSTS=['courtly.ryanxu.dev','courtly-web.onrender.com','courtly-api.rxlab.workers.dev'];
 const IS_COURTLY=COURTLY_HOSTS.includes(location.hostname);
 const BRAND=IS_COURTLY
   ?{id:'courtly',name:'Courtly',subtitle:'',showTruliooLogo:false,showCountryLabels:false,multiSport:true}
@@ -969,7 +969,7 @@ function renderCheckIn(){
   wrap.innerHTML=rawPlayers.map(p=>{
     const status=attendance[p]||'playing';
     const label=t(status==='not_arrived'?'statusNotArrived':status==='left'?'statusLeft':'statusPlaying');
-    const safe=p.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const safe=escapeHtml(p.replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
     return `<button type="button" class="checkin-chip status-${status}" title="${label}" onclick="cycleAttendance('${safe}')"><span class="ci-dot" aria-hidden="true"></span><span style="pointer-events:none">${escapeHtml(dn[p]||p)}</span></button>`;
   }).join('');
 }
@@ -1271,7 +1271,7 @@ function updateHint(){
 }
 function renderConflictPicker(){
   const dn=computeDisplayNames(rawPlayers);
-  document.getElementById('conflict-chips').innerHTML=rawPlayers.map(r=>{const on=conflictGroup.has(r);const safe=r.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');return `<button class="cx${on?' on':''}" onclick="toggleConflict('${safe}')"><span style="pointer-events:none">${escapeHtml(dn[r])}</span></button>`;}).join('');
+  document.getElementById('conflict-chips').innerHTML=rawPlayers.map(r=>{const on=conflictGroup.has(r);const safe=escapeHtml(r.replace(/\\/g,'\\\\').replace(/'/g,"\\'"));return `<button class="cx${on?' on':''}" onclick="toggleConflict('${safe}')"><span style="pointer-events:none">${escapeHtml(dn[r])}</span></button>`;}).join('');
   renderConflictSummary();
 }
 function toggleConflict(raw){if(conflictGroup.has(raw))conflictGroup.delete(raw);else conflictGroup.add(raw);renderConflictPicker();}

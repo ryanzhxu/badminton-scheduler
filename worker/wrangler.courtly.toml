@@ -15,6 +15,7 @@ compatibility_flags = ["nodejs_compat"]
 [[rules]]
 type = "Text"
 globs = ["**/*.html"]
+fallthrough = true
 
 [[kv_namespaces]]
 binding = "SCHEDULES"
