@@ -13,7 +13,6 @@ const UNCALLED_BY_SPA = [
   'GET /health',              // bare health check, used by uptime monitoring
   'GET /api/health',
   'POST /api/profiles',       // server-side profile storage; the SPA never posts to it
-  'POST /api/cal/run-import', // token-guarded manual cron trigger
 ];
 
 function workerRoutes() {

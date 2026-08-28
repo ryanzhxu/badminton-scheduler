@@ -1199,27 +1199,7 @@ class ScheduleRoom {
   }
 }
 
-const CAL_API_BASE = 'https://api.cal.com/v2';
-const CAL_EVENT_TYPE_ID_KEY = 'cal:event_type_id';
-const CAL_LAST_PULL_KEY = 'cal:last_pull_date';
-const AUTO_IMPORT_NUM_COURTS = 3;
-const AUTO_IMPORT_ROUND_COUNT = 15;
 const PROD_SHARE_BASE_URL = 'https://trulioo-badminton.onrender.com';
-
-function isEmail(s) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || '');
-}
-
-function parseAttendeeName(raw) {
-  let s = (raw || '').trim();
-  if (!s) return null;
-  if (isEmail(s)) {
-    s = s.split('@')[0].replace(/[._-]+/g, ' ');
-  }
-  s = s.replace(/\s*[-\u2013]\s*(organizer|admin|host|co-host|guest|player|lead|manager|owner)\s*$/i, '').trim();
-  if (!s) return null;
-  return s.split(/\s+/).map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-}
 
 // Builds a session-day window in Pacific time, expressed with the correct
 // UTC offset for that date (handles PST/PDT without manual toggling).
@@ -1232,220 +1212,6 @@ function pacificDateStr(date = new Date()) {
     month: '2-digit',
     day: '2-digit',
   }).format(date);
-}
-
-function pacificDateWindow(dateOverride) {
-  const referenceDate = dateOverride ? new Date(`${dateOverride}T12:00:00Z`) : new Date();
-  const dateStr = dateOverride || pacificDateStr(referenceDate);
-
-  const offsetParts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    timeZoneName: 'shortOffset',
-  }).formatToParts(referenceDate);
-  const tzName = offsetParts.find((p) => p.type === 'timeZoneName')?.value || 'GMT-8';
-  const match = tzName.match(/GMT([+-]\d+)(?::?(\d{2}))?/);
-  const offsetHours = match ? parseInt(match[1], 10) : -8;
-  const offsetMinutes = match && match[2] ? parseInt(match[2], 10) : 0;
-  const sign = offsetHours < 0 ? '-' : '+';
-  const offset = `${sign}${String(Math.abs(offsetHours)).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
-
-  return {
-    dateStr,
-    afterStart: `${dateStr}T00:00:00${offset}`,
-    beforeEnd: `${dateStr}T23:59:59${offset}`,
-  };
-}
-
-async function calFetch(env, path, { params = {}, apiVersion } = {}) {
-  if (!env.CAL_API_KEY) {
-    throw new Error('CAL_API_KEY secret is not configured');
-  }
-  const url = new URL(`${CAL_API_BASE}${path}`);
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      url.searchParams.set(key, String(value));
-    }
-  });
-  const headers = { Authorization: `Bearer ${env.CAL_API_KEY}` };
-  if (apiVersion) headers['cal-api-version'] = apiVersion;
-
-  const res = await fetch(url.toString(), { headers });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`cal.com API error ${res.status} for ${path}: ${body}`);
-  }
-  return res.json();
-}
-
-async function resolveCalEventTypeId(env) {
-  const cached = await getJson(env.SCHEDULES, CAL_EVENT_TYPE_ID_KEY, null);
-  if (cached?.id && cached.slug === env.CAL_EVENT_SLUG) return cached.id;
-
-  if (!env.CAL_USERNAME || !env.CAL_EVENT_SLUG) {
-    throw new Error('CAL_USERNAME/CAL_EVENT_SLUG vars are not configured');
-  }
-
-  const data = await calFetch(env, '/event-types', {
-    params: { username: env.CAL_USERNAME, eventSlug: env.CAL_EVENT_SLUG },
-    apiVersion: '2024-06-14',
-  });
-
-  const eventType = Array.isArray(data?.data) ? data.data[0] : data?.data;
-  if (!eventType?.id) {
-    throw new Error(`Could not resolve cal.com event type for ${env.CAL_USERNAME}/${env.CAL_EVENT_SLUG}`);
-  }
-
-  await putJson(env.SCHEDULES, CAL_EVENT_TYPE_ID_KEY, { id: eventType.id, slug: env.CAL_EVENT_SLUG });
-  return eventType.id;
-}
-
-async function fetchCalAttendeeNames(env, eventTypeId, window) {
-  const names = [];
-  let skip = 0;
-  const take = 100;
-
-  for (;;) {
-    const data = await calFetch(env, '/bookings', {
-      params: {
-        eventTypeId,
-        status: 'upcoming',
-        afterStart: window.afterStart,
-        beforeEnd: window.beforeEnd,
-        take,
-        skip,
-      },
-      apiVersion: '2024-08-13',
-    });
-
-    const bookings = Array.isArray(data?.data) ? data.data : [];
-    bookings.forEach((booking) => {
-      (booking.attendees || []).forEach((attendee) => {
-        const parsed = parseAttendeeName(attendee?.name || attendee?.email);
-        if (parsed) names.push(parsed);
-      });
-    });
-
-    if (bookings.length < take || !data?.pagination?.hasNextPage) break;
-    skip += take;
-  }
-
-  const seen = new Set();
-  return names.filter((name) => {
-    const key = name.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-async function runCalAutoImport(env, options = {}) {
-  const { dateOverride, dryRun = false } = options;
-  const now = new Date();
-  const window = pacificDateWindow(dateOverride);
-
-  if (!dryRun) {
-    const lastPull = await getJson(env.SCHEDULES, CAL_LAST_PULL_KEY, null);
-    if (lastPull === window.dateStr) {
-      return { skipped: true, reason: 'already-ran-today', date: window.dateStr };
-    }
-    // A human may have generated and shared this session manually between
-    // firings. handleShareSchedule does not write CAL_LAST_PULL_KEY, so the
-    // key alone cannot see that. Never publish a second schedule for a day
-    // that already has one — it would repoint the shared QR mid-session and
-    // put two entries in schedules:index for one date.
-    const index = await loadScheduleIndex(env);
-    if (index.some((e) => e.date === window.dateStr)) {
-      return { skipped: true, reason: 'already-published-today', date: window.dateStr };
-    }
-  }
-
-  const eventTypeId = await resolveCalEventTypeId(env);
-  const players = await fetchCalAttendeeNames(env, eventTypeId, window);
-
-  const layout = getLayout(players.length, AUTO_IMPORT_NUM_COURTS);
-  if (!layout) {
-    // Do not write CAL_LAST_PULL_KEY here: it means "a schedule was published
-    // for this day", not "a run was attempted". Leaving it unset lets a later
-    // run the same day (once more players sign up) still publish.
-    return {
-      skipped: true,
-      reason: 'not-enough-players',
-      date: window.dateStr,
-      playerCount: players.length,
-      players,
-      dryRun,
-    };
-  }
-
-  if (dryRun) {
-    const roundData = generateRounds(players, layout, [], AUTO_IMPORT_ROUND_COUNT);
-    return {
-      skipped: false,
-      dryRun: true,
-      date: window.dateStr,
-      playerCount: players.length,
-      players,
-      layout,
-      roundCount: roundData.length,
-      sampleFirstRound: roundData[0] || null,
-    };
-  }
-
-  const scheduleCode = generateScheduleCode();
-  const roundData = generateRounds(players, layout, [], AUTO_IMPORT_ROUND_COUNT);
-  const shareUrl = buildShareUrl(PROD_SHARE_BASE_URL, scheduleCode);
-  const qrDataUrl = await createQrDataUrl(shareUrl);
-
-  const schedule = {
-    code: scheduleCode,
-    generatedAt: now.toISOString(),
-    rounds: roundData,
-    players,
-    numCourts: AUTO_IMPORT_NUM_COURTS,
-    conflictGroup: [],
-    layout,
-    shareUrl,
-    qrDataUrl,
-    source: 'cal-auto-import',
-    sharedAt: now.toISOString(),
-    sharedBy: 'Cal.com auto-import',
-  };
-  touchSchedule(schedule);
-
-  await saveSchedule(env, schedule);
-  await saveCurrentSchedule(env, schedule);
-  await notifyScheduleRoom(env, scheduleCode, 'schedule-shared', scheduleStreamPayload(schedule));
-  await putJson(env.SCHEDULES, CAL_LAST_PULL_KEY, window.dateStr);
-  await registerPlayers(env, players, window.dateStr);
-  await addToScheduleIndex(env, {
-    code: scheduleCode,
-    date: window.dateStr,
-    playerCount: players.length,
-    source: 'cal-auto-import',
-  });
-
-  return { skipped: false, date: window.dateStr, playerCount: players.length, scheduleCode, shareUrl };
-}
-
-async function scheduled(event, env, ctx) {
-  try {
-    const result = await runCalAutoImport(env);
-    console.log('cal-auto-import', JSON.stringify(result));
-  } catch (error) {
-    console.error('cal-auto-import failed', error instanceof Error ? error.message : String(error));
-    throw error;
-  }
-}
-
-async function handleCalImportNow(c) {
-  const token = c.req.query('token');
-  if (!token || token !== c.env.CAL_API_KEY) {
-    return c.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const dateOverride = c.req.query('date') || undefined;
-  const dryRun = c.req.query('dryRun') === 'true';
-  const result = await runCalAutoImport(c.env, { dateOverride, dryRun });
-  return c.json(result);
 }
 
 async function handlePlayer(c) {
@@ -1510,7 +1276,6 @@ function createWorkerApp() {
   app.get('/api/leaderboard', handleLeaderboard);
   app.get('/api/sessions', handleSessions);
   app.get('/api/player/:name', handlePlayer);
-  app.post('/api/cal/run-import', handleCalImportNow);
   return app;
 }
 
@@ -1522,12 +1287,10 @@ export {
   conflictPair,
   createQrDataUrl,
   createWorkerApp,
-  fetchCalAttendeeNames,
   generateRounds,
   generateScheduleCode,
   getLayout,
   greedyMatch,
-  handleCalImportNow,
   handleData,
   handleExtendSchedule,
   handleGenerateSchedule,
@@ -1546,13 +1309,8 @@ export {
   matchPath,
   normalizePath,
   normalizePlayerKey,
-  parseAttendeeName,
-  pacificDateWindow,
   registerPlayers,
-  resolveCalEventTypeId,
-  runCalAutoImport,
   savePlayerRegistry,
-  scheduled,
   shuffle,
   ScheduleRoom,
   teamKey,
@@ -1563,5 +1321,4 @@ const workerApp = createWorkerApp();
 
 export default {
   fetch: (request, env, ctx) => workerApp.fetch(request, env, ctx),
-  scheduled,
 };

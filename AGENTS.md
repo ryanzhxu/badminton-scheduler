@@ -157,23 +157,11 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 - `POST /api/profiles` — Save player list to persistent storage
 - `GET /api/data` — Load current/default player list
 - `GET /api/leaderboard` — (Worker only) Aggregate games/sits/sessions/unique partners & opponents per canonical player across every schedule in the schedule index
-- `POST /api/cal/run-import?token=<CAL_API_KEY>` — (Worker only) Manually trigger the cal.com auto-import; supports `&dryRun=true` (no writes/side effects, just previews the pull) and `&date=YYYY-MM-DD` (override the target Pacific session date, for testing a future/past date without affecting the real cron's idempotency)
 - `GET /health`, `GET /api/health` — Health check (uptime monitoring)
-
-## Cal.com Auto-Import (Worker only)
-
-Three Cloudflare Cron Triggers (`0 20 * * 3`, `0 22 * * 3`, `0 0 * * 4` in `worker/wrangler.toml`, ≈ 1pm/3pm/5pm Pacific every Wednesday, with an inherent ~1hr DST drift twice a year) each run `scheduled()` in `worker/src/index.js`, which calls `runCalAutoImport(env)`. These are retries, not three sessions: the first firing that publishes wins, and every later firing that day skips.
-
-1. `resolveCalEventTypeId` — resolves and KV-caches the cal.com event type ID for `CAL_USERNAME`/`CAL_EVENT_SLUG` (vars in `wrangler.toml`) via `GET /v2/event-types`.
-2. `fetchCalAttendeeNames` — paginates `GET /v2/bookings` for that event type within the current Pacific-calendar-day window (`pacificDateWindow`, DST-aware), flattening/deduping attendee names through the same name-cleanup logic as manual bulk import.
-3. Builds the layout/rounds with the existing `getLayout`/`generateRounds` (fixed at `AUTO_IMPORT_NUM_COURTS = 3`, `AUTO_IMPORT_ROUND_COUNT = 15`), generates a QR/share code, and marks it as the active/current schedule — same effect as a human clicking "Generate" + "Share".
-4. Idempotent per Pacific calendar day via the `cal:last_pull_date` KV key, so retries/duplicate cron firings are safe.
-5. `CAL_API_KEY` is a Worker **secret** (`wrangler secret put CAL_API_KEY`), never committed. When setting it via a piped/redirected value on Windows/PowerShell, avoid `$value | wrangler secret put ...` (the pipeline appends a trailing newline into the secret) — write to a temp file and redirect via `cmd /c "wrangler secret put NAME < file"` instead, or type it interactively.
-6. There is currently **no proactive notification** (Slack/email) when the auto-import runs. Instead, there's a durable "current" link (see below) that always reflects whatever the latest schedule is, plus a `console.log`/`console.error` line visible via `wrangler tail` or the Cloudflare dashboard Logs tab.
 
 ## Durable "current" share link
 
-`?scheduleCode=current` is a stable, reusable link that always shows whichever schedule is presently active — before Wednesday noon it's last week's, and once the cal.com auto-import (or a manual share) publishes a new one, the same link reflects it automatically, without regenerating a new QR/link each week:
+`?scheduleCode=current` is a stable, reusable link that always shows whichever schedule is presently active — before Wednesday noon it's last week's, and once a manual share publishes a new one, the same link reflects it automatically, without regenerating a new QR/link each week:
 
 - Backend: `GET /api/schedule/current` and its `/stream` variant special-case the literal string `current` as a pseudo-code in `handleGetSchedule`/`handleScheduleStream` (`worker/src/index.js`) — it resolves via `loadCurrentSchedule()` (the same KV pointer `saveCurrentSchedule()` writes on every share/auto-import) instead of a real per-schedule KV key. Live SSE streaming isn't supported for the literal `current` pseudo-code itself (there's no single Durable Object room for a moving target); `handleScheduleStream` returns a 400 for it.
 - Frontend (`index.html`): loading `?scheduleCode=current` sets `isCurrentLinkMode`, displays a stable `?scheduleCode=current` link/QR (`applyCurrentLinkShareDisplay()`) instead of the underlying schedule's own ephemeral code/link, and polls `GET /api/schedule/current` every `CURRENT_LINK_POLL_MS` (45s) via `pollCurrentSchedule()`. If the underlying `code` changes (a new week's schedule was published), it re-applies the snapshot from round 0 and reconnects the SSE stream to the new code; if only the revision changed (e.g. rounds extended), it preserves the viewer's current round. Regular per-code links (e.g. a specific `BADM-XXXX` share) are unaffected and keep their original one-time SSE-only behavior.
@@ -183,11 +171,11 @@ Three Cloudflare Cron Triggers (`0 20 * * 3`, `0 22 * * 3`, `0 0 * * 4` in `work
 
 Cross-session stats require a stable player identity, since names are otherwise just free-floating strings with no link between weeks:
 
-- `PLAYER_REGISTRY_KEY` (`players:registry` in KV) maps a normalized key (`normalizePlayerKey`: trim/lowercase/collapse whitespace) to `{ name, firstSeen, lastSeen }`. The **first-seen spelling wins** as the canonical display name (`canonicalPlayerName`). `registerPlayers()` is called on every schedule generation (both `handleGenerateSchedule` and `runCalAutoImport`), so the registry stays current without a separate sync step.
+- `PLAYER_REGISTRY_KEY` (`players:registry` in KV) maps a normalized key (`normalizePlayerKey`: trim/lowercase/collapse whitespace) to `{ name, firstSeen, lastSeen }`. The **first-seen spelling wins** as the canonical display name (`canonicalPlayerName`). `registerPlayers()` is called on every schedule generation via `handleGenerateSchedule`, so the registry stays current without a separate sync step.
 - `SCHEDULE_INDEX_KEY` (`schedules:index` in KV) is an append-only list of `{ code, date, playerCount, source }` pointers, written alongside every generated schedule. This lets `/api/leaderboard` walk history without scanning the whole KV namespace.
 - `handleLeaderboard` loads the index, loads each referenced schedule, and aggregates per canonical player: `games`, `sits`, `sessions` (distinct schedules appeared in, whether played or sat out), `uniquePartners`, `uniqueOpponents`.
 - The frontend surfaces this via a third "Leaderboard" tab in `index.html` (`loadLeaderboard()`), reusing the existing `.stats-tbl` styling.
-- **Known gap**: `server.js` (the Express/Render backend) does **not** have any of the cal.com import, player registry, schedule index, or leaderboard code — this was only built into the Cloudflare Worker (`worker/src/index.js`), which is the actual production backend. If `server.js` is ever brought back into active use, this logic needs to be ported over.
+- **Known gap**: `server.js` (the Express/Render backend) does **not** have any of the player registry, schedule index, or leaderboard code — this was only built into the Cloudflare Worker (`worker/src/index.js`), which is the actual production backend. If `server.js` is ever brought back into active use, this logic needs to be ported over.
 
 ## Frontend Behavior
 

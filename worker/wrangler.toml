@@ -20,22 +20,3 @@ new_sqlite_classes = ["ScheduleRoom"]
 
 [vars]
 SHOW_COUNTRY_LABELS = "false"
-CAL_USERNAME = "man-sun-ixdetb"
-CAL_EVENT_SLUG = "badminton"
-
-# Three firings on the same Pacific Wednesday, not three sessions: 20:00 and
-# 22:00 UTC Wednesday, plus 00:00 UTC Thursday (which is still Wednesday
-# evening in Pacific time). This is a retry ladder in case cal.com sign-ups
-# are still trickling in at the first firing. The first run that actually
-# publishes a schedule writes CAL_LAST_PULL_KEY for that Pacific day; every
-# later firing that day hits the already-ran-today guard and skips. A run
-# that finds too few players to publish deliberately does NOT write that
-# key, so the next scheduled firing (or a manual retry) can still try again.
-# Cron Triggers are fixed UTC, so the Pacific hour these land on shifts by
-# one across the two DST transitions each year; all three still fall on the
-# same Pacific Wednesday in both PDT and PST.
-[triggers]
-crons = ["0 20 * * 3"]
-
-# CAL_API_KEY must be set as a secret, never committed here:
-#   npx wrangler secret put CAL_API_KEY
