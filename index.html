@@ -961,7 +961,7 @@ function renderCheckIn(){
   if(editHint)editHint.style.display=checkinEditMode?'block':'none';
   if(checkinEditMode){
     wrap.innerHTML=rawPlayers.map(p=>{
-      const safeVal=p.replace(/"/g,'&quot;');
+      const safeVal=escapeHtml(p);
       return `<input type="text" class="checkin-name-input" data-orig="${safeVal}" value="${safeVal}" onkeydown="if(event.key==='Enter')saveCheckinEdits();if(event.key==='Escape')cancelCheckinEdits();">`;
     }).join('');
     return;
@@ -969,8 +969,8 @@ function renderCheckIn(){
   wrap.innerHTML=rawPlayers.map(p=>{
     const status=attendance[p]||'playing';
     const label=t(status==='not_arrived'?'statusNotArrived':status==='left'?'statusLeft':'statusPlaying');
-    const safe=p.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return `<button type="button" class="checkin-chip status-${status}" title="${label}" onclick="cycleAttendance('${safe}')"><span class="ci-dot" aria-hidden="true"></span><span style="pointer-events:none">${dn[p]||p}</span></button>`;
+    const safe=p.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return `<button type="button" class="checkin-chip status-${status}" title="${label}" onclick="cycleAttendance('${safe}')"><span class="ci-dot" aria-hidden="true"></span><span style="pointer-events:none">${escapeHtml(dn[p]||p)}</span></button>`;
   }).join('');
 }
 // One "Edit names" toggle governs every chip at once — all names become text
@@ -1256,7 +1256,7 @@ async function syncShareQr(){
 }
 function renderPlayers(){
   const dn=computeDisplayNames(rawPlayers);
-  document.getElementById('player-grid').innerHTML=rawPlayers.map((r,i)=>{return `<span class="pchip">${dn[r]}<span class="rm" onclick="removePlayer(${i})">×</span></span>`;}).join('');
+  document.getElementById('player-grid').innerHTML=rawPlayers.map((r,i)=>{return `<span class="pchip">${escapeHtml(dn[r])}<span class="rm" onclick="removePlayer(${i})">×</span></span>`;}).join('');
   document.getElementById('clear-all-btn').style.display=rawPlayers.length>0?'inline-flex':'none';
 }
 function updateHint(){
@@ -1271,14 +1271,14 @@ function updateHint(){
 }
 function renderConflictPicker(){
   const dn=computeDisplayNames(rawPlayers);
-  document.getElementById('conflict-chips').innerHTML=rawPlayers.map(r=>{const on=conflictGroup.has(r);const safe=r.replace(/\\/g,'\\\\').replace(/'/g,"\\'");return `<button class="cx${on?' on':''}" onclick="toggleConflict('${safe}')"><span style="pointer-events:none">${dn[r]}</span></button>`;}).join('');
+  document.getElementById('conflict-chips').innerHTML=rawPlayers.map(r=>{const on=conflictGroup.has(r);const safe=r.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');return `<button class="cx${on?' on':''}" onclick="toggleConflict('${safe}')"><span style="pointer-events:none">${escapeHtml(dn[r])}</span></button>`;}).join('');
   renderConflictSummary();
 }
 function toggleConflict(raw){if(conflictGroup.has(raw))conflictGroup.delete(raw);else conflictGroup.add(raw);renderConflictPicker();}
 function renderConflictSummary(){
   const dn=computeDisplayNames(rawPlayers);const sel=[...conflictGroup].filter(r=>rawPlayers.includes(r));const el=document.getElementById('conflict-summary');
-  if(sel.length===0){el.textContent=t('conflictNone');return;}if(sel.length===1){el.innerHTML=`<strong>${dn[sel[0]]}</strong> ${t('conflictOneMore')}`;return;}
-  el.innerHTML=t('conflictGroupSummary',{count:sel.length,names:sel.map(r=>dn[r]).join(', ')});
+  if(sel.length===0){el.textContent=t('conflictNone');return;}if(sel.length===1){el.innerHTML=`<strong>${escapeHtml(dn[sel[0]])}</strong> ${t('conflictOneMore')}`;return;}
+  el.innerHTML=t('conflictGroupSummary',{count:sel.length,names:sel.map(r=>escapeHtml(dn[r])).join(', ')});
 }
 function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;}
 function conflictPair(a,b){const act=[...conflictGroup].filter(r=>rawPlayers.includes(r));return act.length>=2&&conflictGroup.has(a)&&conflictGroup.has(b);}
@@ -1443,7 +1443,7 @@ async function extendSchedule(){
 function isEditingCurrentRound(){return editingRound!==null&&editingRound===currentRound;}
 function swapChip(dn,p,slot,cls){
   const selected=editSelectedSlot===slot;
-  return `<span class="${cls} swappable${selected?' swap-selected':''}" onclick="handleSwapClick('${slot}')">${dn[p]||p}</span>`;
+  return `<span class="${cls} swappable${selected?' swap-selected':''}" onclick="handleSwapClick('${slot}')">${escapeHtml(dn[p]||p)}</span>`;
 }
 function parseSwapSlot(slot){
   const parts=slot.split(':');
@@ -1513,7 +1513,7 @@ function renderSchedule(){
   editBtn.title=t(editing?'doneEditing':'editRound');
   document.getElementById('edit-hint').style.display=editing?'block':'none';
   if(rnd.subs.length>0){
-    const subsInner=editing?rnd.subs.map((p,si)=>swapChip(dn,p,`s:${si}`,'sub-chip')).join(' '):rnd.subs.map(p=>dn[p]||p).join(', ');
+    const subsInner=editing?rnd.subs.map((p,si)=>swapChip(dn,p,`s:${si}`,'sub-chip')).join(' '):rnd.subs.map(p=>escapeHtml(dn[p]||p)).join(', ');
     document.getElementById('sub-banner-wrap').innerHTML=`<div class="sub-banner"><i class="ti ti-armchair" style="font-size:14px;vertical-align:-2px;margin-right:6px"></i>${t('sittingOut')}: <span>${subsInner}</span></div>`;
   }else{
     document.getElementById('sub-banner-wrap').innerHTML='';
@@ -1522,8 +1522,8 @@ function renderSchedule(){
   cg.classList.toggle('edit-mode',editing);
   cg.style.gridTemplateColumns=nc<=1?'1fr':nc===2?'1fr 1fr':'repeat(3,1fr)';
   cg.innerHTML=rnd.courts.map((ct,i)=>{
-    const aChips=editing?ct.a.map((p,pi)=>swapChip(dn,p,`c:${i}:a:${pi}`,'pa')).join(''):ct.a.map(p=>`<span class="pa">${dn[p]||p}</span>`).join('');
-    const bChips=editing?ct.b.map((p,pi)=>swapChip(dn,p,`c:${i}:b:${pi}`,'pb')).join(''):ct.b.map(p=>`<span class="pb">${dn[p]||p}</span>`).join('');
+    const aChips=editing?ct.a.map((p,pi)=>swapChip(dn,p,`c:${i}:a:${pi}`,'pa')).join(''):ct.a.map(p=>`<span class="pa">${escapeHtml(dn[p]||p)}</span>`).join('');
+    const bChips=editing?ct.b.map((p,pi)=>swapChip(dn,p,`c:${i}:b:${pi}`,'pb')).join(''):ct.b.map(p=>`<span class="pb">${escapeHtml(dn[p]||p)}</span>`).join('');
     const laName=ctryLabelFor(ct.a),lbName=ctryLabelFor(ct.b);
     const showRow=laName!==null||lbName!==null;
     const aRow=ctryRow(laName,showRow);
@@ -1535,7 +1535,7 @@ function renderSchedule(){
 }
 function renderValidation(){
   const dn=computeDisplayNames(rawPlayers);const viols=[],rpts=[],seen=new Set();
-  schedule.forEach((rnd,ri)=>{rnd.courts.forEach((ct,ci)=>{[ct.a,ct.b].forEach((t,ti)=>{for(let i=0;i<t.length;i++)for(let j=i+1;j<t.length;j++)if(conflictPair(t[i],t[j]))viols.push(`R${ri+1} C${ci+1} ${ti?'B':'A'}: ${dn[t[i]]||t[i]} & ${dn[t[j]]||t[j]}`);const k=teamKey(t);if(seen.has(k))rpts.push(`R${ri+1}`);seen.add(k);});});});
+  schedule.forEach((rnd,ri)=>{rnd.courts.forEach((ct,ci)=>{[ct.a,ct.b].forEach((t,ti)=>{for(let i=0;i<t.length;i++)for(let j=i+1;j<t.length;j++)if(conflictPair(t[i],t[j]))viols.push(`R${ri+1} C${ci+1} ${ti?'B':'A'}: ${escapeHtml(dn[t[i]]||t[i])} & ${escapeHtml(dn[t[j]]||t[j])}`);const k=teamKey(t);if(seen.has(k))rpts.push(`R${ri+1}`);seen.add(k);});});});
   const so=Object.fromEntries(rawPlayers.map(p=>[p,0]));schedule.forEach(r=>r.subs.forEach(p=>so[p]++));
   const vals=Object.values(so),mn=vals.length?Math.min(...vals):0,mx=vals.length?Math.max(...vals):0;
   const info=computeFormatSummary();
