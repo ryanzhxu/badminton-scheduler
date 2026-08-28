@@ -193,18 +193,18 @@ body.dark-mode .sep-tx{color:#4A8070}
   .hdr-title{font-size:12.5px}
 }
 :root[data-brand="courtly"]{
-  --p:#0E1013;--ph:#F2F4F3;--ia:#F0A81E;
+  --p:#16181B;--ph:#F2F4F3;--nav:#16181B;--s0:#FFFFFF;--s1:#F7F5F0;--s2:#FFFFFF;
+  --bd:#E2DDD3;--bdm:#C9C2B4;
+  --tx:#16181B;--txs:#6E7378;--txd:#A8A29A;--ia:#B87A0A;
+  --ok:#1B6544;--oks:#E4F2EA;--wa:#B87A0A;--was:#F3E4C8;--er:#B3261E;--ers:#F6DEDD;--bls:#E9EAF7;--blb:#3A3F8F;
+  --font-display:'Oswald',sans-serif;--font-body:'Archivo',sans-serif;
+}
+:root[data-brand="courtly"] body.dark-mode{
+  --p:#0E1013;--ia:#F0A81E;
   --nav:#0E1013;--s0:#1B1F23;--s1:#16181B;--s2:#1E2227;
   --bd:#2E343B;--bdm:#3C444D;
   --tx:#F2F4F3;--txs:#79828A;--txd:#4A5158;
   --ok:#63D69C;--oks:#22302A;--wa:#F0A81E;--was:#3A2A10;--er:#FF6B6B;--ers:#3A1F1F;--bls:#242840;--blb:#9FA8FF;
-  --font-display:'Oswald',sans-serif;--font-body:'Archivo',sans-serif;
-}
-:root[data-brand="courtly"] body.dark-mode{
-  --p:#16181B;--nav:#16181B;--s0:#FFFFFF;--s1:#F7F5F0;--s2:#FFFFFF;
-  --bd:#E2DDD3;--bdm:#C9C2B4;
-  --tx:#16181B;--txs:#6E7378;--txd:#A8A29A;--ia:#B87A0A;
-  --ok:#1B6544;--oks:#E4F2EA;--wa:#B87A0A;--was:#F3E4C8;--er:#B3261E;--ers:#F6DEDD;--bls:#E9EAF7;--blb:#3A3F8F;
 }
 :root[data-brand="courtly"] body{font-family:var(--font-body)}
 :root[data-brand="courtly"] input[type=number],:root[data-brand="courtly"] input[type=text],:root[data-brand="courtly"] textarea,:root[data-brand="courtly"] .cx,:root[data-brand="courtly"] .checkin-chip,:root[data-brand="courtly"] .checkin-name-input,:root[data-brand="courtly"] .checkin-add-input,:root[data-brand="courtly"] .lang-menu button{font-family:var(--font-body)}
@@ -220,13 +220,14 @@ body.dark-mode .sep-tx{color:#4A8070}
 :root[data-brand="courtly"] .ch,:root[data-brand="courtly"] .court-card.singles .ch{background:var(--nav)}
 :root[data-brand="courtly"] .ch .cn,:root[data-brand="courtly"] .court-card.singles .ch .cn{background:transparent;border:1px solid var(--ia);color:var(--ia)}
 :root[data-brand="courtly"] .court-card,:root[data-brand="courtly"] .court-card.singles{border:1px solid var(--bd);border-top:3px solid var(--court-surface,#63D69C);box-shadow:none}
-:root[data-brand="courtly"] .pa{background:#22302A;color:#63D69C}
-:root[data-brand="courtly"] .pb{background:#2A2A33;color:#9FA8FF}
-:root[data-brand="courtly"] body.dark-mode .pa{background:#E4F2EA;color:#1B6544}
-:root[data-brand="courtly"] body.dark-mode .pb{background:#E9EAF7;color:#3A3F8F}
+:root[data-brand="courtly"] .pa{background:#E4F2EA;color:#1B6544}
+:root[data-brand="courtly"] .pb{background:#E9EAF7;color:#3A3F8F}
+:root[data-brand="courtly"] body.dark-mode .pa{background:#22302A;color:#63D69C}
+:root[data-brand="courtly"] body.dark-mode .pb{background:#2A2A33;color:#9FA8FF}
 :root[data-brand="courtly"] .btn-p,:root[data-brand="courtly"] .btn-extend,:root[data-brand="courtly"] .cx.on,:root[data-brand="courtly"] .btn-s.active,:root[data-brand="courtly"] .edit-round-btn.active,:root[data-brand="courtly"] .checkin-edit-btn.active{background:var(--ia);color:#0E1013;border-color:var(--ia)}
 :root[data-brand="courtly"] .btn-p:hover,:root[data-brand="courtly"] .btn-extend:hover{opacity:.88}
 :root[data-brand="courtly"] .checkin-all-btn{color:#fff}
+:root[data-brand="courtly"] body.dark-mode .checkin-all-btn{color:#0E1013}
 :root[data-brand="courtly"] .btn-s{background:var(--s0);color:var(--tx);border-color:var(--bdm)}
 :root[data-brand="courtly"] .btn-s:hover{background:var(--s2)}
 :root[data-brand="courtly"] .btn-danger{border-color:var(--bd)}
@@ -714,7 +715,8 @@ function applyBrand(){
   }
 }
 function loadSettings(){
-  const theme=localStorage.getItem('theme')||'light';
+  // Courtly's Scoreboard identity is dark; Trulioo stays light-by-default.
+  const theme=localStorage.getItem('theme')||(IS_COURTLY?'dark':'light');
   const lang=normalizeLanguage(localStorage.getItem('language'));
   setTheme(theme);
   setLanguage(lang);
