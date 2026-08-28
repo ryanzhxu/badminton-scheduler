@@ -821,8 +821,8 @@ async function handleShareSchedule(c) {
     if (!isPublicMode(c.env)) {
       await registerPlayers(c.env, schedule.players || [], sessionDate);
     }
-    // A cron-imported session that is later re-shared from the UI must keep its
-    // 'cal-auto-import' provenance — addToScheduleIndex dedupes by replacing.
+    // addToScheduleIndex dedupes by replacing, so a re-share would otherwise
+    // overwrite an entry's original provenance. Preserve whatever source it had.
     const priorIndex = await loadScheduleIndex(c.env);
     const priorSource = priorIndex.find((e) => e.code === schedule.code)?.source;
     const indexEntry = {
