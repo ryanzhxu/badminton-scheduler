@@ -10,7 +10,10 @@ export { ScheduleRoom } from './index.js';
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
+    // HEAD as well as GET: uptime monitors, link checkers and crawlers use HEAD,
+    // and without it they fall through to the API's 404 and report the site down.
+    const isPageRequest = request.method === 'GET' || request.method === 'HEAD';
+    if (isPageRequest && (url.pathname === '/' || url.pathname === '/index.html')) {
       return new Response(indexHtml, {
         headers: {
           'content-type': 'text/html; charset=utf-8',
