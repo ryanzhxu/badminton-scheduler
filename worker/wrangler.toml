@@ -35,7 +35,7 @@ CAL_EVENT_SLUG = "badminton"
 # one across the two DST transitions each year; all three still fall on the
 # same Pacific Wednesday in both PDT and PST.
 [triggers]
-crons = ["0 20 * * 3", "0 22 * * 3", "0 0 * * 4"]
+crons = ["0 20 * * 3"]
 
 # CAL_API_KEY must be set as a secret, never committed here:
 #   npx wrangler secret put CAL_API_KEY
