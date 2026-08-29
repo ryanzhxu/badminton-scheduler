@@ -1375,13 +1375,23 @@ nav a.off{color:#4b5158}
 }
 
 async function handleWatchView(c) {
-  const code = String(c.req.param('code') || '').toUpperCase();
-  if (!WATCH_CODE_RE.test(code)) return c.text('Bad schedule code\n', { status: 400 });
+  const raw = String(c.req.param('code') || '').toUpperCase();
+  // "current" lets a watch Shortcut be set up once and keep working every week
+  // instead of being re-edited whenever a new rotation is generated. It follows
+  // handleGetSchedule's rule exactly: in public mode saveCurrentSchedule never
+  // writes the key, so resolving it would only return another group's data.
+  const isCurrent = raw === 'CURRENT';
+  if (isCurrent && isPublicMode(c.env)) return c.text('Schedule not found\n', { status: 404 });
+  if (!isCurrent && !WATCH_CODE_RE.test(raw)) return c.text('Bad schedule code\n', { status: 400 });
 
-  const schedule = await loadSchedule(c.env, code);
+  const schedule = isCurrent ? await loadCurrentSchedule(c.env) : await loadSchedule(c.env, raw);
   if (!schedule || !Array.isArray(schedule.rounds) || !schedule.rounds.length) {
     return c.text('Schedule not found\n', { status: 404 });
   }
+  // Links must keep the pseudo-code so prev/next stay set-and-forget, but the
+  // page shows the real code it resolved to.
+  const code = isCurrent ? 'current' : raw;
+  const displayCode = schedule.code || raw;
 
   const player = (c.req.query('p') || '').trim();
   const asText = c.req.query('fmt') === 'txt';
@@ -1410,7 +1420,7 @@ async function handleWatchView(c) {
     const rows = watchPlayerRows(schedule, player);
     const played = rows.filter((r) => r.playing).length;
     inner = `<h1>${escapeHtml(player)}</h1>`
-      + `<div class="sub">${played} of ${total} rounds · ${escapeHtml(code)}</div><ol>`
+      + `<div class="sub">${played} of ${total} rounds · ${escapeHtml(displayCode)}</div><ol>`
       + rows.map((r) => (r.playing
         ? `<li><span class="n">${r.round}</span> <span class="court">Court ${r.court}</span>`
           + `<div class="who">${escapeHtml(r.detail)}</div></li>`
@@ -1427,7 +1437,7 @@ async function handleWatchView(c) {
       ? `<a href="/w/${encodeURIComponent(code)}${qp(`r=${roundNo + 1}`)}">Next ›</a>`
       : '<a class="off">Next ›</a>';
     inner = `<h1>Round ${roundNo} / ${total}</h1>`
-      + `<div class="sub">${escapeHtml(code)}</div><ol>`
+      + `<div class="sub">${escapeHtml(displayCode)}</div><ol>`
       + watchRoundRows(round).map((r) => `<li><span class="court">Court ${r.court}</span>`
         + `<div class="who">${escapeHtml(r.a)}</div>`
         + `<div class="vs">vs</div>`
@@ -1436,7 +1446,7 @@ async function handleWatchView(c) {
       + `</ol><nav>${prev}${next}</nav>`;
   }
 
-  return new Response(watchPage(`${code} · watch`, inner), {
+  return new Response(watchPage(`${displayCode} · watch`, inner), {
     headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
   });
 }
