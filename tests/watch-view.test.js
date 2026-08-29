@@ -19,6 +19,7 @@ for (const name of [
   'clampRound',
   'watchPlayerText',
   'watchRoundText',
+  'watchAllRoundsText',
 ]) {
   const code = extractDeclaration(src, name);
   assert.ok(code, `${name} not found in worker/src/index.js`);
@@ -128,6 +129,18 @@ test('player names are escaped before reaching the page', () => {
   assert.ok(!escaped.includes('<'), 'must not emit a raw angle bracket');
   assert.strictEqual(escaped, '&lt;img src=x onerror=alert(1)&gt;');
   assert.strictEqual(call('escapeHtml', ['A & B "q" \'s\'']), 'A &amp; B &quot;q&quot; &#39;s&#39;');
+});
+
+test('nameless text output covers every round, not just the first', () => {
+  // Text has no prev/next links, so this is what lets a watch Shortcut work
+  // without naming anyone.
+  const txt = call('watchAllRoundsText', [SCHEDULE]);
+  assert.match(txt, /^BADM-5GQX — 2 rounds/);
+  assert.match(txt, /R1\n {2}C1 {2}Cal \+ Jon v Hal \+ Gil/);
+  assert.match(txt, /R2\n {2}C1 {2}Ann \+ Ivy v Hal \+ Fay/);
+  assert.match(txt, /sit: Ivy, Ann/);
+  assert.match(txt, /sit: Cal, Jon/);
+  assert.ok(!txt.includes('<'), 'text output must contain no markup');
 });
 
 test('a singles court reports no partner', () => {

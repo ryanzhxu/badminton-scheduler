@@ -1339,6 +1339,22 @@ function watchPlayerText(schedule, player) {
   return `${head}\n\n${body}\n`;
 }
 
+// Plain text has no prev/next links, so a nameless text request would otherwise
+// be stuck on one round. This returns the whole night's courts, which is what
+// makes a watch Shortcut work without naming anyone.
+function watchAllRoundsText(schedule) {
+  const rounds = Array.isArray(schedule.rounds) ? schedule.rounds : [];
+  const body = rounds.map((round, i) => {
+    const courts = watchRoundRows(round)
+      .map((r) => `  C${r.court}  ${r.a} v ${r.b}`)
+      .join('\n');
+    const subs = Array.isArray(round.subs) ? round.subs : [];
+    const sitting = subs.length ? `\n  sit: ${subs.join(', ')}` : '';
+    return `R${i + 1}\n${courts}${sitting}`;
+  }).join('\n\n');
+  return `${schedule.code} — ${rounds.length} rounds\n\n${body}\n`;
+}
+
 function watchRoundText(schedule, roundNo) {
   const round = schedule.rounds[roundNo - 1];
   const rows = watchRoundRows(round);
@@ -1402,9 +1418,10 @@ async function handleWatchView(c) {
     && (schedule.players || []).some((n) => watchNameKey(n) === watchNameKey(player));
 
   if (asText) {
-    const body = playerIsOnRoster
-      ? watchPlayerText(schedule, player)
-      : watchRoundText(schedule, clampRound(c.req.query('r'), total));
+    let body;
+    if (playerIsOnRoster) body = watchPlayerText(schedule, player);
+    else if (c.req.query('r')) body = watchRoundText(schedule, clampRound(c.req.query('r'), total));
+    else body = watchAllRoundsText(schedule);
     return c.text(body);
   }
 
