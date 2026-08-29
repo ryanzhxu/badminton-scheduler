@@ -55,14 +55,14 @@ textarea:focus{outline:none;border-color:#128BA6;box-shadow:0 0 0 3px rgba(18,13
 .cx.on{background:#172D2D;color:#FFFFFF;border-color:#172D2D}
 .conflict-summary{font-size:13px;color:var(--txs);margin-top:6px;min-height:20px}
 .conflict-summary strong{color:var(--tx);font-weight:600}
-.btn-p{background:#172D2D;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Libre Franklin',sans-serif}
+.btn-p{background:#172D2D;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Libre Franklin',sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .btn-p:hover{background:#253C3C}
-.btn-s{background:var(--s0);color:var(--tx);border:1px solid var(--bdm);padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500}
+.btn-s{background:var(--s0);color:var(--tx);border:1px solid var(--bdm);padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .btn-s:hover{background:var(--s1)}
 .btn-s.active{background:var(--ia);color:#fff;border-color:var(--ia)}
-.btn-danger{background:var(--s0);color:var(--er);border:1px solid #D2D2D2;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500}
+.btn-danger{background:var(--s0);color:var(--er);border:1px solid #D2D2D2;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Libre Franklin',sans-serif;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .btn-danger:hover{background:var(--ers);border-color:var(--er)}
-.btn-extend{background:#172D2D;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Libre Franklin',sans-serif;width:100%}
+.btn-extend{background:#172D2D;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Libre Franklin',sans-serif;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .btn-extend:hover{background:#253C3C}
 .extend-box{background:var(--s0);border:1px solid var(--bd);border-radius:8px;padding:24px;margin-bottom:1rem;text-align:center}
 .extend-box p{font-size:13px;color:var(--txs);margin-bottom:10px}
@@ -282,7 +282,7 @@ body.dark-mode .sep-tx{color:#4A8070}
           <div id="qr-status" class="hint"></div>
           <div id="share-actions" style="display:none;gap:8px;margin-bottom:12px;flex-wrap:wrap" class="row">
             <button class="btn-p" onclick="shareSchedule()" id="share-btn">
-              <i class="ti ti-share-2" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i><span id="share-btn-txt" data-i18n="shareBtn"></span>
+              <i class="ti ti-share-2" style="font-size:13px"></i><span id="share-btn-txt" data-i18n="shareBtn"></span>
             </button>
           </div>
           <div id="qr-block" style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-top:10px">
@@ -352,7 +352,7 @@ body.dark-mode .sep-tx{color:#4A8070}
         <input type="text" id="add-inp" data-i18n="typeName" data-i18n-type="placeholder" onkeydown="if(event.key==='Enter')addOne()">
         <button class="btn-s" onclick="addOne()" data-i18n="addPlayer"></button>
         <button class="btn-danger" id="clear-all-btn" onclick="clearAllPlayers()" style="display:none">
-          <i class="ti ti-trash" style="font-size:13px;vertical-align:-2px;margin-right:3px"></i><span data-i18n="removeAll"></span>
+          <i class="ti ti-trash" style="font-size:13px"></i><span data-i18n="removeAll"></span>
         </button>
       </div>
       <details style="margin-top:8px">
@@ -389,15 +389,15 @@ body.dark-mode .sep-tx{color:#4A8070}
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-bottom:2rem">
       <button class="btn-p" onclick="generateFresh()">
-        <i class="ti ti-player-play" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i><span data-i18n="generateBtn"></span>
+        <i class="ti ti-player-play" style="font-size:13px"></i><span data-i18n="generateBtn"></span>
       </button>
       <span id="setup-err" class="err-hint"></span>
     </div>
   </div>
   <div id="pane-schedule" style="display:none">
     <div id="schedule-setup-actions" style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
-      <button class="btn-s" id="back-to-setup-btn" onclick="switchTab('setup')"><i class="ti ti-arrow-left" style="font-size:13px;vertical-align:-2px"></i> <span data-i18n="setupTab"></span></button>
-      <button class="btn-s" onclick="generateFresh()"><i class="ti ti-refresh" style="font-size:13px;vertical-align:-2px"></i> <span data-i18n="newRotation"></span></button>
+      <button class="btn-s" id="back-to-setup-btn" onclick="switchTab('setup')"><i class="ti ti-arrow-left" style="font-size:13px"></i><span data-i18n="setupTab"></span></button>
+      <button class="btn-s" onclick="generateFresh()"><i class="ti ti-refresh" style="font-size:13px"></i><span data-i18n="newRotation"></span></button>
     </div>
     <div class="rnav">
       <button class="btn-s" id="prev-btn" onclick="changeRound(-1)"><i class="ti ti-chevron-left" style="font-size:15px"></i></button>
@@ -415,7 +415,7 @@ body.dark-mode .sep-tx{color:#4A8070}
     <div id="extend-box" class="extend-box" style="display:none">
       <p data-i18n="extendMsg"></p>
       <button class="btn-extend" onclick="extendSchedule()">
-        <i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i><span data-i18n="extendBtn"></span>
+        <i class="ti ti-plus" style="font-size:13px"></i><span data-i18n="extendBtn"></span>
       </button>
     </div>
     <div id="shared-banner" class="sub-banner" style="display:none;background:#EEF7F1;border-color:#A4DCB4;color:#004C45">
@@ -431,14 +431,14 @@ body.dark-mode .sep-tx{color:#4A8070}
       <div class="checkin-head">
         <div class="slabel" data-i18n="checkInLabel"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn-s checkin-edit-btn" id="checkin-edit-toggle" onclick="toggleCheckinEditMode()"><i class="ti ti-pencil" style="font-size:13px;vertical-align:-2px;margin-right:5px"></i><span data-i18n="editNames"></span></button>
-          <button class="btn-p checkin-all-btn" onclick="everyoneHere()"><i class="ti ti-users-group" style="font-size:14px;vertical-align:-2px;margin-right:5px"></i><span data-i18n="everyoneHere"></span></button>
+          <button class="btn-s checkin-edit-btn" id="checkin-edit-toggle" onclick="toggleCheckinEditMode()"><i class="ti ti-pencil" style="font-size:13px"></i><span data-i18n="editNames"></span></button>
+          <button class="btn-p checkin-all-btn" onclick="everyoneHere()"><i class="ti ti-users-group" style="font-size:14px"></i><span data-i18n="everyoneHere"></span></button>
         </div>
       </div>
       <div class="checkin-chips" id="checkin-chips"></div>
       <div class="checkin-add-row">
         <input type="text" id="checkin-add-input" class="checkin-add-input" data-i18n="typeName" data-i18n-type="placeholder" onkeydown="if(event.key==='Enter')addCheckinPlayer();">
-        <button type="button" class="btn-s" onclick="addCheckinPlayer()"><i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i><span data-i18n="addPlayer"></span></button>
+        <button type="button" class="btn-s" onclick="addCheckinPlayer()"><i class="ti ti-plus" style="font-size:13px"></i><span data-i18n="addPlayer"></span></button>
       </div>
       <div class="checkin-legend" id="checkin-edit-hint" style="display:none" data-i18n="checkInEditHint"></div>
       <div class="checkin-legend" data-i18n="checkInHint"></div>
