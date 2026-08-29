@@ -11,7 +11,19 @@ This file is the canonical guidance for any coding agent (Claude Code, Codex, or
 
 ## Project Overview
 
-**Badminton Rotation Scheduler** is a full-featured single-page app (SPA) in `index.html` plus an Express API in `server.js`. It generates fair rotation schedules for badminton matches, then immediately publishes a shareable QR code through the backend. The app features:
+**Courtly** is a full-featured single-page app (SPA) in `index.html` plus an Express API in `server.js`. It generates fair rotation schedules for racquet-sport matches, then immediately publishes a shareable QR code through the backend.
+
+One codebase serves two deployments, chosen by hostname (`COURTLY_HOSTS` / `IS_COURTLY` in `index.html`). Both are called **Courtly**; they differ only in palette/type and three deliberate feature flags:
+
+| | Trulioo deployment | Courtly deployment |
+| --- | --- | --- |
+| Palette / type | Trulioo green, Libre Franklin | Scoreboard charcoal + amber, Oswald/Archivo |
+| Trulioo logo in header | yes | no |
+| Leaderboard (`showLeaderboard`) | yes | no |
+| Country labels (`showCountryLabels`) | yes | **never** — the data is real colleague PII |
+| Multi-sport (`multiSport`) | no, badminton only | yes |
+
+The app features:
 - **Fair rotation**: minimizing variance in sit-out counts across players
 - **Team fairness**: partner *and* opponent variety (repeat pairings are penalized by how often a pair has already met, and back-to-back rematches cost extra, so nobody gets stuck facing the same person all night), conflict rules to prevent specific players from being on the same team (this does not prevent conflicted players from playing on the same court as opponents — e.g. if A and C conflict, A+B vs. C+D is fine, they just can't be teammates)
 - **Player assignment**: 2v2 doubles matches with 1v1 singles for overflow
