@@ -55,10 +55,11 @@ A refactor breaks the two halves apart only if it touches one of these.
    URL. Renaming `name` in `worker/wrangler.toml` changes the `workers.dev`
    subdomain and breaks every call.
 3. **Backend to frontend URL.** `PROD_SHARE_BASE_URL` in `worker/src/index.js`
-   hardcodes the Render URL. Only the Wednesday cal.com cron uses it, because a
-   cron has no browser origin to read. If it goes stale, the generated QR codes
-   point at a dead host, nothing errors, and it surfaces a week later at the
-   court.
+   hardcodes the Render URL. It existed for the Wednesday cal.com cron, which
+   had no browser origin to read. That cron and the whole cal.com integration
+   are gone, so the constant now has no reader — it is kept only because the
+   frozen-URL constraint names it. Every share URL is now built from the
+   browser's own origin via `shareBaseUrl`.
 4. **The API surface.** Eleven routes, registered at `worker/src/index.js`
    lines 1320-1330, called from eight sites in `index.html`. There is no build
    step and no type checker, so a rename fails only at runtime.

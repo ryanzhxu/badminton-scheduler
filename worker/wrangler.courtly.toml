@@ -5,8 +5,9 @@
 # brand awareness; only the namespace id differs.
 #
 # Deliberately absent, and must stay absent:
-#   - [triggers]      the cal.com cron is Trulioo-only
-#   - CAL_USERNAME / CAL_EVENT_SLUG / the CAL_API_KEY secret
+#   - [triggers]      neither deployment runs a cron; rotations are made by hand
+#   - CAL_USERNAME / CAL_EVENT_SLUG / the CAL_API_KEY secret (cal.com is gone
+#     from both deployments -- no auto-import, no scheduled handler)
 name = "courtly-api"
 main = "src/courtly-entry.js"
 compatibility_date = "2024-09-23"
