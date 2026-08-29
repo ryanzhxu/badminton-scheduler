@@ -17,6 +17,11 @@ type = "Text"
 globs = ["**/*.html"]
 fallthrough = true
 
+[[rules]]
+type = "Data"
+globs = ["**/*.png"]
+fallthrough = true
+
 [[kv_namespaces]]
 binding = "SCHEDULES"
 id = "d298d5d847974d08b9616c435224c6f4"
