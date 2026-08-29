@@ -170,6 +170,7 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 - `GET /api/data` — Load current/default player list
 - `GET /api/leaderboard` — (Worker only) Aggregate games/sits/sessions/unique partners & opponents per canonical player across every schedule in the schedule index
 - `GET /health`, `GET /api/health` — Health check (uptime monitoring)
+- `GET /w/:code` — (Worker only) Watch view. Server-rendered, no JS, sized for a ~184px Apple Watch screen. `?r=N` picks a round (clamped); `?p=Name` gives one player their whole night, one line per round, matched case-insensitively against the roster and falling back to the round view if the name is not on it; `?fmt=txt` returns plain text for the watch Shortcuts app. Accepts the `current` pseudo-code under the same rule as `handleGetSchedule` — resolved on Trulioo, 404 on Courtly, where `saveCurrentSchedule` never writes the key. Deliberately absent from the SPA, so it is allowlisted in `UNCALLED_BY_SPA` in `tests/api-contract.test.js`.
 
 ## Durable "current" share link
 
