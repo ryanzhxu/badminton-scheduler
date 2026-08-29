@@ -1199,8 +1199,6 @@ class ScheduleRoom {
   }
 }
 
-const PROD_SHARE_BASE_URL = 'https://trulioo-badminton.onrender.com';
-
 // Builds a session-day window in Pacific time, expressed with the correct
 // UTC offset for that date (handles PST/PDT without manual toggling).
 // Pass `dateOverride` (YYYY-MM-DD) to build the window for a specific day

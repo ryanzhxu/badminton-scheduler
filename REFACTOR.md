@@ -39,8 +39,8 @@ breaking change. That freezes, transitively:
 - the Render service config, `buildCommand: "true"` and `publishPath: "./"`,
 - `index.html` as a single self-contained file at the repo root, no build step,
 - the share-link shape `/?scheduleCode=X`,
-- `PROD_SHARE_BASE_URL` (`worker/src/index.js`) and `getShareBaseUrl()`
-  (`index.html`), which point the two halves at each other.
+- `getShareBaseUrl()` (`index.html`), which points the frontend at itself when
+  building share links.
 
 Do not propose splitting `index.html` into modules or adding a frontend build
 step while this holds.
@@ -54,12 +54,11 @@ A refactor breaks the two halves apart only if it touches one of these.
 2. **Frontend to backend URL.** `API_BASE` in `index.html` hardcodes the Worker
    URL. Renaming `name` in `worker/wrangler.toml` changes the `workers.dev`
    subdomain and breaks every call.
-3. **Backend to frontend URL.** `PROD_SHARE_BASE_URL` in `worker/src/index.js`
-   hardcodes the Render URL. It existed for the Wednesday cal.com cron, which
-   had no browser origin to read. That cron and the whole cal.com integration
-   are gone, so the constant now has no reader — it is kept only because the
-   frozen-URL constraint names it. Every share URL is now built from the
-   browser's own origin via `shareBaseUrl`.
+3. **Backend to frontend URL.** Nothing on the backend hardcodes the frontend
+   URL any more. `PROD_SHARE_BASE_URL` existed only for the Wednesday cal.com
+   cron, which had no browser origin to read; the cron and the whole cal.com
+   integration are gone, and the constant was deleted with them. Every share URL
+   is built from the browser's own origin, passed in as `shareBaseUrl`.
 4. **The API surface.** Eleven routes, registered at `worker/src/index.js`
    lines 1320-1330, called from eight sites in `index.html`. There is no build
    step and no type checker, so a rename fails only at runtime.
@@ -160,8 +159,7 @@ they look:
   stays the largest inline block. `readInlineScript` matches `/<script>/` with
   no attributes and sorts by length, so `type="module"` makes it invisible.
 - **Lane 5 only:** route paths and response field names stay fixed.
-- Neither lane touches `API_BASE`, `PROD_SHARE_BASE_URL`, or the share-link
-  shape.
+- Neither lane touches `API_BASE` or the share-link shape.
 - **Neither lane bumps the version.** See below.
 
 Gate per lane before merge: `npm test && npm run check`.
@@ -181,6 +179,5 @@ forgotten.
 - Deleting `server.js`. It is dead in production, since Render serves it as text
   and never executes it, but `tests/helpers/load-scheduler.js` reads it as the
   third algorithm copy. Deleting it breaks the suite.
-- Moving `PROD_SHARE_BASE_URL` into `[vars]`. Still safe to do, but its value was
-  making the frontend URL easy to change, and the URL is now frozen. Low
-  priority.
+- Moving `PROD_SHARE_BASE_URL` into `[vars]`. Moot — the constant was deleted
+  once cal.com went; no backend code reads a frontend URL.
