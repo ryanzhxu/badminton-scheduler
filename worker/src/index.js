@@ -602,6 +602,27 @@ function scheduleKey(code) {
   return `${SCHEDULE_PREFIX}${code}`;
 }
 
+// The sport lives in the browser's localStorage and was never written to the
+// schedule, so nothing server-side -- link previews, the watch view -- could
+// name it. Whitelisted rather than free text because it is rendered into a page
+// and a link-preview card. Trulioo is badminton-only; schedules generated
+// before this field exists have no sport and fall back to a neutral word.
+const SPORTS = ['badminton', 'pickleball', 'tennis', 'padel', 'tabletennis'];
+const SPORT_LABELS = {
+  badminton: 'Badminton',
+  pickleball: 'Pickleball',
+  tennis: 'Tennis',
+  padel: 'Padel',
+  tabletennis: 'Table tennis',
+};
+function normalizeSport(value) {
+  const v = String(value || '').trim().toLowerCase();
+  return SPORTS.includes(v) ? v : '';
+}
+function sportLabel(value) {
+  return SPORT_LABELS[normalizeSport(value)] || 'Rotation';
+}
+
 async function saveSchedule(env, schedule) {
   // Courtly sets SCHEDULE_TTL_SECONDS so public schedules self-expire after a
   // week. Trulioo does not set it, so its schedules are kept indefinitely.
@@ -717,6 +738,7 @@ async function handleGenerateSchedule(c) {
     rounds,
     shareBaseUrl,
     isDemo,
+    sport,
     scheduleCode: requestedCode,
   } = body ?? {};
 
@@ -758,6 +780,9 @@ async function handleGenerateSchedule(c) {
     layout: computedLayout,
     shareUrl,
     isDemo: !!isDemo,
+    // Fall back to what the reused schedule already had: an edit that omits the
+    // field must not silently erase the sport off an existing session.
+    sport: normalizeSport(sport) || normalizeSport(existing?.sport),
   };
 
   if (existing) {
@@ -1564,6 +1589,8 @@ export {
   registerPlayers,
   savePlayerRegistry,
   shuffle,
+  sportLabel,
+  normalizeSport,
   ScheduleRoom,
   teamKey,
   teamOk,

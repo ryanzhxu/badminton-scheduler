@@ -2,7 +2,7 @@
 // unlike a static host pointed at the repo root, which would publish every file.
 // This entry exists so the shared worker source and the Trulioo config stay
 // untouched: the HTML import and its text rule live only on the Courtly side.
-import worker, { handleGetSchedule } from './index.js';
+import worker, { handleGetSchedule, sportLabel } from './index.js';
 import indexHtml from '../../index.html';
 import ogCourtlyImage from '../../og-courtly.png';
 
@@ -81,7 +81,7 @@ function buildScheduleMeta(schedule) {
     day: 'numeric',
   }).format(generatedAt);
   return {
-    title: `Rotation · ${playerCount} players`,
+    title: `${sportLabel(schedule.sport)} · ${playerCount} players`,
     description: `${playerCount} players · ${courtCount} courts · ${roundCount} rounds · ${dateStr}`,
   };
 }

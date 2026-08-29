@@ -1457,6 +1457,7 @@ async function syncShareQr(){
         rounds:schedule,
         shareBaseUrl:getShareBaseUrl(),
         isDemo:rawPlayers.some(p=>demoPlayers.has(p)),
+        sport:currentSport,
         scheduleCode:currentShareCode||undefined,
       }),
     });

@@ -23,6 +23,10 @@ for (const name of [
   'isPublicMode',
   'WATCH_POINTER_KEY',
   'watchPointerKey',
+  'SPORTS',
+  'SPORT_LABELS',
+  'normalizeSport',
+  'sportLabel',
 ]) {
   const code = extractDeclaration(src, name);
   assert.ok(code, `${name} not found in worker/src/index.js`);
@@ -176,4 +180,21 @@ test('a singles court reports no partner', () => {
   };
   const rows = call('watchPlayerRows', [{ ...SCHEDULE, rounds: [singlesRound] }, 'Ann']);
   assert.strictEqual(rows[0].detail, 'singles vs Ben');
+});
+
+test('sport is whitelisted, not free text', () => {
+  // It reaches a rendered page and a link-preview card, so anything unknown
+  // must collapse to the neutral fallback rather than pass through.
+  assert.strictEqual(call('normalizeSport', ['badminton']), 'badminton');
+  assert.strictEqual(call('normalizeSport', ['  PICKLEBALL ']), 'pickleball');
+  assert.strictEqual(call('normalizeSport', ['tabletennis']), 'tabletennis');
+  assert.strictEqual(call('normalizeSport', ['<script>']), '');
+  assert.strictEqual(call('normalizeSport', ['golf']), '');
+  assert.strictEqual(call('normalizeSport', [undefined]), '');
+
+  assert.strictEqual(call('sportLabel', ['padel']), 'Padel');
+  assert.strictEqual(call('sportLabel', ['tabletennis']), 'Table tennis');
+  // Schedules generated before the field existed carry no sport.
+  assert.strictEqual(call('sportLabel', ['']), 'Rotation');
+  assert.strictEqual(call('sportLabel', ['golf']), 'Rotation');
 });
