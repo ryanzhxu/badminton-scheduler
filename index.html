@@ -885,10 +885,11 @@ async function shareSchedule(){
 }
 
 function computeDisplayNames(list){
+  const isGuest=r=>/\s\+\d+$/.test(r);
   const fc={};
-  list.forEach(r=>{const f=r.split(/\s+/)[0];fc[f]=(fc[f]||0)+1;});
+  list.forEach(r=>{if(isGuest(r))return;const f=r.split(/\s+/)[0];fc[f]=(fc[f]||0)+1;});
   const map={};
-  list.forEach(r=>{const p=r.split(/\s+/);map[r]=(fc[p[0]]>1&&p.length>1)?p[0]+' '+p[1][0]+'.':p[0];});
+  list.forEach(r=>{if(isGuest(r)){map[r]=r;return;}const p=r.split(/\s+/);map[r]=(fc[p[0]]>1&&p.length>1)?p[0]+' '+p[1][0]+'.':p[0];});
   return map;
 }
 
