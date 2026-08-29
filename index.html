@@ -536,7 +536,12 @@ const IS_COURTLY=COURTLY_HOSTS.includes(location.hostname);
 const BRAND=IS_COURTLY
   ?{id:'courtly',name:'Courtly',docTitle:'Courtly — fair rotations for racquet sports',subtitle:'Fair rotations for racquet sports',showTruliooLogo:false,showCountryLabels:false,multiSport:true,showLeaderboard:false}
   :{id:'trulioo',name:'Courtly',docTitle:'Courtly — fair badminton rotations',subtitle:'Internal Tools',showTruliooLogo:true,showCountryLabels:true,multiSport:false,showLeaderboard:true};
-const API_BASE=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'http://localhost:5000':(IS_COURTLY?'https://courtly-api.rxlab.workers.dev':'https://badminton-scheduler-api.rxlab.workers.dev');
+// Courtly's API is same-origin: one Worker serves both the page and /api/*.
+// It must NOT point at courtly-api.rxlab.workers.dev -- declaring a custom
+// domain route disables the workers.dev subdomain, so that host 404s and every
+// share/QR call fails. Trulioo is unaffected: its Worker has no route block,
+// so its workers.dev subdomain is still the live API.
+const API_BASE=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'http://localhost:5000':(IS_COURTLY?'https://courtly.ryanxu.dev':'https://badminton-scheduler-api.rxlab.workers.dev');
 let playerCountries={};
 let countryLookup={};
 const COUNTRY_DEMO_PRIORITY=['CN','KR','PH','SG','TW','IN','ID','JP','US','CA','AU','GB'];
