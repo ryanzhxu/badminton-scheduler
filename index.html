@@ -917,7 +917,7 @@ function parseRawName(line){
 
 const BULK_NUM_RE=/^\s*\d{1,3}\s*[.)\-、]\s*(.*)$/;
 const BULK_TIME_RE=/\b\d{1,2}(:\d{2})?\s*(am|pm)\b|\b([01]?\d|2[0-3]):[0-5]\d\b/i;
-const BULK_DATE_RE=/\b\d{1,2}[\/\-]\d{1,2}([\/\-]\d{2,4})?\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*\d{1,2}\b|\b\d{1,2}\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b/i;
+const BULK_DATE_RE=/\b\d{1,2}[\/\-]\d{1,2}([\/\-]\d{2,4})?\b/i;
 const BULK_TENTATIVE_RE=/\s*\(\s*(maybe|tentative|pending|tbd|not sure|unsure)\s*\)\s*$/i;
 const BULK_GUEST_PLUS_RE=/\s*\(?\+\s*(\d{1,2})\)?\s*$/;
 const BULK_GUEST_CJK_RE=/\s*(\d{1,2})\s*人\s*$/;
