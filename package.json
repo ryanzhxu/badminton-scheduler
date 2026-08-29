@@ -1,6 +1,6 @@
 {
   "name": "badminton-scheduler-api",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "description": "Express.js backend for badminton rotation scheduler",
   "main": "server.js",
   "scripts": {
@@ -9,7 +9,11 @@
     "test": "node --test tests/*.test.js",
     "check": "node --check server.js && node --check worker/src/index.js"
   },
-  "keywords": ["badminton", "scheduler", "express"],
+  "keywords": [
+    "badminton",
+    "scheduler",
+    "express"
+  ],
   "author": "Ryan Xu",
   "license": "MIT",
   "dependencies": {

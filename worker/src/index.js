@@ -1268,6 +1268,50 @@ async function handlePlayer(c) {
 // display a URL's contents without a browser at all.
 
 const WATCH_CODE_RE = /^BADM-[A-Z0-9]{4}$/;
+const WATCH_POINTER_KEY = 'watch:current';
+
+// The watch pointer is deliberately separate from current_schedule. That key is
+// rewritten by every generate, extend and round-edit (see handleGenerateSchedule),
+// so a permanent watch URL built on it would follow someone's half-finished
+// tinkering. This one moves only when a person presses "Share to watch".
+//
+// In public mode the pointer is scoped per group, because a single
+// namespace-wide key would let one group's watch link show another group's
+// rotation -- the same reason handleGetSchedule refuses the "current"
+// pseudo-code there.
+function watchPointerKey(env, group) {
+  const g = String(group || '').trim();
+  if (!isPublicMode(env)) return WATCH_POINTER_KEY;
+  return g ? `${WATCH_POINTER_KEY}:${g}` : '';
+}
+
+async function handleSetWatchPointer(c) {
+  const body = await c.req.json().catch(() => ({}));
+  const scheduleCode = String(body.scheduleCode || '').toUpperCase();
+  if (!WATCH_CODE_RE.test(scheduleCode)) {
+    return c.json({ error: 'Missing or malformed scheduleCode' }, { status: 400 });
+  }
+
+  const key = watchPointerKey(c.env, body.group);
+  if (!key) {
+    // Public mode with no group: refuse rather than write a shared key.
+    return c.json({ error: 'Missing group' }, { status: 400 });
+  }
+
+  const schedule = await loadSchedule(c.env, scheduleCode);
+  if (!schedule) return c.json({ error: 'Schedule not found' }, { status: 404 });
+
+  await putJson(c.env.SCHEDULES, key, { code: scheduleCode, setAt: new Date().toISOString() });
+  return c.json({ ok: true, scheduleCode });
+}
+
+async function loadWatchPointerSchedule(c) {
+  const key = watchPointerKey(c.env, c.req.query('g'));
+  if (!key) return null;
+  const pointer = await getJson(c.env.SCHEDULES, key, null);
+  if (!pointer || !WATCH_CODE_RE.test(String(pointer.code || ''))) return null;
+  return loadSchedule(c.env, pointer.code);
+}
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (ch) => ({
@@ -1395,10 +1439,9 @@ async function handleWatchView(c) {
   // handleGetSchedule's rule exactly: in public mode saveCurrentSchedule never
   // writes the key, so resolving it would only return another group's data.
   const isCurrent = raw === 'CURRENT';
-  if (isCurrent && isPublicMode(c.env)) return c.text('Schedule not found\n', { status: 404 });
   if (!isCurrent && !WATCH_CODE_RE.test(raw)) return c.text('Bad schedule code\n', { status: 400 });
 
-  const schedule = isCurrent ? await loadCurrentSchedule(c.env) : await loadSchedule(c.env, raw);
+  const schedule = isCurrent ? await loadWatchPointerSchedule(c) : await loadSchedule(c.env, raw);
   if (!schedule || !Array.isArray(schedule.rounds) || !schedule.rounds.length) {
     return c.text('Schedule not found\n', { status: 404 });
   }
@@ -1423,9 +1466,11 @@ async function handleWatchView(c) {
     return c.text(body);
   }
 
+  const group = c.req.query('g') || '';
   const qp = (extra) => {
     const parts = [];
     if (player) parts.push(`p=${encodeURIComponent(player)}`);
+    if (group) parts.push(`g=${encodeURIComponent(group)}`);
     if (extra) parts.push(extra);
     return parts.length ? `?${parts.join('&')}` : '';
   };
@@ -1440,7 +1485,7 @@ async function handleWatchView(c) {
         ? `<li><span class="n">${r.round}</span> <span class="court">Court ${r.court}</span>`
           + `<div class="who">${escapeHtml(r.detail)}</div></li>`
         : `<li><span class="n">${r.round}</span> <span class="sit">sitting out</span></li>`)).join('')
-      + `</ol><a class="alt" href="/w/${encodeURIComponent(code)}">All courts</a>`;
+      + `</ol><a class="alt" href="/w/${encodeURIComponent(code)}${group ? `?g=${encodeURIComponent(group)}` : ''}">All courts</a>`;
   } else {
     const roundNo = clampRound(c.req.query('r'), total);
     const round = schedule.rounds[roundNo - 1];
@@ -1481,6 +1526,7 @@ function createWorkerApp() {
   app.get('/api/leaderboard', handleLeaderboard);
   app.get('/api/sessions', handleSessions);
   app.get('/api/player/:name', handlePlayer);
+  app.post('/api/watch/current', handleSetWatchPointer);
   app.get('/w/:code', handleWatchView);
   return app;
 }

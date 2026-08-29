@@ -20,6 +20,9 @@ for (const name of [
   'watchPlayerText',
   'watchRoundText',
   'watchAllRoundsText',
+  'isPublicMode',
+  'WATCH_POINTER_KEY',
+  'watchPointerKey',
 ]) {
   const code = extractDeclaration(src, name);
   assert.ok(code, `${name} not found in worker/src/index.js`);
@@ -141,6 +144,29 @@ test('nameless text output covers every round, not just the first', () => {
   assert.match(txt, /sit: Ivy, Ann/);
   assert.match(txt, /sit: Cal, Jon/);
   assert.ok(!txt.includes('<'), 'text output must contain no markup');
+});
+
+test('the watch pointer is group-scoped in public mode only', () => {
+  // Trulioo (no TTL) is single-group, so one unsuffixed key is correct.
+  const PRIVATE = {};
+  assert.strictEqual(call('watchPointerKey', [PRIVATE, '']), 'watch:current');
+  assert.strictEqual(call('watchPointerKey', [PRIVATE, 'ignored']), 'watch:current');
+
+  // Courtly must never share one key across groups, or one group's watch link
+  // would show another group's rotation.
+  const PUBLIC = { SCHEDULE_TTL_SECONDS: '604800' };
+  assert.strictEqual(call('watchPointerKey', [PUBLIC, 'g1']), 'watch:current:g1');
+  assert.strictEqual(call('watchPointerKey', [PUBLIC, 'g2']), 'watch:current:g2');
+  assert.notStrictEqual(
+    call('watchPointerKey', [PUBLIC, 'g1']),
+    call('watchPointerKey', [PUBLIC, 'g2']),
+  );
+
+  // No group in public mode must yield no key at all, so the caller refuses
+  // rather than falling back to a namespace-wide one.
+  assert.strictEqual(call('watchPointerKey', [PUBLIC, '']), '');
+  assert.strictEqual(call('watchPointerKey', [PUBLIC, undefined]), '');
+  assert.strictEqual(call('watchPointerKey', [PUBLIC, '   ']), '');
 });
 
 test('a singles court reports no partner', () => {
