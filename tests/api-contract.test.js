@@ -13,6 +13,7 @@ const UNCALLED_BY_SPA = [
   'GET /health',              // bare health check, used by uptime monitoring
   'GET /api/health',
   'POST /api/profiles',       // server-side profile storage; the SPA never posts to it
+  'GET /w/:code',             // watch view: opened directly on an Apple Watch, never by the SPA
 ];
 
 function workerRoutes() {

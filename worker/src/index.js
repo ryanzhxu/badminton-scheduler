@@ -1261,6 +1261,186 @@ async function handlePlayer(c) {
   });
 }
 
+// --- Watch view --------------------------------------------------------------
+// Apple Watch has no Safari; its hidden WebKit view runs scripts unreliably and
+// the main SPA builds its whole UI in JS, so it cannot be used there. These
+// routes render finished markup/text on the server instead: no JS, no fetch, no
+// framework. Round state lives in the URL so prev/next are plain links, and
+// ?fmt=txt returns the same data as text for the watch Shortcuts app, which can
+// display a URL's contents without a browser at all.
+
+const WATCH_CODE_RE = /^BADM-[A-Z0-9]{4}$/;
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[ch]));
+}
+
+function watchNameKey(name) {
+  return String(name || '').trim().toLowerCase();
+}
+
+// Where one player sits in a round: which court, who with, who against.
+function findPlayerInRound(round, key) {
+  const courts = Array.isArray(round && round.courts) ? round.courts : [];
+  for (let i = 0; i < courts.length; i += 1) {
+    const court = courts[i] || {};
+    for (const [side, other] of [['a', 'b'], ['b', 'a']]) {
+      const team = Array.isArray(court[side]) ? court[side] : [];
+      if (team.some((n) => watchNameKey(n) === key)) {
+        return {
+          court: i + 1,
+          partners: team.filter((n) => watchNameKey(n) !== key),
+          opponents: Array.isArray(court[other]) ? court[other] : [],
+        };
+      }
+    }
+  }
+  return null;
+}
+
+// One line per round for a single player -- the whole night at a glance, which
+// is what a watch is actually good for. Needs no notion of "current round".
+function watchPlayerRows(schedule, name) {
+  const key = watchNameKey(name);
+  const rounds = Array.isArray(schedule.rounds) ? schedule.rounds : [];
+  return rounds.map((round, i) => {
+    const spot = findPlayerInRound(round, key);
+    if (!spot) return { round: i + 1, playing: false, detail: 'sitting out' };
+    const partner = spot.partners.length ? `with ${spot.partners.join(' + ')}` : 'singles';
+    const versus = spot.opponents.length ? ` vs ${spot.opponents.join(' + ')}` : '';
+    return { round: i + 1, playing: true, court: spot.court, detail: `${partner}${versus}` };
+  });
+}
+
+function watchRoundRows(round) {
+  const courts = Array.isArray(round && round.courts) ? round.courts : [];
+  return courts.map((court, i) => ({
+    court: i + 1,
+    a: (Array.isArray(court.a) ? court.a : []).join(' + '),
+    b: (Array.isArray(court.b) ? court.b : []).join(' + '),
+  }));
+}
+
+function clampRound(raw, total) {
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return n > total ? total : n;
+}
+
+function watchPlayerText(schedule, player) {
+  const rows = watchPlayerRows(schedule, player);
+  const played = rows.filter((r) => r.playing).length;
+  const head = `${player} — ${schedule.code}\n${played}/${rows.length} rounds playing`;
+  const body = rows
+    .map((r) => (r.playing ? `${r.round}. Court ${r.court} — ${r.detail}` : `${r.round}. sitting out`))
+    .join('\n');
+  return `${head}\n\n${body}\n`;
+}
+
+function watchRoundText(schedule, roundNo) {
+  const round = schedule.rounds[roundNo - 1];
+  const rows = watchRoundRows(round);
+  const subs = Array.isArray(round.subs) ? round.subs : [];
+  const body = rows.map((r) => `Court ${r.court}: ${r.a} vs ${r.b}`).join('\n');
+  const sitting = subs.length ? `\nSitting out: ${subs.join(', ')}` : '';
+  return `${schedule.code} — round ${roundNo}/${schedule.rounds.length}\n\n${body}${sitting}\n`;
+}
+
+// Sized for a ~184px watch screen: one column, large type, dark ground (OLED),
+// and tap targets big enough for a fingertip.
+function watchPage(title, inner) {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(title)}</title><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;color:#fff;font:16px/1.35 -apple-system,system-ui,sans-serif;padding:10px 9px 22px}
+h1{font-size:15px;font-weight:600;color:#F0A81E;letter-spacing:.02em}
+.sub{font-size:12px;color:#8b949e;margin-bottom:10px}
+ol{list-style:none}
+li{border-top:1px solid #23262b;padding:8px 0}
+li:first-child{border-top:0}
+.n{font-size:12px;color:#8b949e}
+.court{font-size:12px;color:#F0A81E;font-weight:600}
+.who{font-size:16px;font-weight:600;word-wrap:break-word}
+.vs{font-size:12px;color:#8b949e;margin:1px 0}
+.sit{color:#8b949e;font-size:14px}
+nav{display:flex;gap:8px;margin-top:14px}
+nav a,.alt{flex:1;display:block;text-align:center;padding:11px 6px;background:#1b1f23;color:#fff;
+  border-radius:9px;text-decoration:none;font-size:14px;font-weight:600}
+nav a.off{color:#4b5158}
+.alt{margin-top:8px;background:#23262b}
+</style></head><body>${inner}</body></html>`;
+}
+
+async function handleWatchView(c) {
+  const code = String(c.req.param('code') || '').toUpperCase();
+  if (!WATCH_CODE_RE.test(code)) return c.text('Bad schedule code\n', { status: 400 });
+
+  const schedule = await loadSchedule(c.env, code);
+  if (!schedule || !Array.isArray(schedule.rounds) || !schedule.rounds.length) {
+    return c.text('Schedule not found\n', { status: 404 });
+  }
+
+  const player = (c.req.query('p') || '').trim();
+  const asText = c.req.query('fmt') === 'txt';
+  const total = schedule.rounds.length;
+
+  // A named player gets their whole night; otherwise show one round at a time.
+  const playerIsOnRoster = player
+    && (schedule.players || []).some((n) => watchNameKey(n) === watchNameKey(player));
+
+  if (asText) {
+    const body = playerIsOnRoster
+      ? watchPlayerText(schedule, player)
+      : watchRoundText(schedule, clampRound(c.req.query('r'), total));
+    return c.text(body);
+  }
+
+  const qp = (extra) => {
+    const parts = [];
+    if (player) parts.push(`p=${encodeURIComponent(player)}`);
+    if (extra) parts.push(extra);
+    return parts.length ? `?${parts.join('&')}` : '';
+  };
+
+  let inner;
+  if (playerIsOnRoster) {
+    const rows = watchPlayerRows(schedule, player);
+    const played = rows.filter((r) => r.playing).length;
+    inner = `<h1>${escapeHtml(player)}</h1>`
+      + `<div class="sub">${played} of ${total} rounds · ${escapeHtml(code)}</div><ol>`
+      + rows.map((r) => (r.playing
+        ? `<li><span class="n">${r.round}</span> <span class="court">Court ${r.court}</span>`
+          + `<div class="who">${escapeHtml(r.detail)}</div></li>`
+        : `<li><span class="n">${r.round}</span> <span class="sit">sitting out</span></li>`)).join('')
+      + `</ol><a class="alt" href="/w/${encodeURIComponent(code)}">All courts</a>`;
+  } else {
+    const roundNo = clampRound(c.req.query('r'), total);
+    const round = schedule.rounds[roundNo - 1];
+    const subs = Array.isArray(round.subs) ? round.subs : [];
+    const prev = roundNo > 1
+      ? `<a href="/w/${encodeURIComponent(code)}${qp(`r=${roundNo - 1}`)}">‹ Prev</a>`
+      : '<a class="off">‹ Prev</a>';
+    const next = roundNo < total
+      ? `<a href="/w/${encodeURIComponent(code)}${qp(`r=${roundNo + 1}`)}">Next ›</a>`
+      : '<a class="off">Next ›</a>';
+    inner = `<h1>Round ${roundNo} / ${total}</h1>`
+      + `<div class="sub">${escapeHtml(code)}</div><ol>`
+      + watchRoundRows(round).map((r) => `<li><span class="court">Court ${r.court}</span>`
+        + `<div class="who">${escapeHtml(r.a)}</div>`
+        + `<div class="vs">vs</div>`
+        + `<div class="who">${escapeHtml(r.b)}</div></li>`).join('')
+      + (subs.length ? `<li><span class="n">Sitting out</span><div class="sit">${escapeHtml(subs.join(', '))}</div></li>` : '')
+      + `</ol><nav>${prev}${next}</nav>`;
+  }
+
+  return new Response(watchPage(`${code} · watch`, inner), {
+    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+  });
+}
+
 function createWorkerApp() {
   const app = new Hono();
   app.use('*', cors());
@@ -1276,6 +1456,7 @@ function createWorkerApp() {
   app.get('/api/leaderboard', handleLeaderboard);
   app.get('/api/sessions', handleSessions);
   app.get('/api/player/:name', handlePlayer);
+  app.get('/w/:code', handleWatchView);
   return app;
 }
 
