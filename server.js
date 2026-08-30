@@ -10,7 +10,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const DATA_FILE = path.join(__dirname, 'shared-data.json');
-const COUNTRY_LOOKUP_FILE = path.join(__dirname, 'player-countries.json');
 const SSE_PING_MS = 25000;
 const scheduleSubscribers = new Map();
 const normalizePlayerName = name =>
@@ -21,31 +20,12 @@ const normalizePlayerName = name =>
     .map(word => word[0].toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 
-function loadCountryLookup() {
-  try {
-    if (!fs.existsSync(COUNTRY_LOOKUP_FILE)) {
-      return {};
-    }
-    const raw = JSON.parse(fs.readFileSync(COUNTRY_LOOKUP_FILE, 'utf8'));
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-      return {};
-    }
-    return Object.fromEntries(
-      Object.entries(raw)
-        .map(([name, code]) => [normalizePlayerName(name), String(code || '').trim().toUpperCase()])
-        .filter(([, code]) => /^[A-Z]{2}$/.test(code))
-    );
-  } catch {
-    return {};
-  }
-}
-
 function readBooleanFlag(value) {
   const normalized = String(value ?? '').trim().toLowerCase();
   return ['1', 'true', 'yes', 'on'].includes(normalized);
 }
 
-const playerCountryLookup = loadCountryLookup();
+const playerCountryLookup = {};
 const showCountryLabel = readBooleanFlag(
   process.env.SHOW_COUNTRY_LABELS ??
     process.env.SHOW_COUNTRY_LABEL ??

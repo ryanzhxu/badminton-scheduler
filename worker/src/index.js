@@ -1,5 +1,4 @@
 import QRCode from './qrcode-svg.js';
-import playerCountryLookupRaw from '../../player-countries.json';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -30,23 +29,6 @@ function normalizePlayerName(name) {
     .map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 }
-
-function loadCountryLookup(raw) {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return {};
-  }
-
-  return Object.fromEntries(
-    Object.entries(raw)
-      .map(([name, code]) => [
-        normalizePlayerName(name),
-        String(code || '').trim().toUpperCase(),
-      ])
-      .filter(([, code]) => /^[A-Z]{2}$/.test(code)),
-  );
-}
-
-const playerCountryLookup = loadCountryLookup(playerCountryLookupRaw);
 
 function readBooleanFlag(value) {
   const normalized = String(value ?? '').trim().toLowerCase();
@@ -1119,11 +1101,12 @@ async function handleData(c) {
   // profiles.players is a namespace-global registry; never return it in
   // public mode, or one group's names would leak into every other group's.
   const profiles = publicMode ? { players: [] } : await loadProfiles(c.env);
-  // player-countries.json is imported at the top of this file, so it is BUNDLED
-  // into every deployment of this source regardless of which KV namespace is
-  // bound. It maps real people's names to their nationalities and must never be
-  // served from the public product.
-  const countries = publicMode ? {} : playerCountryLookup;
+  // The country lookup was a checked-in file of real colleagues' names and
+  // nationalities. It was deleted: Render publishes the repo root verbatim, so
+  // it was downloadable from the production URL. Both deployments already ran
+  // with SHOW_COUNTRY_LABELS="false", so nothing rendered it. The keys stay in
+  // the response so the SPA's reader needs no change.
+  const countries = {};
   return c.json({
     currentSchedule: await loadCurrentSchedule(c.env),
     players: profiles.players || [],
