@@ -70,10 +70,14 @@ every response including the preflight, so the frontend origin is free to move.
 Share links use a query parameter rather than a path, so Render needs no SPA
 rewrite rules and there is no `_redirects` file to keep in sync.
 
-## Prototyped, then reverted
+## Landed (was "prototyped, then reverted")
 
-Both items below were built and verified on 2026-08-23, then reverted so the
-tree could go back to a clean baseline. They are ready to re-land as-is.
+Both items below were prototyped on 2026-08-23, reverted, and have since
+**landed on `main`**. Kept here only for the reasoning; neither is outstanding.
+
+- Item 1 shipped as `tests/api-contract.test.js`; `readInlineScript` is exported
+  from `tests/helpers/load-scheduler.js` and `npm test` runs `tests/*.test.js`.
+- Item 2 is done: no `HANDOFF-*` file is tracked or on disk.
 
 ### 1. Cross-half API contract test
 
@@ -111,9 +115,18 @@ rule existed, so the ignore never applied. It is served publicly today.
 `git rm --cached` drops it from the published root and keeps the local copy.
 
 Note the general rule this exposes: **every committed file at the repo root is
-publicly readable** at the Render URL. `server.js`, `AGENTS.md`, `.env.example`,
-`package.json` and `player-countries.json` all return 200. Nothing secret is
-exposed today, but any config file added to the root gets published.
+publicly readable** at the Render URL. `server.js`, `AGENTS.md`, `package.json`
+all return 200.
+
+This was not harmless. `player-countries.json` — real colleagues' names and
+nationalities — was downloadable from the production URL until 2026-08-30.
+Two things were learned deleting it:
+
+1. Never commit personal data to the repo root; it is published, not just stored.
+2. **A Render static site does not purge files deleted from the repo.** The git
+   deletion deployed successfully and the file still returned 200 from the
+   origin. It took a redeploy with `clearCache: true` to remove it. Deleting a
+   file from git is not enough to unpublish it here.
 
 ## Planned
 
@@ -126,18 +139,15 @@ Ordered into waves by what actually collides.
 | 5 | Refactor Worker internals | `worker/src/index.js` | API | 4, via version bump |
 | 6 | Gate deploys on CI | pipeline config | n/a | nothing |
 
-### Wave 0 — item 3
+### Wave 0 — item 3 — DONE
 
-Deleting ignored files touches no commit and triggers no deploy. The files are
-untracked, so deletion is **unrecoverable**: `index.html.bak`, `server.js.bak`,
-the brand-redesign `.zip`, `design_handoff_badminton_scheduler/`, and
-`COUNTRY_TEAM_INDICATOR.md`. None is published, so there is no production reason
-to remove any of them.
+Every file it named is gone: `index.html.bak`, `server.js.bak`, the
+brand-redesign `.zip`, `design_handoff_badminton_scheduler/`, and
+`COUNTRY_TEAM_INDICATOR.md`.
 
-### Wave 1 — the two reverted items above
+### Wave 1 — DONE
 
-Land item 1 first. The contract test is the guardrail that lets Wave 2 run
-unsupervised.
+Both items landed. The contract test is now the guardrail for Wave 2.
 
 ### Wave 2 — items 4 and 5, in parallel
 

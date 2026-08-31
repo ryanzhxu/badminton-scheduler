@@ -23,6 +23,19 @@ One codebase serves two deployments, chosen by hostname (`COURTLY_HOSTS` / `IS_C
 | Country labels (`showCountryLabels`) | yes | **never** — the data is real colleague PII |
 | Multi-sport (`multiSport`) | no, badminton only | yes |
 
+The country-label row is historical: `player-countries.json` was deleted on
+2026-08-30 (it was downloadable from the Render URL), so no country data exists
+in either deployment and `SHOW_COUNTRY_LABELS` is `"false"` in both configs.
+
+Two Courtly design decisions that the CSS cannot explain on its own — the token
+values themselves live in the 49 `:root[data-brand="courtly"]` rules in
+`index.html`, which are the source of truth:
+
+- **Team chips are green and periwinkle, not red/green**, so they stay
+  distinguishable under deuteranopia and protanopia.
+- **The sport tints only the court-card top border**, never the header. Amber on
+  charcoal *is* the brand; recolouring the header per sport would dilute it.
+
 The app features:
 - **Fair rotation**: minimizing variance in sit-out counts across players
 - **Team fairness**: partner *and* opponent variety (repeat pairings are penalized by how often a pair has already met, and back-to-back rematches cost extra, so nobody gets stuck facing the same person all night), conflict rules to prevent specific players from being on the same team (this does not prevent conflicted players from playing on the same court as opponents — e.g. if A and C conflict, A+B vs. C+D is fine, they just can't be teammates)

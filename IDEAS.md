@@ -31,10 +31,25 @@ card while a round is in edit mode, stored per round in the schedule JSON.
 
 ## Still open from earlier sessions
 
-- **Auto-fill court location** from the cal.com booking's location field. The
-  manual court-location UI it would have extended was removed in `99dc152`.
 - **Admin UI for leaderboard alias merges.** Only the `players:aliases` KV
   structure and resolution logic exist. Adding an alias today means editing KV by
   hand.
 - **Input-side duplicate-name validation**, nudging toward full names at bulk
   import so "Ryan" and "Ryan Xu" cannot diverge.
+
+## Discoverability (carried over from the Courtly design doc, 2026-08-26)
+
+**Per-sport landing pages.** Recommended, then deferred. Worth recording because
+it recurs: the app's UI text is injected at runtime through `data-i18n`, so a
+crawler fetching the raw HTML still sees empty elements. A `<meta name="description">`
+and Open Graph tags were added on 2026-08-29, but there is still no indexable
+prose, no `robots.txt` and no sitemap. Landing pages are a 6-12 month lever for
+discoverability, **not** a fast user-acquisition channel.
+
+**Community seeding is the fast path** to weekly strangers — posting where
+organisers already complain about this problem (r/badminton, r/pickleball, local
+Facebook groups, the Vancouver Badminton Meetup). Weeks, not months. Not a code
+task.
+
+**Undecided:** whether Ryan's own group moves to Courtly or stays on the Trulioo
+deployment. Both are supported by the architecture.
