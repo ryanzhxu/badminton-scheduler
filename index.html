@@ -330,7 +330,10 @@ body.dark-mode .sep-tx{color:#4A8070}
             </div>
             <div style="min-width:220px;flex:1">
               <div id="qr-code" style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:4px"></div>
-              <div id="qr-url" style="font-size:12px;color:var(--txs);word-break:break-all;cursor:pointer" onclick="copyShareLink()" data-i18n="copyLink" data-i18n-type="title"></div>
+              <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                <div id="qr-url" style="font-size:12px;color:var(--txs);word-break:break-all;cursor:pointer" onclick="copyShareLink()" data-i18n="copyLink" data-i18n-type="title"></div>
+                <span id="qr-url-copied" style="display:none;font-size:11px;font-weight:600;color:var(--ok);white-space:nowrap" data-i18n="linkCopied"></span>
+              </div>
             </div>
           </div>
         </div>
@@ -1344,6 +1347,7 @@ function resetShareQr(){
   const status=document.getElementById('qr-status');
   const code=document.getElementById('qr-code');
   const url=document.getElementById('qr-url');
+  const copied=document.getElementById('qr-url-copied');
   const actions=document.getElementById('share-actions');
   const banner=document.getElementById('shared-banner');
   const wrap=document.getElementById('qr-canvas-wrap');
@@ -1355,6 +1359,7 @@ function resetShareQr(){
   if(sw)sw.style.display='none';
   if(code)code.textContent='';
   if(url)url.textContent='';
+  if(copied)copied.style.display='none';
   if(actions)actions.style.display='none';
   if(banner)banner.style.display='none';
 }
@@ -1362,6 +1367,7 @@ function showShareQrPending(){
   const status=document.getElementById('qr-status');
   const code=document.getElementById('qr-code');
   const url=document.getElementById('qr-url');
+  const copied=document.getElementById('qr-url-copied');
   const actions=document.getElementById('share-actions');
   const wrap=document.getElementById('qr-canvas-wrap');
   const lbl=document.getElementById('qr-scan-label');
@@ -1372,6 +1378,7 @@ function showShareQrPending(){
   if(sw)sw.style.display='none';
   if(code)code.textContent='';
   if(url)url.textContent='';
+  if(copied)copied.style.display='none';
   if(actions)actions.style.display='none';
 }
 function showShareQr(payload){
@@ -1403,7 +1410,7 @@ function showShareQr(payload){
 }
 async function copyShareLink(){
   if(!currentShareUrl)return;
-  const urlEl=document.getElementById('qr-url');
+  const copiedEl=document.getElementById('qr-url-copied');
   try{
     await navigator.clipboard.writeText(currentShareUrl);
   }catch(e){
@@ -1411,10 +1418,10 @@ async function copyShareLink(){
     ta.value=currentShareUrl;ta.style.position='fixed';ta.style.opacity='0';
     document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();
   }
-  if(urlEl){
-    const original=currentShareUrl;
-    urlEl.textContent=t('linkCopied');
-    setTimeout(()=>{if(urlEl.textContent===t('linkCopied'))urlEl.textContent=original;},1500);
+  if(copiedEl){
+    copiedEl.style.display='inline';
+    clearTimeout(copiedEl._hideTimer);
+    copiedEl._hideTimer=setTimeout(()=>{copiedEl.style.display='none';},1500);
   }
 }
 function renderStyledQr(url){
@@ -1436,7 +1443,7 @@ function renderStyledQr(url){
     return;
   }
   const qr=new QRCodeStyling({
-    width:172,height:172,type:'canvas',
+    width:172,height:172,type:'svg',
     data:url||'https://trulioo.com',
     image:QR_SHUTTLE_URL,
     margin:6,
