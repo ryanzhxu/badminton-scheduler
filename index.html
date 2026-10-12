@@ -137,6 +137,7 @@ textarea:focus{outline:none;border-color:#128BA6;box-shadow:0 0 0 3px rgba(18,13
 .self-pill.sitting{border-color:var(--wa);background:var(--was);color:var(--tx)}
 .self-pill .notme{font-weight:500;color:var(--ia);text-decoration:underline;cursor:pointer;margin-left:4px}
 .court-card.mine{border-color:var(--ia);box-shadow:0 0 0 2px rgba(18,139,166,.25)}
+.court-card.dimmed{opacity:.55}
 .ch .tag-you{background:var(--ia);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;margin-left:auto;letter-spacing:.03em}
 .stats-tbl{width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed}
 .stats-tbl th{font-size:11px;color:var(--txs);font-weight:600;text-align:left;padding:5px 7px;border-bottom:1px solid var(--bd);text-transform:uppercase;letter-spacing:.05em}
@@ -1804,7 +1805,7 @@ function renderSchedule(){
     const showRow=laName!==null||lbName!==null;
     const aRow=ctryRow(laName,showRow);
     const bRow=ctryRow(lbName,showRow);
-    return `<div class="court-card${ct.singles?' singles':''}${mine?' mine':''}"><div class="ch">${ct.singles?`<span class="tag-s">${t('singles')}</span>`:''}${mine?`<span class="tag-you">${t('selfYourCourtTag')}</span>`:myCourtIdx>-1?`<span class="tag-you" style="visibility:hidden">${t('selfYourCourtTag')}</span>`:''}</div><div class="cb"><div class="team">${aRow}${aChips}</div><div class="vs">${t('vs')}</div><div class="team" style="align-items:flex-end;text-align:right">${bRow}${bChips}</div></div></div>`;
+    return `<div class="court-card${ct.singles?' singles':''}${mine?' mine':myCourtIdx>-1?' dimmed':''}"><div class="ch">${ct.singles?`<span class="tag-s">${t('singles')}</span>`:''}${mine?`<span class="tag-you">${t('selfYourCourtTag')}</span>`:myCourtIdx>-1?`<span class="tag-you" style="visibility:hidden">${t('selfYourCourtTag')}</span>`:''}</div><div class="cb"><div class="team">${aRow}${aChips}</div><div class="vs">${t('vs')}</div><div class="team" style="align-items:flex-end;text-align:right">${bRow}${bChips}</div></div></div>`;
   }).join('');
   document.getElementById('extend-box').style.display=currentRound===R-1?'block':'none';
   renderValidation();renderCheckIn();
