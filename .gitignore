@@ -13,5 +13,6 @@ design_handoff_badminton_scheduler/
 
 # Local tool and desktop noise
 .claude/
+.superpowers/
 .DS_Store
 \# Badminton Scheduler Brand Redesign.zip

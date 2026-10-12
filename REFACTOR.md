@@ -3,7 +3,7 @@
 Status of refactor work on the badminton scheduler, and the constraints any
 refactor has to respect. Written 2026-08-23.
 
-Read [AGENTS.md](AGENTS.md) first. This file only covers refactor scope and
+Read [CLAUDE.md](CLAUDE.md) first. This file only covers refactor scope and
 sequencing.
 
 ## Why this file exists
