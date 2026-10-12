@@ -1804,7 +1804,7 @@ function renderSchedule(){
     const showRow=laName!==null||lbName!==null;
     const aRow=ctryRow(laName,showRow);
     const bRow=ctryRow(lbName,showRow);
-    return `<div class="court-card${ct.singles?' singles':''}${mine?' mine':''}"><div class="ch">${ct.singles?`<span class="tag-s">${t('singles')}</span>`:''}${mine?`<span class="tag-you">${t('selfYourCourtTag')}</span>`:''}</div><div class="cb"><div class="team">${aRow}${aChips}</div><div class="vs">${t('vs')}</div><div class="team" style="align-items:flex-end;text-align:right">${bRow}${bChips}</div></div></div>`;
+    return `<div class="court-card${ct.singles?' singles':''}${mine?' mine':''}"><div class="ch">${ct.singles?`<span class="tag-s">${t('singles')}</span>`:''}${mine?`<span class="tag-you">${t('selfYourCourtTag')}</span>`:myCourtIdx>-1?`<span class="tag-you" style="visibility:hidden">${t('selfYourCourtTag')}</span>`:''}</div><div class="cb"><div class="team">${aRow}${aChips}</div><div class="vs">${t('vs')}</div><div class="team" style="align-items:flex-end;text-align:right">${bRow}${bChips}</div></div></div>`;
   }).join('');
   document.getElementById('extend-box').style.display=currentRound===R-1?'block':'none';
   renderValidation();renderCheckIn();
