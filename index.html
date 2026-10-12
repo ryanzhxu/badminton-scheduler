@@ -134,6 +134,7 @@ textarea:focus{outline:none;border-color:#128BA6;box-shadow:0 0 0 3px rgba(18,13
 .pa.me,.pb.me{outline:2px solid var(--ia);outline-offset:1px}
 .self-picker{background:var(--s0);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;margin-bottom:1rem}
 .self-picker .slabel{margin-bottom:8px}
+.self-picker-chips{display:flex;flex-wrap:wrap;gap:6px}
 .self-pill{display:inline-flex;align-items:center;gap:6px;background:var(--s0);border:1px solid var(--ia);border-radius:999px;padding:7px 13px;margin-bottom:1rem;font-size:12px;color:var(--ph);font-weight:600}
 .self-pill.sitting{border-color:var(--wa);background:var(--was);color:var(--tx)}
 .self-pill .notme{font-weight:500;color:var(--ia);text-decoration:underline;cursor:pointer;margin-left:4px}
@@ -1747,6 +1748,7 @@ function clearSelf(){
 // Resolved fresh every round, since who's playing where changes each round.
 function renderSelfPicker(rnd,dn){
   const wrap=document.getElementById('self-picker-wrap');
+  if(!isSharedView){wrap.innerHTML='';return;}
   if(selfPlayer&&rawPlayers.includes(selfPlayer)){
     const sitting=rnd.subs.includes(selfPlayer);
     let pillText;
@@ -1768,7 +1770,7 @@ function renderSelfPicker(rnd,dn){
       const safe=escapeHtml(r.replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
       return `<button class="cx" onclick="pickSelf('${safe}')">${escapeHtml(dn[r])}</button>`;
     }).join('');
-    wrap.innerHTML=`<div class="self-picker"><div class="slabel">${t('selfIdentifyLabel')}</div>${chips}</div>`;
+    wrap.innerHTML=`<div class="self-picker"><div class="slabel">${t('selfIdentifyLabel')}</div><div class="self-picker-chips">${chips}</div></div>`;
   }
 }
 function renderSchedule(){
