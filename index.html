@@ -1827,7 +1827,11 @@ function renderSchedule(){
     const selfOnB=mine&&ct.b.includes(selfPlayer);
     const leftSide=selfOnB?'b':'a',rightSide=selfOnB?'a':'b';
     const leftPl=ct[leftSide],rightPl=ct[rightSide];
-    const aChips=editing?leftPl.map((p,pi)=>swapChip(dn,p,`c:${i}:${leftSide}:${pi}`,'pa'+(mine&&p===selfPlayer?' me':''))).join(''):leftPl.map(p=>`<span class="pa${mine&&p===selfPlayer?' me':''}">${escapeHtml(dn[p]||p)}</span>`).join('');
+    // Within the left team's own stack, the self chip always leads so it's
+    // the very first thing in the top-left corner, not just left-of-court.
+    let leftIdx=leftPl.map((_,pi)=>pi);
+    if(mine){const si=leftPl.indexOf(selfPlayer);if(si>0)leftIdx=[si,...leftIdx.filter(pi=>pi!==si)];}
+    const aChips=editing?leftIdx.map(pi=>swapChip(dn,leftPl[pi],`c:${i}:${leftSide}:${pi}`,'pa'+(mine&&leftPl[pi]===selfPlayer?' me':''))).join(''):leftIdx.map(pi=>`<span class="pa${mine&&leftPl[pi]===selfPlayer?' me':''}">${escapeHtml(dn[leftPl[pi]]||leftPl[pi])}</span>`).join('');
     const bChips=editing?rightPl.map((p,pi)=>swapChip(dn,p,`c:${i}:${rightSide}:${pi}`,'pb'+(mine&&p===selfPlayer?' me':''))).join(''):rightPl.map(p=>`<span class="pb${mine&&p===selfPlayer?' me':''}">${escapeHtml(dn[p]||p)}</span>`).join('');
     const laName=ctryLabelFor(leftPl),lbName=ctryLabelFor(rightPl);
     const showRow=laName!==null||lbName!==null;
