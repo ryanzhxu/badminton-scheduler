@@ -1821,9 +1821,15 @@ function renderSchedule(){
   cg.innerHTML=order.map(i=>{
     const ct=rnd.courts[i];
     const mine=i===myCourtIdx;
-    const aChips=editing?ct.a.map((p,pi)=>swapChip(dn,p,`c:${i}:a:${pi}`,'pa'+(mine&&p===selfPlayer?' me':''))).join(''):ct.a.map(p=>`<span class="pa${mine&&p===selfPlayer?' me':''}">${escapeHtml(dn[p]||p)}</span>`).join('');
-    const bChips=editing?ct.b.map((p,pi)=>swapChip(dn,p,`c:${i}:b:${pi}`,'pb'+(mine&&p===selfPlayer?' me':''))).join(''):ct.b.map(p=>`<span class="pb${mine&&p===selfPlayer?' me':''}">${escapeHtml(dn[p]||p)}</span>`).join('');
-    const laName=ctryLabelFor(ct.a),lbName=ctryLabelFor(ct.b);
+    // When the viewer is on side b, flip which side renders left/right so
+    // their own team is always on the left -- no need to look to the right
+    // side of the court to find yourself.
+    const selfOnB=mine&&ct.b.includes(selfPlayer);
+    const leftSide=selfOnB?'b':'a',rightSide=selfOnB?'a':'b';
+    const leftPl=ct[leftSide],rightPl=ct[rightSide];
+    const aChips=editing?leftPl.map((p,pi)=>swapChip(dn,p,`c:${i}:${leftSide}:${pi}`,'pa'+(mine&&p===selfPlayer?' me':''))).join(''):leftPl.map(p=>`<span class="pa${mine&&p===selfPlayer?' me':''}">${escapeHtml(dn[p]||p)}</span>`).join('');
+    const bChips=editing?rightPl.map((p,pi)=>swapChip(dn,p,`c:${i}:${rightSide}:${pi}`,'pb'+(mine&&p===selfPlayer?' me':''))).join(''):rightPl.map(p=>`<span class="pb${mine&&p===selfPlayer?' me':''}">${escapeHtml(dn[p]||p)}</span>`).join('');
+    const laName=ctryLabelFor(leftPl),lbName=ctryLabelFor(rightPl);
     const showRow=laName!==null||lbName!==null;
     const aRow=ctryRow(laName,showRow);
     const bRow=ctryRow(lbName,showRow);
