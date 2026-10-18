@@ -16,6 +16,9 @@ for (const name of [
   'findPlayerInRound',
   'watchPlayerRows',
   'watchRoundRows',
+  'watchSelfCourtRows',
+  'WATCH_TEXT_DIVIDER',
+  'watchRoundBlock',
   'clampRound',
   'watchPlayerText',
   'watchRoundText',
@@ -101,9 +104,46 @@ test('player rows cover every round, marking sit-outs', () => {
 test('round rows list both teams per court', () => {
   const rows = plain(call('watchRoundRows', [SCHEDULE.rounds[0]]));
   assert.deepStrictEqual(rows, [
-    { court: 1, a: 'Cal + Jon', b: 'Hal + Gil' },
-    { court: 2, a: 'Fay + Ben', b: 'Eve + Dee' },
+    { court: 1, a: 'Cal + Jon', b: 'Hal + Gil', mine: false },
+    { court: 2, a: 'Fay + Ben', b: 'Eve + Dee', mine: false },
   ]);
+});
+
+test('round rows mark whichever court a named player is on', () => {
+  const rows = plain(call('watchRoundRows', [SCHEDULE.rounds[0], 'gil']));
+  assert.strictEqual(rows[0].mine, true);
+  assert.strictEqual(rows[1].mine, false);
+});
+
+test('self-aware rows are untouched with no "me" named', () => {
+  const rows = plain(call('watchSelfCourtRows', [SCHEDULE.rounds[0]]));
+  assert.deepStrictEqual(rows, [
+    { court: 1, a: ['Cal', 'Jon'], b: ['Hal', 'Gil'], mine: false },
+    { court: 2, a: ['Fay', 'Ben'], b: ['Eve', 'Dee'], mine: false },
+  ]);
+});
+
+test('self-aware rows put "me" on the left, leading their own team, court unchanged', () => {
+  // Gil is on side b of court 1, second in that team's array.
+  const rows = plain(call('watchSelfCourtRows', [SCHEDULE.rounds[0], 'gil']));
+  assert.deepStrictEqual(rows[0], { court: 1, a: ['Gil', 'Hal'], b: ['Cal', 'Jon'], mine: true });
+  assert.deepStrictEqual(rows[1], { court: 2, a: ['Fay', 'Ben'], b: ['Eve', 'Dee'], mine: false });
+});
+
+test('self-aware rows reorder so "me" court comes first, others keep relative order', () => {
+  // Ben is on court 2, side a, second in that team's array.
+  const rows = plain(call('watchSelfCourtRows', [SCHEDULE.rounds[0], 'ben']));
+  assert.deepStrictEqual(rows[0], { court: 2, a: ['Ben', 'Fay'], b: ['Eve', 'Dee'], mine: true });
+  assert.deepStrictEqual(rows[1], { court: 1, a: ['Cal', 'Jon'], b: ['Hal', 'Gil'], mine: false });
+});
+
+test('self-aware rows leave order alone when "me" is sitting out or unknown', () => {
+  const sittingOut = plain(call('watchSelfCourtRows', [SCHEDULE.rounds[0], 'ivy']));
+  assert.ok(sittingOut.every((r) => r.mine === false));
+  assert.deepStrictEqual(sittingOut.map((r) => r.court), [1, 2]);
+
+  const unknown = plain(call('watchSelfCourtRows', [SCHEDULE.rounds[0], 'nobody']));
+  assert.ok(unknown.every((r) => r.mine === false));
 });
 
 test('round number is clamped into range', () => {
@@ -125,8 +165,21 @@ test('text output is plain and readable on a watch', () => {
 
   const round = call('watchRoundText', [SCHEDULE, 1]);
   assert.match(round, /BADM-5GQX — round 1\/2/);
-  assert.match(round, /Court 1: Cal \+ Jon vs Hal \+ Gil/);
-  assert.match(round, /Sitting out: Ivy, Ann/);
+  assert.match(round, /  1\. Cal \+ Jon vs Hal \+ Gil/);
+  assert.match(round, /Sitting: Ivy, Ann/);
+});
+
+test('a named "me" gets a star on their own court only, text has no color', () => {
+  const round = call('watchRoundText', [SCHEDULE, 1, 'gil']);
+  assert.match(round, /★ 1\. Cal \+ Jon vs Hal \+ Gil/);
+  assert.match(round, /\n {2}2\. Fay \+ Ben vs Eve \+ Dee/);
+  assert.ok(!round.includes('<'), 'text output must contain no markup');
+
+  // No match (not on roster, or no name given) leaves every line unstarred.
+  const noMatch = call('watchRoundText', [SCHEDULE, 1, 'nobody']);
+  assert.ok(!noMatch.includes('★'));
+  const unspecified = call('watchRoundText', [SCHEDULE, 1]);
+  assert.ok(!unspecified.includes('★'));
 });
 
 test('player names are escaped before reaching the page', () => {
@@ -143,11 +196,20 @@ test('nameless text output covers every round, not just the first', () => {
   // without naming anyone.
   const txt = call('watchAllRoundsText', [SCHEDULE]);
   assert.match(txt, /^BADM-5GQX — 2 rounds/);
-  assert.match(txt, /R1\n {2}C1 {2}Cal \+ Jon v Hal \+ Gil/);
-  assert.match(txt, /R2\n {2}C1 {2}Ann \+ Ivy v Hal \+ Fay/);
-  assert.match(txt, /sit: Ivy, Ann/);
-  assert.match(txt, /sit: Cal, Jon/);
+  assert.match(txt, /R1\n─+\n {2}1\. Cal \+ Jon vs Hal \+ Gil/);
+  assert.match(txt, /R2\n─+\n {2}1\. Ann \+ Ivy vs Hal \+ Fay/);
+  assert.match(txt, /Sitting: Ivy, Ann/);
+  assert.match(txt, /Sitting: Cal, Jon/);
   assert.ok(!txt.includes('<'), 'text output must contain no markup');
+});
+
+test('"me" stars the right court across every round, matched case-insensitively', () => {
+  const txt = call('watchAllRoundsText', [SCHEDULE, ' GIL ']);
+  assert.match(txt, /R1\n─+\n★ 1\. Cal \+ Jon vs Hal \+ Gil/);
+  assert.match(txt, /\n {2}2\. Fay \+ Ben vs Eve \+ Dee/);
+  // Round 2: Gil partners Ben on court 2, not court 1.
+  assert.match(txt, /R2\n─+\n {2}1\. Ann \+ Ivy vs Hal \+ Fay/);
+  assert.match(txt, /\n★ 2\. Ben \+ Gil vs Eve \+ Dee/);
 });
 
 test('the watch pointer is group-scoped in public mode only', () => {

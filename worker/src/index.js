@@ -1364,13 +1364,49 @@ function watchPlayerRows(schedule, name) {
   });
 }
 
-function watchRoundRows(round) {
+// `me` stars whichever court a named player is on, for the Shortcuts text
+// views -- separate from `p` (which replaces the whole view with one
+// player's whole night) since here we still want everyone's courts, just
+// with one line marked. Shortcuts' "Show Result" has no color, so a plain
+// glyph is the only way to make a line stand out.
+function watchRoundRows(round, me) {
   const courts = Array.isArray(round && round.courts) ? round.courts : [];
-  return courts.map((court, i) => ({
-    court: i + 1,
-    a: (Array.isArray(court.a) ? court.a : []).join(' + '),
-    b: (Array.isArray(court.b) ? court.b : []).join(' + '),
-  }));
+  const key = watchNameKey(me);
+  return courts.map((court, i) => {
+    const a = Array.isArray(court.a) ? court.a : [];
+    const b = Array.isArray(court.b) ? court.b : [];
+    const mine = !!key && [...a, ...b].some((n) => watchNameKey(n) === key);
+    return { court: i + 1, a: a.join(' + '), b: b.join(' + '), mine };
+  });
+}
+
+// For the HTML round view only: mirrors index.html's self-chip behavior
+// (renderSchedule's myCourtIdx/selfOnB/leftIdx logic) so a named viewer sees
+// their own court first, their own team on the left, and their own chip
+// leading that team's stack -- not just marked, but put where their eye
+// already goes. The text views keep their separate star-marker treatment
+// in watchRoundRows/watchRoundBlock, since a plain-text line has no
+// left/right to swap.
+function watchSelfCourtRows(round, me) {
+  const courts = Array.isArray(round && round.courts) ? round.courts : [];
+  const key = watchNameKey(me);
+  const rows = courts.map((court, i) => {
+    const a = Array.isArray(court.a) ? court.a : [];
+    const b = Array.isArray(court.b) ? court.b : [];
+    const selfOnB = !!key && b.some((n) => watchNameKey(n) === key);
+    const selfOnA = !!key && a.some((n) => watchNameKey(n) === key);
+    const mine = selfOnA || selfOnB;
+    let left = selfOnB ? b : a;
+    const right = selfOnB ? a : b;
+    if (mine) {
+      const si = left.findIndex((n) => watchNameKey(n) === key);
+      if (si > 0) left = [left[si], ...left.slice(0, si), ...left.slice(si + 1)];
+    }
+    return { court: i + 1, a: left, b: right, mine };
+  });
+  const myIdx = rows.findIndex((r) => r.mine);
+  if (myIdx > 0) rows.unshift(rows.splice(myIdx, 1)[0]);
+  return rows;
 }
 
 function clampRound(raw, total) {
@@ -1389,29 +1425,33 @@ function watchPlayerText(schedule, player) {
   return `${head}\n\n${body}\n`;
 }
 
+const WATCH_TEXT_DIVIDER = '─'.repeat(14);
+
+// Shared line formatting for both the single-round and all-rounds text views:
+// numbered courts, a star on whichever one is "mine", a "Sitting" line.
+function watchRoundBlock(round, me) {
+  const rows = watchRoundRows(round, me);
+  const courts = rows.map((r) => `${r.mine ? '★ ' : '  '}${r.court}. ${r.a} vs ${r.b}`).join('\n');
+  const subs = Array.isArray(round.subs) ? round.subs : [];
+  const sitting = subs.length ? `\nSitting: ${subs.join(', ')}` : '';
+  return `${WATCH_TEXT_DIVIDER}\n${courts}${sitting}`;
+}
+
 // Plain text has no prev/next links, so a nameless text request would otherwise
 // be stuck on one round. This returns the whole night's courts, which is what
 // makes a watch Shortcut work without naming anyone.
-function watchAllRoundsText(schedule) {
+function watchAllRoundsText(schedule, me) {
   const rounds = Array.isArray(schedule.rounds) ? schedule.rounds : [];
-  const body = rounds.map((round, i) => {
-    const courts = watchRoundRows(round)
-      .map((r) => `  C${r.court}  ${r.a} v ${r.b}`)
-      .join('\n');
-    const subs = Array.isArray(round.subs) ? round.subs : [];
-    const sitting = subs.length ? `\n  sit: ${subs.join(', ')}` : '';
-    return `R${i + 1}\n${courts}${sitting}`;
-  }).join('\n\n');
+  const body = rounds
+    .map((round, i) => `R${i + 1}\n${watchRoundBlock(round, me)}`)
+    .join('\n\n');
   return `${schedule.code} — ${rounds.length} rounds\n\n${body}\n`;
 }
 
-function watchRoundText(schedule, roundNo) {
+function watchRoundText(schedule, roundNo, me) {
   const round = schedule.rounds[roundNo - 1];
-  const rows = watchRoundRows(round);
-  const subs = Array.isArray(round.subs) ? round.subs : [];
-  const body = rows.map((r) => `Court ${r.court}: ${r.a} vs ${r.b}`).join('\n');
-  const sitting = subs.length ? `\nSitting out: ${subs.join(', ')}` : '';
-  return `${schedule.code} — round ${roundNo}/${schedule.rounds.length}\n\n${body}${sitting}\n`;
+  const head = `${schedule.code} — round ${roundNo}/${schedule.rounds.length}`;
+  return `${head}\n${watchRoundBlock(round, me)}\n`;
 }
 
 // Sized for a ~184px watch screen: one column, large type, dark ground (OLED),
@@ -1432,6 +1472,9 @@ li:first-child{border-top:0}
 .who{font-size:16px;font-weight:600;word-wrap:break-word}
 .vs{font-size:12px;color:#8b949e;margin:1px 0}
 .sit{color:#8b949e;font-size:14px}
+.you{font-size:11px;font-weight:700;color:#F0A81E;margin-left:6px}
+li.dimmed{opacity:.5}
+.who .me{text-decoration:underline}
 nav{display:flex;gap:8px;margin-top:14px}
 nav a,.alt{flex:1;display:block;text-align:center;padding:11px 6px;background:#1b1f23;color:#fff;
   border-radius:9px;text-decoration:none;font-size:14px;font-weight:600}
@@ -1459,6 +1502,7 @@ async function handleWatchView(c) {
   const displayCode = schedule.code || raw;
 
   const player = (c.req.query('p') || '').trim();
+  const me = (c.req.query('me') || '').trim();
   const asText = c.req.query('fmt') === 'txt';
   const total = schedule.rounds.length;
 
@@ -1469,8 +1513,8 @@ async function handleWatchView(c) {
   if (asText) {
     let body;
     if (playerIsOnRoster) body = watchPlayerText(schedule, player);
-    else if (c.req.query('r')) body = watchRoundText(schedule, clampRound(c.req.query('r'), total));
-    else body = watchAllRoundsText(schedule);
+    else if (c.req.query('r')) body = watchRoundText(schedule, clampRound(c.req.query('r'), total), me);
+    else body = watchAllRoundsText(schedule, me);
     return c.text(body);
   }
 
@@ -1478,6 +1522,7 @@ async function handleWatchView(c) {
   const qp = (extra) => {
     const parts = [];
     if (player) parts.push(`p=${encodeURIComponent(player)}`);
+    if (me) parts.push(`me=${encodeURIComponent(me)}`);
     if (group) parts.push(`g=${encodeURIComponent(group)}`);
     if (extra) parts.push(extra);
     return parts.length ? `?${parts.join('&')}` : '';
@@ -1487,13 +1532,18 @@ async function handleWatchView(c) {
   if (playerIsOnRoster) {
     const rows = watchPlayerRows(schedule, player);
     const played = rows.filter((r) => r.playing).length;
+    // The viewer just named themselves, so "All courts" carries that identity
+    // forward as `me` (not `p`, which would just bounce back to this same
+    // whole-night view) -- otherwise the self-aware round view below would
+    // only ever be reachable by hand-editing the URL.
+    const allCourtsHref = `/w/${encodeURIComponent(code)}?${['me=' + encodeURIComponent(player), group && `g=${encodeURIComponent(group)}`].filter(Boolean).join('&')}`;
     inner = `<h1>${escapeHtml(player)}</h1>`
       + `<div class="sub">${played} of ${total} rounds · ${escapeHtml(displayCode)}</div><ol>`
       + rows.map((r) => (r.playing
         ? `<li><span class="n">${r.round}</span> <span class="court">Court ${r.court}</span>`
           + `<div class="who">${escapeHtml(r.detail)}</div></li>`
         : `<li><span class="n">${r.round}</span> <span class="sit">sitting out</span></li>`)).join('')
-      + `</ol><a class="alt" href="/w/${encodeURIComponent(code)}${group ? `?g=${encodeURIComponent(group)}` : ''}">All courts</a>`;
+      + `</ol><a class="alt" href="${allCourtsHref}">All courts</a>`;
   } else {
     const roundNo = clampRound(c.req.query('r'), total);
     const round = schedule.rounds[roundNo - 1];
@@ -1504,12 +1554,17 @@ async function handleWatchView(c) {
     const next = roundNo < total
       ? `<a href="/w/${encodeURIComponent(code)}${qp(`r=${roundNo + 1}`)}">Next ›</a>`
       : '<a class="off">Next ›</a>';
+    const rows = watchSelfCourtRows(round, me);
+    const hasMine = rows.some((r) => r.mine);
+    const meKey = watchNameKey(me);
+    const chip = (n) => `<span${meKey && watchNameKey(n) === meKey ? ' class="me"' : ''}>${escapeHtml(n)}</span>`;
     inner = `<h1>Round ${roundNo} / ${total}</h1>`
       + `<div class="sub">${escapeHtml(displayCode)}</div><ol>`
-      + watchRoundRows(round).map((r) => `<li><span class="court">Court ${r.court}</span>`
-        + `<div class="who">${escapeHtml(r.a)}</div>`
+      + rows.map((r) => `<li${r.mine ? ' class="mine"' : hasMine ? ' class="dimmed"' : ''}>`
+        + `<span class="court">Court ${r.court}</span>${r.mine ? '<span class="you">You</span>' : ''}`
+        + `<div class="who">${r.a.map(chip).join(' + ')}</div>`
         + `<div class="vs">vs</div>`
-        + `<div class="who">${escapeHtml(r.b)}</div></li>`).join('')
+        + `<div class="who">${r.b.map((n) => escapeHtml(n)).join(' + ')}</div></li>`).join('')
       + (subs.length ? `<li><span class="n">Sitting out</span><div class="sit">${escapeHtml(subs.join(', '))}</div></li>` : '')
       + `</ol><nav>${prev}${next}</nav>`;
   }
