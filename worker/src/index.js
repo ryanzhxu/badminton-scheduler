@@ -1471,10 +1471,14 @@ li:first-child{border-top:0}
 .court{font-size:12px;color:#F0A81E;font-weight:600}
 .who{font-size:16px;font-weight:600;word-wrap:break-word}
 .vs{font-size:12px;color:#8b949e;margin:1px 0}
-.sit{color:#8b949e;font-size:14px}
-.you{font-size:11px;font-weight:700;color:#F0A81E;margin-left:6px}
-li.dimmed{opacity:.5}
-.who .me{text-decoration:underline}
+.sit{color:#8b949e;font-size:14px;margin-bottom:5px}
+.trow{display:flex;align-items:stretch;border-radius:8px;margin-bottom:5px;overflow:hidden;background:#0a0a0a}
+.trow.mine{background:#141008}
+.trow.dim{opacity:.55}
+.tbar{width:4px;flex-shrink:0;background:#23262b}
+.trow.mine .tbar{background:#F0A81E}
+.trow .info{padding:7px 9px;flex:1}
+.trow:not(.mine) .who{font-size:12px;font-weight:400;color:#9aa0a6}
 nav{display:flex;gap:8px;margin-top:14px}
 nav a,.alt{flex:1;display:block;text-align:center;padding:11px 6px;background:#1b1f23;color:#fff;
   border-radius:9px;text-decoration:none;font-size:14px;font-weight:600}
@@ -1557,16 +1561,24 @@ async function handleWatchView(c) {
     const rows = watchSelfCourtRows(round, me);
     const hasMine = rows.some((r) => r.mine);
     const meKey = watchNameKey(me);
-    const chip = (n) => `<span${meKey && watchNameKey(n) === meKey ? ' class="me"' : ''}>${escapeHtml(n)}</span>`;
+    // Ticket-stub rows: mine gets its own two-line card (team / vs opponents),
+    // everyone else collapses to one muted line -- all courts stay visible,
+    // but the eye only has to work for the one that matters.
+    const nameOrYou = (n) => (meKey && watchNameKey(n) === meKey ? 'You' : escapeHtml(n));
     inner = `<h1>Round ${roundNo} / ${total}</h1>`
-      + `<div class="sub">${escapeHtml(displayCode)}</div><ol>`
-      + rows.map((r) => `<li${r.mine ? ' class="mine"' : hasMine ? ' class="dimmed"' : ''}>`
-        + `<span class="court">Court ${r.court}</span>${r.mine ? '<span class="you">You</span>' : ''}`
-        + `<div class="who">${r.a.map(chip).join(' + ')}</div>`
-        + `<div class="vs">vs</div>`
-        + `<div class="who">${r.b.map((n) => escapeHtml(n)).join(' + ')}</div></li>`).join('')
-      + (subs.length ? `<li><span class="n">Sitting out</span><div class="sit">${escapeHtml(subs.join(', '))}</div></li>` : '')
-      + `</ol><nav>${prev}${next}</nav>`;
+      + `<div class="sub">${escapeHtml(displayCode)}</div>`
+      + rows.map((r) => {
+          const aText = r.a.map(nameOrYou).join(' + ');
+          const bText = r.b.map((n) => escapeHtml(n)).join(' + ');
+          if (r.mine) {
+            return `<div class="trow mine"><div class="tbar"></div>`
+              + `<div class="info"><div class="who">${aText}</div><div class="vs">vs ${bText}</div></div></div>`;
+          }
+          return `<div class="trow${hasMine ? ' dim' : ''}"><div class="tbar"></div>`
+            + `<div class="info"><div class="who">${aText} vs ${bText}</div></div></div>`;
+        }).join('')
+      + (subs.length ? `<div class="sit">Sitting out: ${subs.map(nameOrYou).join(', ')}</div>` : '')
+      + `<nav>${prev}${next}</nav>`;
   }
 
   return new Response(watchPage(`${displayCode} · watch`, inner), {
