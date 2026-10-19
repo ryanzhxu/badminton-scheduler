@@ -1523,14 +1523,6 @@ async function handleWatchView(c) {
   }
 
   const group = c.req.query('g') || '';
-  const qp = (extra) => {
-    const parts = [];
-    if (player) parts.push(`p=${encodeURIComponent(player)}`);
-    if (me) parts.push(`me=${encodeURIComponent(me)}`);
-    if (group) parts.push(`g=${encodeURIComponent(group)}`);
-    if (extra) parts.push(extra);
-    return parts.length ? `?${parts.join('&')}` : '';
-  };
 
   let inner;
   if (playerIsOnRoster) {
@@ -1550,35 +1542,49 @@ async function handleWatchView(c) {
       + `</ol><a class="alt" href="${allCourtsHref}">All courts</a>`;
   } else {
     const roundNo = clampRound(c.req.query('r'), total);
-    const round = schedule.rounds[roundNo - 1];
-    const subs = Array.isArray(round.subs) ? round.subs : [];
-    const prev = roundNo > 1
-      ? `<a href="/w/${encodeURIComponent(code)}${qp(`r=${roundNo - 1}`)}">‹ Prev</a>`
-      : '<a class="off">‹ Prev</a>';
-    const next = roundNo < total
-      ? `<a href="/w/${encodeURIComponent(code)}${qp(`r=${roundNo + 1}`)}">Next ›</a>`
-      : '<a class="off">Next ›</a>';
-    const rows = watchSelfCourtRows(round, me);
-    const hasMine = rows.some((r) => r.mine);
     const meKey = watchNameKey(me);
+    const nameOrYou = (n) => (meKey && watchNameKey(n) === meKey ? 'You' : escapeHtml(n));
     // Ticket-stub rows: mine gets its own two-line card (team / vs opponents),
     // everyone else collapses to one muted line -- all courts stay visible,
     // but the eye only has to work for the one that matters.
-    const nameOrYou = (n) => (meKey && watchNameKey(n) === meKey ? 'You' : escapeHtml(n));
-    inner = `<h1>Round ${roundNo} / ${total}</h1>`
+    //
+    // All rounds are pre-rendered here and shipped in one response; Prev/Next
+    // swap between them with inline JS instead of reloading from the server --
+    // a watch's network hop is the whole reason per-tap pagination felt slow.
+    const roundBlocks = schedule.rounds.map((round) => {
+      const rows = watchSelfCourtRows(round, me);
+      const hasMine = rows.some((r) => r.mine);
+      const subs = Array.isArray(round.subs) ? round.subs : [];
+      return rows.map((r) => {
+        const aText = r.a.map(nameOrYou).join(' + ');
+        const bText = r.b.map((n) => escapeHtml(n)).join(' + ');
+        if (r.mine) {
+          return `<div class="trow mine"><div class="tbar"></div>`
+            + `<div class="info"><div class="who">${aText}</div><div class="vs">vs ${bText}</div></div></div>`;
+        }
+        return `<div class="trow${hasMine ? ' dim' : ''}"><div class="tbar"></div>`
+          + `<div class="info"><div class="who">${aText} vs ${bText}</div></div></div>`;
+      }).join('') + (subs.length ? `<div class="sit">Sitting out: ${subs.map(nameOrYou).join(', ')}</div>` : '');
+    });
+    // Escaping "<" keeps a name like "</script>" from breaking out of the
+    // inline script -- JS parses < back to the literal character, so
+    // the embedded HTML round-trips unchanged.
+    const roundsJson = JSON.stringify(roundBlocks).replace(/</g, '\\u003c');
+
+    inner = `<h1 id="rh">Round ${roundNo} / ${total}</h1>`
       + `<div class="sub">${escapeHtml(displayCode)}</div>`
-      + rows.map((r) => {
-          const aText = r.a.map(nameOrYou).join(' + ');
-          const bText = r.b.map((n) => escapeHtml(n)).join(' + ');
-          if (r.mine) {
-            return `<div class="trow mine"><div class="tbar"></div>`
-              + `<div class="info"><div class="who">${aText}</div><div class="vs">vs ${bText}</div></div></div>`;
-          }
-          return `<div class="trow${hasMine ? ' dim' : ''}"><div class="tbar"></div>`
-            + `<div class="info"><div class="who">${aText} vs ${bText}</div></div></div>`;
-        }).join('')
-      + (subs.length ? `<div class="sit">Sitting out: ${subs.map(nameOrYou).join(', ')}</div>` : '')
-      + `<nav>${prev}${next}</nav>`;
+      + `<div id="courts">${roundBlocks[roundNo - 1]}</div>`
+      + `<nav><a id="pv" href="#">‹ Prev</a><a id="nx" href="#">Next ›</a></nav>`
+      + `<script>(function(){`
+      + `var R=${roundsJson},i=${roundNo - 1},t=R.length;`
+      + `var h=document.getElementById('rh'),c=document.getElementById('courts'),`
+      + `pv=document.getElementById('pv'),nx=document.getElementById('nx');`
+      + `function draw(){h.textContent='Round '+(i+1)+' / '+t;c.innerHTML=R[i];`
+      + `pv.className=i>0?'':'off';nx.className=i<t-1?'':'off';}`
+      + `pv.onclick=function(e){e.preventDefault();if(i>0){i--;draw();}};`
+      + `nx.onclick=function(e){e.preventDefault();if(i<t-1){i++;draw();}};`
+      + `pv.className=i>0?'':'off';nx.className=i<t-1?'':'off';`
+      + `})();</script>`;
   }
 
   return new Response(watchPage(`${displayCode} · watch`, inner), {
