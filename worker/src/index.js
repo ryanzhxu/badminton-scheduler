@@ -1507,12 +1507,20 @@ async function handleWatchView(c) {
 
   const player = (c.req.query('p') || '').trim();
   const me = (c.req.query('me') || '').trim();
-  const asText = c.req.query('fmt') === 'txt';
+  const fmt = c.req.query('fmt');
+  const asText = fmt === 'txt';
   const total = schedule.rounds.length;
 
   // A named player gets their whole night; otherwise show one round at a time.
   const playerIsOnRoster = player
     && (schedule.players || []).some((n) => watchNameKey(n) === watchNameKey(player));
+
+  // One name per line -- plain enough for a Shortcuts "Split Text" action to
+  // turn straight into a pickable list, without the Shortcut having to parse
+  // the full schedule JSON just to find the roster.
+  if (fmt === 'players') {
+    return c.text((schedule.players || []).join('\n') + '\n');
+  }
 
   if (asText) {
     let body;
@@ -1570,20 +1578,35 @@ async function handleWatchView(c) {
     // inline script -- JS parses < back to the literal character, so
     // the embedded HTML round-trips unchanged.
     const roundsJson = JSON.stringify(roundBlocks).replace(/</g, '\\u003c');
+    // Reload target once more rounds exist -- extending needs a real server
+    // round-trip regardless (it runs the scheduling algorithm), unlike plain
+    // Prev/Next, so this one stays a page reload rather than more client JS
+    // state to keep in sync.
+    const nextUrl = `/w/${encodeURIComponent(displayCode)}?r=${total + 1}`
+      + (me ? `&me=${encodeURIComponent(me)}` : '')
+      + (group ? `&g=${encodeURIComponent(group)}` : '');
 
     inner = `<h1 id="rh">Round ${roundNo} / ${total}</h1>`
       + `<div class="sub">${escapeHtml(displayCode)}</div>`
       + `<div id="courts">${roundBlocks[roundNo - 1]}</div>`
       + `<nav><a id="pv" href="#">‹ Prev</a><a id="nx" href="#">Next ›</a></nav>`
       + `<script>(function(){`
+      + `var CODE=${JSON.stringify(displayCode)},NEXT=${JSON.stringify(nextUrl)};`
       + `var R=${roundsJson},i=${roundNo - 1},t=R.length;`
       + `var h=document.getElementById('rh'),c=document.getElementById('courts'),`
       + `pv=document.getElementById('pv'),nx=document.getElementById('nx');`
       + `function draw(){h.textContent='Round '+(i+1)+' / '+t;c.innerHTML=R[i];`
-      + `pv.className=i>0?'':'off';nx.className=i<t-1?'':'off';}`
+      + `pv.className=i>0?'':'off';`
+      + `if(i<t-1){nx.className='';nx.textContent='Next ›';nx.onclick=goNext;}`
+      + `else{nx.className='';nx.textContent='+5 rounds';nx.onclick=goExtend;}}`
+      + `function goNext(e){e.preventDefault();if(i<t-1){i++;draw();}}`
+      + `function goExtend(e){e.preventDefault();nx.className='off';nx.textContent='Generating…';nx.onclick=null;`
+      + `fetch('/api/schedule/'+encodeURIComponent(CODE)+'/extend',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({count:5,baseRoundCount:t})})`
+      + `.then(function(r){return r.json();}).then(function(d){if(d&&d.extended){location.href=NEXT;}`
+      + `else{nx.className='';nx.textContent='Try again';nx.onclick=goExtend;}})`
+      + `.catch(function(){nx.className='';nx.textContent='Try again';nx.onclick=goExtend;});}`
       + `pv.onclick=function(e){e.preventDefault();if(i>0){i--;draw();}};`
-      + `nx.onclick=function(e){e.preventDefault();if(i<t-1){i++;draw();}};`
-      + `pv.className=i>0?'':'off';nx.className=i<t-1?'':'off';`
+      + `draw();`
       + `})();</script>`;
   }
 
