@@ -13,6 +13,7 @@ const PROFILES_KEY = 'profiles';
 const PLAYER_REGISTRY_KEY = 'players:registry';
 const PLAYER_ALIASES_KEY = 'players:aliases';
 const SCHEDULE_INDEX_KEY = 'schedules:index';
+const DINNER_RESTAURANTS_KEY = 'dinner:restaurants';
 
 // Courtly's config (worker/wrangler.courtly.toml) sets SCHEDULE_TTL_SECONDS so
 // public schedules self-expire; Trulioo's worker/wrangler.toml does not set it.
@@ -717,6 +718,13 @@ async function addToScheduleIndex(env, entry) {
   deduped.push(entry);
   deduped.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   await putJson(env.SCHEDULES, SCHEDULE_INDEX_KEY, deduped);
+}
+
+async function loadDinnerRestaurants(env) {
+  return getJson(env.SCHEDULES, DINNER_RESTAURANTS_KEY, []);
+}
+async function saveDinnerRestaurants(env, list) {
+  await putJson(env.SCHEDULES, DINNER_RESTAURANTS_KEY, list);
 }
 
 async function createQrDataUrl(text) {
