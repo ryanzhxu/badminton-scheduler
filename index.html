@@ -1551,6 +1551,7 @@ function cycleSkill(raw){const cur=getSkill(raw);playerSkills[raw]=cur>=3?1:cur+
 // been used once. Back-to-back rematches cost extra because a streak is what
 // players actually notice.
 const REPEAT_PARTNER_WEIGHT=1,REPEAT_OPPONENT_WEIGHT=0.6,CONSECUTIVE_OPPONENT_WEIGHT=3;
+const SKILL_COMPLEMENT_WEIGHT=0.1,SKILL_TEAM_BALANCE_WEIGHT=0.1,SKILL_SINGLES_WEIGHT=0.1;
 function pairKey(a,b){return a<b?`${a}|${b}`:`${b}|${a}`;}
 function createPairHistory(){return {partners:new Map(),opponents:new Map(),lastOpponents:new Set()};}
 function courtPairs(ct){
@@ -1607,7 +1608,7 @@ function greedyMatch(items,costFn){
 // paint itself into a corner and force an avoidable violation just from bad
 // luck in candidate order.
 function matchPartnersRespectingConflicts(activePl,hist){
-  const partnerCost=(a,b)=>{const n=hist.partners.get(pairKey(a,b))||0;return n*n*REPEAT_PARTNER_WEIGHT;};
+  const partnerCost=(a,b)=>{const n=hist.partners.get(pairKey(a,b))||0;return n*n*REPEAT_PARTNER_WEIGHT-SKILL_COMPLEMENT_WEIGHT*Math.pow(getSkill(a)-getSkill(b),2);};
   const cliqueActive=activePl.filter(p=>conflictGroup.has(p));
   if(cliqueActive.length<2)return greedyMatch(activePl,partnerCost);
   const cliqueSet=new Set(cliqueActive);
@@ -1645,10 +1646,16 @@ function buildRoundCourts(activePl,layout,hist){
     if(hist.lastOpponents.has(k))c+=CONSECUTIVE_OPPONENT_WEIGHT;
     return c;
   };
+  const singlesOpponentCost=(a,b)=>opponentCost(a,b)+SKILL_SINGLES_WEIGHT*Math.pow(getSkill(a)-getSkill(b),2);
   const partnerPairs=matchPartnersRespectingConflicts(doublesPl,hist);
-  const courtPairCost=(pairA,pairB)=>{let c=0;pairA.forEach(p=>pairB.forEach(q=>{c+=opponentCost(p,q);}));return c;};
+  const courtPairCost=(pairA,pairB)=>{
+    let c=0;pairA.forEach(p=>pairB.forEach(q=>{c+=opponentCost(p,q);}));
+    const skillSum=pair=>pair.reduce((s,p)=>s+getSkill(p),0);
+    c+=SKILL_TEAM_BALANCE_WEIGHT*Math.pow(skillSum(pairA)-skillSum(pairB),2);
+    return c;
+  };
   const doublesCourts=greedyMatch(partnerPairs,courtPairCost).map(([a,b])=>({a,b,singles:false}));
-  const singlesCourts=greedyMatch(singlesPl,opponentCost).map(([a,b])=>({a:[a],b:[b],singles:true}));
+  const singlesCourts=greedyMatch(singlesPl,singlesOpponentCost).map(([a,b])=>({a:[a],b:[b],singles:true}));
   return [...doublesCourts,...singlesCourts];
 }
 function generateRounds(count,roster){
