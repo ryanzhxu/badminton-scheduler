@@ -55,6 +55,10 @@ textarea:focus{outline:none;border-color:#128BA6;box-shadow:0 0 0 3px rgba(18,13
 .chip-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:28px}
 .pchip{display:inline-flex;align-items:center;gap:3px;padding:4px 9px 4px 11px;border-radius:4px;font-size:12px;font-weight:500;background:var(--nav);border:1px solid #B4E1C1;color:var(--ph);line-height:1.4}
 .pchip .rm{cursor:pointer;color:#316E68;font-size:14px;padding-left:4px;line-height:1;opacity:0.75}
+.skill-btn{cursor:pointer;border:none;background:var(--ph);color:#fff;font-size:10px;font-weight:700;line-height:1;padding:2px 6px;border-radius:8px;margin-left:2px}
+.skill-btn.s1{background:#8FA6A0}
+.skill-btn.s2{background:var(--ph)}
+.skill-btn.s3{background:var(--ia)}
 .pchip .rm:hover{color:var(--er);opacity:1}
 .add-row{display:flex;gap:8px;margin-bottom:6px}
 .add-row input{flex:1}
@@ -503,7 +507,7 @@ body.dark-mode .sep-tx{color:#4A8070}
 // patch for fixes, minor for new features, major for breaking schedule/API changes.
 const APP_VERSION='1.16.0';
 const BASE_ROUNDS=15,EXTEND_ROUNDS=5;
-let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0;
+let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0,playerSkills={};
 // Names injected by the demo helpers, so a session that includes any of them can be
 // flagged to the backend and kept out of the cross-session leaderboard/registry.
 let demoPlayers=new Set();
@@ -840,6 +844,7 @@ function applyScheduleSnapshot(sch,{preserveRound=false}={}){
   const previousRound=currentRound;
   editingRound=null;editSelectedSlot=null;editHasUnsyncedSwap=false;
   rawPlayers=(sch.players||[]).map(p=>typeof p==='string'?p:p.name).filter(Boolean);
+  playerSkills=sch.playerSkills&&typeof sch.playerSkills==='object'?{...sch.playerSkills}:Object.fromEntries((sch.players||[]).filter(p=>p&&typeof p==='object'&&p.name&&p.skill).map(p=>[p.name,p.skill]));
   conflictGroup=new Set(Array.isArray(sch.conflictGroup)?sch.conflictGroup:[]);
   schedule=Array.isArray(sch.rounds)?sch.rounds:[];
   currentLayout=sch.layout||null;
@@ -1175,8 +1180,8 @@ function addOne(){
   const norm=raw.split(/\s+/).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(' ');
   if(!rawPlayers.includes(norm)){rawPlayers.push(norm);renderAll();}inp.value='';
 }
-function removePlayer(i){const r=rawPlayers[i];rawPlayers.splice(i,1);conflictGroup.delete(r);demoPlayers.delete(r);renderAll();}
-function clearAllPlayers(){rawPlayers=[];conflictGroup=new Set();demoPlayers=new Set();renderAll();}
+function removePlayer(i){const r=rawPlayers[i];rawPlayers.splice(i,1);conflictGroup.delete(r);demoPlayers.delete(r);delete playerSkills[r];renderAll();}
+function clearAllPlayers(){rawPlayers=[];conflictGroup=new Set();demoPlayers=new Set();playerSkills={};renderAll();}
 function renderAll(){syncPlayerCountries();syncAttendance();renderPlayers();renderConflictPicker();updateHint();renderCheckIn();}
 function syncAttendance(){
   const next={};
@@ -1488,7 +1493,8 @@ async function syncShareQr(){
       body:JSON.stringify({
 
         numCourts:currentNc,
-        players:rawPlayers,
+        players:rawPlayers.map(name=>({name,skill:getSkill(name)})),
+        playerSkills:{...playerSkills},
         conflictGroup:[...conflictGroup],
         layout:currentLayout,
         rounds:schedule,
@@ -1510,7 +1516,7 @@ async function syncShareQr(){
 }
 function renderPlayers(){
   const dn=computeDisplayNames(rawPlayers);
-  document.getElementById('player-grid').innerHTML=rawPlayers.map((r,i)=>{return `<span class="pchip">${escapeHtml(dn[r])}<span class="rm" onclick="removePlayer(${i})">×</span></span>`;}).join('');
+  document.getElementById('player-grid').innerHTML=rawPlayers.map((r,i)=>{const skillBtn=IS_COURTLY?'':`<button type="button" class="skill-btn s${getSkill(r)}" title="${t('skillTierLabel')}" onclick="cycleSkill('${r.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">${getSkill(r)}</button>`;return `<span class="pchip">${escapeHtml(dn[r])}${skillBtn}<span class="rm" onclick="removePlayer(${i})">×</span></span>`;}).join('');
   document.getElementById('clear-all-btn').style.display=rawPlayers.length>0?'inline-flex':'none';
 }
 function updateHint(){
@@ -1538,6 +1544,8 @@ function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.fl
 function conflictPair(a,b){const act=[...conflictGroup].filter(r=>rawPlayers.includes(r));return act.length>=2&&conflictGroup.has(a)&&conflictGroup.has(b);}
 function teamOk(t){for(let i=0;i<t.length;i++)for(let j=i+1;j<t.length;j++)if(conflictPair(t[i],t[j]))return false;return true;}
 function teamKey(t){return [...t].sort().join('|');}
+function getSkill(name){const v=playerSkills[name];return v===1||v===2||v===3?v:2;}
+function cycleSkill(raw){const cur=getSkill(raw);playerSkills[raw]=cur>=3?1:cur+1;renderPlayers();}
 // Repeat costs are squared in how many times a pair has already met, so the search
 // keeps spreading pairings out instead of going blind once every combination has
 // been used once. Back-to-back rematches cost extra because a streak is what
