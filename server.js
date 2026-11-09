@@ -232,6 +232,13 @@ function teamOk(t, conflictGroup) {
 const REPEAT_PARTNER_WEIGHT = 1;
 const REPEAT_OPPONENT_WEIGHT = 0.6;
 const CONSECUTIVE_OPPONENT_WEIGHT = 3;
+const SKILL_COMPLEMENT_WEIGHT = 0.1;
+const SKILL_TEAM_BALANCE_WEIGHT = 0.1;
+const SKILL_SINGLES_WEIGHT = 0.1;
+function getSkill(playerSkills, name) {
+  const v = playerSkills ? playerSkills[name] : undefined;
+  return v === 1 || v === 2 || v === 3 ? v : 2;
+}
 function pairKey(a, b) {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
@@ -321,10 +328,10 @@ function greedyMatch(items, costFn) {
 // whenever a valid pairing exists -- a plain greedy pass over everyone can
 // paint itself into a corner and force an avoidable violation just from bad
 // luck in candidate order.
-function matchPartnersRespectingConflicts(activePl, hist, conflictGroup) {
+function matchPartnersRespectingConflicts(activePl, hist, conflictGroup, playerSkills) {
   const partnerCost = (a, b) => {
     const n = hist.partners.get(pairKey(a, b)) || 0;
-    return n * n * REPEAT_PARTNER_WEIGHT;
+    return n * n * REPEAT_PARTNER_WEIGHT - SKILL_COMPLEMENT_WEIGHT * Math.pow(getSkill(playerSkills, a) - getSkill(playerSkills, b), 2);
   };
   const cliqueActive = activePl.filter(p => conflictGroup.includes(p));
   if (cliqueActive.length < 2) return greedyMatch(activePl, partnerCost);
@@ -360,7 +367,7 @@ function matchPartnersRespectingConflicts(activePl, hist, conflictGroup) {
 // then matches those partner-pairs against each other -- and matches singles
 // opponents directly -- to minimize repeated opponents, with an extra penalty
 // for an immediate rematch.
-function buildRoundCourts(activePl, layout, hist, conflictGroup) {
+function buildRoundCourts(activePl, layout, hist, conflictGroup, playerSkills) {
   const shuffled = shuffle(activePl);
   const singlesCount = layout.singles * 2;
   const singlesPl = shuffled.slice(0, singlesCount);
@@ -372,18 +379,21 @@ function buildRoundCourts(activePl, layout, hist, conflictGroup) {
     if (hist.lastOpponents.has(k)) c += CONSECUTIVE_OPPONENT_WEIGHT;
     return c;
   };
-  const partnerPairs = matchPartnersRespectingConflicts(doublesPl, hist, conflictGroup);
+  const singlesOpponentCost = (a, b) => opponentCost(a, b) + SKILL_SINGLES_WEIGHT * Math.pow(getSkill(playerSkills, a) - getSkill(playerSkills, b), 2);
+  const partnerPairs = matchPartnersRespectingConflicts(doublesPl, hist, conflictGroup, playerSkills);
   const courtPairCost = (pairA, pairB) => {
     let c = 0;
     pairA.forEach(p => pairB.forEach(q => { c += opponentCost(p, q); }));
+    const skillSum = (pair) => pair.reduce((s, p) => s + getSkill(playerSkills, p), 0);
+    c += SKILL_TEAM_BALANCE_WEIGHT * Math.pow(skillSum(pairA) - skillSum(pairB), 2);
     return c;
   };
   const doublesCourts = greedyMatch(partnerPairs, courtPairCost).map(([a, b]) => ({ a, b, singles: false }));
-  const singlesCourts = greedyMatch(singlesPl, opponentCost).map(([a, b]) => ({ a: [a], b: [b], singles: true }));
+  const singlesCourts = greedyMatch(singlesPl, singlesOpponentCost).map(([a, b]) => ({ a: [a], b: [b], singles: true }));
   return [...doublesCourts, ...singlesCourts];
 }
 
-function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, history = null) {
+function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, history = null, playerSkills = null) {
   if (sitC === null) {
     sitC = {};
     rawPlayers.forEach(p => (sitC[p] = 0));
@@ -397,7 +407,7 @@ function generateRounds(rawPlayers, layout, conflictGroup, count, sitC = null, h
     const subs = sorted.slice(0, layout.subs);
     subs.forEach(p => sitC[p]++);
     const activePl = rawPlayers.filter(p => !subs.includes(p));
-    const courts = buildRoundCourts(activePl, layout, history, conflictGroup);
+    const courts = buildRoundCourts(activePl, layout, history, conflictGroup, playerSkills);
     recordRound(history, courts);
     rounds.push({ subs, courts });
   }
@@ -419,8 +429,16 @@ app.post('/api/schedule', async (req, res) => {
       return res.status(400).json({ error: 'Cannot create valid layout' });
     }
 
+    const incomingSkills = {};
+    players.forEach(p => {
+      if (p && typeof p === 'object' && p.name && (p.skill === 1 || p.skill === 2 || p.skill === 3)) {
+        incomingSkills[p.name] = p.skill;
+      }
+    });
+    const playerSkills = Object.keys(incomingSkills).length ? incomingSkills : null;
+
     const scheduleCode = generateScheduleCode();
-    const roundData = Array.isArray(rounds) ? rounds : generateRounds(playerNames, computedLayout, conflictGroup || [], 15);
+    const roundData = Array.isArray(rounds) ? rounds : generateRounds(playerNames, computedLayout, conflictGroup || [], 15, null, null, playerSkills);
     const shareUrl = buildShareUrl(shareBaseUrl || req.get('origin'), scheduleCode);
 
     const qrDataUrl = await QRCode.toDataURL(shareUrl);
@@ -433,7 +451,8 @@ app.post('/api/schedule', async (req, res) => {
       numCourts,
       conflictGroup: Array.isArray(conflictGroup) ? conflictGroup : [],
       layout: computedLayout,
-      shareUrl
+      shareUrl,
+      playerSkills
     };
 
     touchSchedule(schedule);
@@ -568,7 +587,7 @@ app.post('/api/schedule/:code/extend', (req, res) => {
       recordRound(history, rnd.courts);
     });
 
-    const newRounds = generateRounds(schedule.players, schedule.layout, schedule.conflictGroup, count, sitC, history);
+    const newRounds = generateRounds(schedule.players, schedule.layout, schedule.conflictGroup, count, sitC, history, schedule.playerSkills || null);
     schedule.rounds = [...existingRounds, ...newRounds];
     touchSchedule(schedule);
     saveData(data);
