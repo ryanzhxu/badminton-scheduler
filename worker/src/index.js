@@ -14,6 +14,11 @@ const PLAYER_REGISTRY_KEY = 'players:registry';
 const PLAYER_ALIASES_KEY = 'players:aliases';
 const SCHEDULE_INDEX_KEY = 'schedules:index';
 const DINNER_RESTAURANTS_KEY = 'dinner:restaurants';
+// Web-geocoded during design from the venue's address (110-13100 Mitchell Rd,
+// Richmond, BC V6V 1M8) -- sanity-check against SerpApi's own response the
+// first time this is exercised with a real key.
+const BADMINTON_VANCOUVER_COORDS = { lat: 49.2046, lng: -123.0795 };
+const SERPAPI_BASE_URL = 'https://serpapi.com/search.json';
 
 // Courtly's config (worker/wrangler.courtly.toml) sets SCHEDULE_TTL_SECONDS so
 // public schedules self-expire; Trulioo's worker/wrangler.toml does not set it.
@@ -725,6 +730,105 @@ async function loadDinnerRestaurants(env) {
 }
 async function saveDinnerRestaurants(env, list) {
   await putJson(env.SCHEDULES, DINNER_RESTAURANTS_KEY, list);
+}
+
+// NOTE: the exact SerpApi request/response shape below is a best-effort
+// starting point from documentation, not verified against a live key --
+// per the design doc, this needs a real SERPAPI_KEY to confirm/fix.
+async function serpApiMapsSearch(env, query) {
+  const url = `${SERPAPI_BASE_URL}?engine=google_maps&type=search&q=${encodeURIComponent(query)}&ll=@${BADMINTON_VANCOUVER_COORDS.lat},${BADMINTON_VANCOUVER_COORDS.lng},14z&api_key=${env.SERPAPI_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`SerpApi Maps search failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+async function serpApiDirections(env, destLat, destLng) {
+  const origin = `${BADMINTON_VANCOUVER_COORDS.lat},${BADMINTON_VANCOUVER_COORDS.lng}`;
+  const destination = `${destLat},${destLng}`;
+  const url = `${SERPAPI_BASE_URL}?engine=google_maps_directions&start_addr=${encodeURIComponent(origin)}&end_addr=${encodeURIComponent(destination)}&travel_mode=0&api_key=${env.SERPAPI_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`SerpApi Directions failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+// A direct name query can resolve to a single `place_results` object or a
+// `local_results` list, depending on how unambiguous the name is.
+function parseMapsSearchResult(json) {
+  const place = json?.place_results || (Array.isArray(json?.local_results) ? json.local_results[0] : null);
+  if (!place) return null;
+  const coords = place.gps_coordinates || {};
+  if (!place.data_id || !place.title || coords.latitude == null || coords.longitude == null) return null;
+  const cuisine = Array.isArray(place.type) ? place.type[0] : (place.type || (Array.isArray(place.types) ? place.types[0] : ''));
+  return {
+    id: place.data_id,
+    name: place.title,
+    address: place.address || '',
+    cuisine: cuisine || '',
+    lat: coords.latitude,
+    lng: coords.longitude,
+  };
+}
+
+function parseDirectionsResult(json) {
+  const route = Array.isArray(json?.directions) ? json.directions[0] : (Array.isArray(json?.routes) ? json.routes[0] : null);
+  if (!route) return null;
+  const distanceMeters = typeof route.distance === 'number' ? route.distance : (typeof route.distance?.value === 'number' ? route.distance.value : null);
+  const durationSeconds = typeof route.duration === 'number' ? route.duration : (typeof route.duration?.value === 'number' ? route.duration.value : null);
+  if (distanceMeters == null || durationSeconds == null) return null;
+  return { distanceMeters, driveMinutes: Math.round(durationSeconds / 60) };
+}
+
+async function handleAddDinnerRestaurant(c) {
+  if (isPublicMode(c.env)) return c.json({ error: 'Not available' }, 404);
+  const body = await c.req.json();
+  const { name, alreadyBeenHere } = body ?? {};
+  if (!name || typeof name !== 'string') return c.json({ error: 'Missing name' }, 400);
+
+  const searchResult = await serpApiMapsSearch(c.env, name);
+  const place = parseMapsSearchResult(searchResult);
+  if (!place) return c.json({ error: 'Could not find that restaurant' }, 400);
+
+  const dirResult = await serpApiDirections(c.env, place.lat, place.lng);
+  const direction = parseDirectionsResult(dirResult);
+  if (!direction) return c.json({ error: 'Could not determine drive time' }, 400);
+  const { distanceMeters, driveMinutes } = direction;
+  if (driveMinutes > 20) return c.json({ error: 'Too far — over a 20-minute drive' }, 400);
+
+  const list = await loadDinnerRestaurants(c.env);
+  const existingIdx = list.findIndex((r) => r.id === place.id);
+  const entry = {
+    id: place.id,
+    name: place.name,
+    address: place.address,
+    cuisine: place.cuisine,
+    distanceMeters,
+    driveMinutes,
+    visited: !!alreadyBeenHere,
+  };
+  if (existingIdx >= 0) {
+    list[existingIdx] = { ...list[existingIdx], visited: list[existingIdx].visited || !!alreadyBeenHere };
+  } else {
+    list.push(entry);
+  }
+  await saveDinnerRestaurants(c.env, list);
+  return c.json({ restaurant: existingIdx >= 0 ? list[existingIdx] : entry });
+}
+
+async function handleListDinnerRestaurants(c) {
+  if (isPublicMode(c.env)) return c.json({ error: 'Not available' }, 404);
+  const list = await loadDinnerRestaurants(c.env);
+  return c.json({ restaurants: list.filter((r) => !r.visited) });
+}
+
+async function handleCheckOffDinnerRestaurant(c) {
+  if (isPublicMode(c.env)) return c.json({ error: 'Not available' }, 404);
+  const id = c.req.param('id');
+  const list = await loadDinnerRestaurants(c.env);
+  const idx = list.findIndex((r) => r.id === id);
+  if (idx < 0) return c.json({ error: 'Restaurant not found' }, 404);
+  list[idx] = { ...list[idx], visited: true };
+  await saveDinnerRestaurants(c.env, list);
+  return c.json({ restaurant: list[idx] });
 }
 
 async function createQrDataUrl(text) {
@@ -1668,6 +1772,9 @@ function createWorkerApp() {
   app.get('/api/player/:name', handlePlayer);
   app.post('/api/watch/current', handleSetWatchPointer);
   app.get('/w/:code', handleWatchView);
+  app.get('/api/dinner/restaurants', handleListDinnerRestaurants);
+  app.post('/api/dinner/restaurants', handleAddDinnerRestaurant);
+  app.post('/api/dinner/restaurants/:id/visit', handleCheckOffDinnerRestaurant);
   return app;
 }
 
