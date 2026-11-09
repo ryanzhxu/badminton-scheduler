@@ -518,7 +518,7 @@ body.dark-mode .sep-tx{color:#4A8070}
 <script>
 // Bump alongside package.json/worker/package.json on every meaningful change:
 // patch for fixes, minor for new features, major for breaking schedule/API changes.
-const APP_VERSION='1.16.0';
+const APP_VERSION='1.17.0';
 const BASE_ROUNDS=15,EXTEND_ROUNDS=5;
 let rawPlayers=[],conflictGroup=new Set(),schedule=[],currentRound=0,playerSkills={};
 // Names injected by the demo helpers, so a session that includes any of them can be
@@ -863,7 +863,7 @@ function applyScheduleSnapshot(sch,{preserveRound=false}={}){
   const previousRound=currentRound;
   editingRound=null;editSelectedSlot=null;editHasUnsyncedSwap=false;
   rawPlayers=(sch.players||[]).map(p=>typeof p==='string'?p:p.name).filter(Boolean);
-  playerSkills=sch.playerSkills&&typeof sch.playerSkills==='object'?{...sch.playerSkills}:Object.fromEntries((sch.players||[]).filter(p=>p&&typeof p==='object'&&p.name&&p.skill).map(p=>[p.name,p.skill]));
+  playerSkills=sch.playerSkills&&typeof sch.playerSkills==='object'?{...sch.playerSkills}:{};
   conflictGroup=new Set(Array.isArray(sch.conflictGroup)?sch.conflictGroup:[]);
   schedule=Array.isArray(sch.rounds)?sch.rounds:[];
   currentLayout=sch.layout||null;

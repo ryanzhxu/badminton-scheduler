@@ -234,6 +234,37 @@ for (const impl of implementations) {
       // and harmless to keep (it would bind if getLayout ever allowed a larger
       // singles overflow), but there is nothing here to regression-test today.
 
+      test('variety invariants still hold on a skill-skewed roster', () => {
+        // The skill-complementary reward can be more negative than the
+        // repeat-partner cost for a same-skill pair's first couple of
+        // meetings (reward up to -1*2^2=-4 vs. a first/second repeat's
+        // +1*1=1 or +1*4=4), so a skill-skewed roster is exactly the case
+        // where raising the skill weights could erode partner/opponent
+        // variety without any other test noticing -- this pins the same
+        // MAX_OPPONENT_STREAK/MAX_PARTNER_REPEATS bounds used above to that
+        // scenario.
+        for (const seed of seeds) {
+          const { rounds } = impl.generate({
+            players: SKILL_ROSTER_12,
+            numCourts: 3,
+            rounds: 15,
+            seed,
+            playerSkills: SKEWED_SKILLS_12,
+          });
+          const a = analyze(rounds, SKILL_ROSTER_12);
+          assert.ok(
+            a.maxConsecutiveOpponentStreak <= MAX_OPPONENT_STREAK,
+            `seed ${seed}: skill-skewed roster hit a ${a.maxConsecutiveOpponentStreak}-round ` +
+              `consecutive opponent streak (limit ${MAX_OPPONENT_STREAK})`,
+          );
+          assert.ok(
+            a.maxPartnerRepeats <= MAX_PARTNER_REPEATS,
+            `seed ${seed}: skill-skewed roster partnered a pair ${a.maxPartnerRepeats} times ` +
+              `(limit ${MAX_PARTNER_REPEATS})`,
+          );
+        }
+      });
+
       test('conflicts still outrank skill complementarity', () => {
         // S1 and S7 are each other's only maximally-complementary match (skill
         // 1 vs 3) in this roster, which is exactly the pairing the new partner

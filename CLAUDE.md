@@ -23,6 +23,7 @@ One codebase serves two deployments, chosen by hostname (`COURTLY_HOSTS` / `IS_C
 | Country labels (`showCountryLabels`) | yes | **never** — the data is real colleague PII |
 | Multi-sport (`multiSport`) | no, badminton only | yes |
 | Skill-based balancing (`showSkillBalancing`) | yes | no — enforced server-side via `isPublicMode`, not just UI absence |
+| Dinner finder (`showDinnerFinder`) | yes | no — 404 server-side via `isPublicMode`, not just UI absence |
 
 The chosen sport is sent by the client and stored server-side on the schedule itself (whitelisted values, not free text, since it renders into the watch view and link-preview cards). Reusing a schedule code without sending the field keeps whatever sport it already had, so an edit can't silently erase it. Schedules generated before this field existed have no sport and fall back to "Rotation".
 
@@ -189,6 +190,9 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 - `GET /api/sessions` — (Worker only) List schedule-index entries (date, code, player count), newest first — backs the Leaderboard tab's "Sessions" drill-down view
 - `GET /api/player/:name` — (Worker only) One canonical player's cross-session stats: sessions, games, sits, ranked partners/opponents, and `neverPartnered` (everyone they haven't been teamed with yet) — backs the Leaderboard tab's per-player drill-down view
 - `POST /api/watch/current` — (Worker only) Pin a schedule code to the permanent `/w/current` watch pointer ("Share to watch"); deliberately separate from the `current_schedule` key so the watch link doesn't follow in-progress generate/extend/edit activity. See "Multi-tenant group scoping" below for how `group` applies here.
+- `GET /api/dinner/restaurants` — (Worker only, Trulioo only — 404 under `isPublicMode`) List not-yet-visited restaurants near Badminton Vancouver, backing the Dinner tab
+- `POST /api/dinner/restaurants` — (Worker only, Trulioo only) `{ name, alreadyBeenHere }` — resolves the name via a SerpApi Maps lookup, rejects (400) if unresolvable or more than a 20-minute drive away, stores/updates the entry
+- `POST /api/dinner/restaurants/:id/visit` — (Worker only, Trulioo only) Mark a restaurant visited; 404 if the id isn't found
 - `GET /health`, `GET /api/health` — Health check (uptime monitoring)
 - `GET /w/:code` — (Worker only) Watch view. Server-rendered, no JS, sized for a ~184px Apple Watch screen. `?r=N` picks a round (clamped); `?p=Name` gives one player their whole night, one line per round, matched case-insensitively against the roster and falling back to the round view if the name is not on it; `?fmt=txt` returns plain text for the watch Shortcuts app. Accepts the `current` pseudo-code under the same rule as `handleGetSchedule` — resolved on Trulioo, 404 on Courtly, where `saveCurrentSchedule` never writes the key. Deliberately absent from the SPA, so it is allowlisted in `UNCALLED_BY_SPA` in `tests/api-contract.test.js`.
 
@@ -220,6 +224,32 @@ The Courtly deployment is a public, multi-tenant surface: any group of players c
 - `handleGenerateSchedule` writes `group` onto the schedule-index entry only in public mode (`isPublicMode(env)`); Trulioo entries never carry the field.
 - `GET /api/data` returns an empty player list in public mode rather than the namespace-global `profiles.players` registry, for the same leak-prevention reason.
 - The watch pointer (`POST /api/watch/current`) is keyed per group in public mode (`watch:current:<group>`) instead of the single namespace-wide `watch:current` key Trulioo uses; a public-mode request with no group is refused (400) rather than silently falling back to a shared key.
+
+## Dinner Finder (Worker only, Trulioo only)
+
+A standing, shared list of restaurants near Badminton Vancouver (110-13100
+Mitchell Rd, Richmond) the group hasn't tried yet, surfaced on a "Dinner" tab
+(`BRAND.showDinnerFinder`) so there's no post-game scramble to find somewhere
+open and new.
+
+- `DINNER_RESTAURANTS_KEY` (`dinner:restaurants` in KV) holds the full list as
+  `{ id, name, address, cuisine, distanceMeters, driveMinutes, visited }`
+  entries — one flat array, no per-schedule scoping, since it's one list for
+  the whole group regardless of which week's schedule is active.
+- Adding a restaurant (`POST /api/dinner/restaurants`) is the only place a
+  SerpApi call happens — a Maps-engine search resolves the name to an address/
+  cuisine/coordinates, then a Directions-engine call gets drive time from the
+  venue; anything over a 20-minute drive is rejected (400), never stored. The
+  Dinner tab itself (`GET /api/dinner/restaurants`) just renders whatever's
+  already in KV — no live query on view.
+- Re-adding a restaurant already in the list (matched by SerpApi's place id)
+  updates its `visited` flag instead of creating a duplicate row.
+- `POST /api/dinner/restaurants/:id/visit` flips an entry to visited; visited
+  entries drop off the active list permanently (no undo endpoint).
+- All three endpoints 404 under `isPublicMode(env)` — Courtly never gets this
+  data, same enforcement pattern as the Leaderboard/group-scoping above.
+- The SerpApi key is a Worker secret (`SERPAPI_KEY`, set via `wrangler secret
+  put`), never in `wrangler.toml` and never sent to the client.
 
 ## Frontend Behavior
 
