@@ -24,6 +24,10 @@ const REQUIRED_NAMES = [
   'REPEAT_PARTNER_WEIGHT',
   'REPEAT_OPPONENT_WEIGHT',
   'CONSECUTIVE_OPPONENT_WEIGHT',
+  'SKILL_COMPLEMENT_WEIGHT',
+  'SKILL_TEAM_BALANCE_WEIGHT',
+  'SKILL_SINGLES_WEIGHT',
+  'getSkill',
   'shuffle',
   'teamKey',
   'conflictPair',
@@ -135,6 +139,7 @@ var conflictGroup = new Set();
 var sitC = {};
 var currentLayout = null;
 var pairHistory = null;
+var playerSkills = {};
 function playingRoster() { return rawPlayers.slice(); }
 `;
   const context = vm.createContext({ Math, Set, Map, Object, Array, JSON, console });
@@ -178,8 +183,9 @@ function makeImplementation({ name, source }) {
      * @param {number} [opts.seed] PRNG seed; same seed gives the same schedule
      * @param {object} [opts.history] pre-seeded pair history (extension path)
      * @param {object} [opts.sitCounts] pre-seeded sit-out counts (extension path)
+     * @param {object} [opts.playerSkills] per-player skill tier map (1/2/3)
      */
-    generate({ players, numCourts, rounds, conflicts = [], seed = 1, history = null, sitCounts = null }) {
+    generate({ players, numCourts, rounds, conflicts = [], seed = 1, history = null, sitCounts = null, playerSkills = null }) {
       context.Math = Object.create(Math);
       context.Math.random = mulberry32(seed);
 
@@ -192,6 +198,7 @@ function makeImplementation({ name, source }) {
         context.sitC = sitCounts || Object.fromEntries(players.map((p) => [p, 0]));
         context.currentLayout = layout;
         context.pairHistory = history || call('createPairHistory', []);
+        context.playerSkills = playerSkills || {};
         return { rounds: plain(call('generateRounds', [rounds, players.slice()])), layout };
       }
 
@@ -204,6 +211,7 @@ function makeImplementation({ name, source }) {
             rounds,
             sitCounts || Object.fromEntries(players.map((p) => [p, 0])),
             history || call('createPairHistory', []),
+            playerSkills || {},
           ]),
         ),
         layout,

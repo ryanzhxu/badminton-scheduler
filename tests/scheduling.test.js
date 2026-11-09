@@ -17,6 +17,8 @@ const {
   analyze,
   everyRoundIsWellFormed,
   conflictViolations,
+  doublesPartnerSkillDiffs,
+  doublesTeamSkillSumDiffs,
 } = require('./helpers/analyze.js');
 
 const implementations = loadImplementations();
@@ -42,6 +44,23 @@ const REPORTED_SESSION = {
   numCourts: 3,
   rounds: 15,
 };
+
+// A roster split evenly into Beginners (1) and Advanced (3), with nobody at
+// the neutral default (2), so every doubles/singles cost term below has a
+// skill gap to actually respond to.
+const SKILL_ROSTER_12 = filler(12, 'S');
+const SKEWED_SKILLS_12 = Object.fromEntries(SKILL_ROSTER_12.map((p, i) => [p, i < 6 ? 1 : 3]));
+// Thresholds below are measured against SKILL_COMPLEMENT_WEIGHT /
+// SKILL_TEAM_BALANCE_WEIGHT / SKILL_SINGLES_WEIGHT. A weight of 0.1 (this
+// feature's first-draft value, matching the old removed feature's precedent)
+// measured only ~63% crossing against this roster -- too weak to reliably
+// beat the REPEAT_PARTNER_WEIGHT=1/REPEAT_OPPONENT_WEIGHT=0.6 costs it
+// competes against, so all three skill weights were raised to 1 (same scale
+// as REPEAT_PARTNER_WEIGHT). At weight 1, this 6-Beginner/6-Advanced roster
+// measures ~92.2% doubles-partner crossing and ~0.24 average team-skill-sum
+// diff across all 12 seeds -- both with comfortable margin below.
+const MIN_COMPLEMENTARY_PARTNER_FRACTION = 0.85;
+const MAX_AVG_TEAM_SKILL_SUM_DIFF = 0.6;
 
 for (const impl of implementations) {
   describe(impl.name, () => {
@@ -159,6 +178,81 @@ for (const impl of implementations) {
             `(limit ${MAX_OPPONENT_MEETINGS})`,
         );
       }
+    });
+
+    describe('skill balancing', () => {
+      test('pairs complementary-skill partners more than chance', () => {
+        let crossing = 0;
+        let total = 0;
+        for (const seed of seeds) {
+          const { rounds } = impl.generate({
+            players: SKILL_ROSTER_12,
+            numCourts: 3,
+            rounds: 15,
+            seed,
+            playerSkills: SKEWED_SKILLS_12,
+          });
+          const diffs = doublesPartnerSkillDiffs(rounds, SKEWED_SKILLS_12);
+          crossing += diffs.filter((d) => d > 0).length;
+          total += diffs.length;
+        }
+        const fraction = crossing / total;
+        assert.ok(
+          fraction >= MIN_COMPLEMENTARY_PARTNER_FRACTION,
+          `only ${(fraction * 100).toFixed(1)}% of doubles partnerships crossed the skill split ` +
+            `(limit ${MIN_COMPLEMENTARY_PARTNER_FRACTION * 100}%)`,
+        );
+      });
+
+      test('keeps doubles teams closer in combined skill than unweighted', () => {
+        const diffs = [];
+        for (const seed of seeds) {
+          const { rounds } = impl.generate({
+            players: SKILL_ROSTER_12,
+            numCourts: 3,
+            rounds: 15,
+            seed,
+            playerSkills: SKEWED_SKILLS_12,
+          });
+          diffs.push(...doublesTeamSkillSumDiffs(rounds, SKEWED_SKILLS_12));
+        }
+        const avg = diffs.reduce((s, d) => s + d, 0) / diffs.length;
+        assert.ok(
+          avg <= MAX_AVG_TEAM_SKILL_SUM_DIFF,
+          `average doubles team skill-sum diff was ${avg.toFixed(2)} (limit ${MAX_AVG_TEAM_SKILL_SUM_DIFF})`,
+        );
+      });
+
+      // No test asserts a measurable effect from SKILL_SINGLES_WEIGHT: getLayout
+      // never produces more than one singles court per round (confirmed by
+      // scanning every n from 2-30 against nc from 1-6), so the singles pool
+      // handed to greedyMatch is always exactly 2 players. With only one
+      // possible pairing, there is no choice for the cost term to influence --
+      // singlesOpponentSkillDiffs (tests/helpers/analyze.js) measures ~1.14
+      // average diff regardless of the weight, which is just this 5-Beginner/
+      // 5-Advanced roster's random baseline. The cost term is still correct
+      // and harmless to keep (it would bind if getLayout ever allowed a larger
+      // singles overflow), but there is nothing here to regression-test today.
+
+      test('conflicts still outrank skill complementarity', () => {
+        // S1 and S7 are each other's only maximally-complementary match (skill
+        // 1 vs 3) in this roster, which is exactly the pairing the new partner
+        // cost rewards most -- so this is the case most likely to tempt a
+        // conflict violation if skill ever outweighs the conflict guarantee.
+        const conflicts = ['S1', 'S7'];
+        for (const seed of seeds) {
+          const { rounds } = impl.generate({
+            players: SKILL_ROSTER_12,
+            numCourts: 3,
+            rounds: 15,
+            seed,
+            conflicts,
+            playerSkills: SKEWED_SKILLS_12,
+          });
+          const violations = conflictViolations(rounds, conflicts);
+          assert.deepEqual(violations, [], `seed ${seed}: conflicted players ended up as teammates`);
+        }
+      });
     });
   });
 }

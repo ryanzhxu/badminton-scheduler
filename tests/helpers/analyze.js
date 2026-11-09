@@ -106,6 +106,54 @@ function conflictViolations(rounds, conflicts) {
   return violations;
 }
 
+function getSkillFor(playerSkills, name) {
+  const v = playerSkills ? playerSkills[name] : undefined;
+  return v === 1 || v === 2 || v === 3 ? v : 2;
+}
+
+// |skillA - skillB| for every doubles partner pair across all rounds.
+function doublesPartnerSkillDiffs(rounds, playerSkills) {
+  const diffs = [];
+  rounds.forEach((rnd) => {
+    (rnd.courts || []).forEach((ct) => {
+      if (ct.singles) return;
+      [ct.a, ct.b].forEach((team) => {
+        for (let i = 0; i < team.length; i++) {
+          for (let j = i + 1; j < team.length; j++) {
+            diffs.push(Math.abs(getSkillFor(playerSkills, team[i]) - getSkillFor(playerSkills, team[j])));
+          }
+        }
+      });
+    });
+  });
+  return diffs;
+}
+
+// |teamASkillSum - teamBSkillSum| for every doubles court across all rounds.
+function doublesTeamSkillSumDiffs(rounds, playerSkills) {
+  const diffs = [];
+  rounds.forEach((rnd) => {
+    (rnd.courts || []).forEach((ct) => {
+      if (ct.singles) return;
+      const sum = (team) => team.reduce((s, p) => s + getSkillFor(playerSkills, p), 0);
+      diffs.push(Math.abs(sum(ct.a) - sum(ct.b)));
+    });
+  });
+  return diffs;
+}
+
+// |skillA - skillB| for every singles court across all rounds.
+function singlesOpponentSkillDiffs(rounds, playerSkills) {
+  const diffs = [];
+  rounds.forEach((rnd) => {
+    (rnd.courts || []).forEach((ct) => {
+      if (!ct.singles) return;
+      diffs.push(Math.abs(getSkillFor(playerSkills, ct.a[0]) - getSkillFor(playerSkills, ct.b[0])));
+    });
+  });
+  return diffs;
+}
+
 module.exports = {
   analyze,
   opponentMeetings,
@@ -113,4 +161,7 @@ module.exports = {
   everyRoundIsWellFormed,
   conflictViolations,
   pairKey,
+  doublesPartnerSkillDiffs,
+  doublesTeamSkillSumDiffs,
+  singlesOpponentSkillDiffs,
 };

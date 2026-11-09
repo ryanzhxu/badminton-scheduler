@@ -1551,7 +1551,11 @@ function cycleSkill(raw){const cur=getSkill(raw);playerSkills[raw]=cur>=3?1:cur+
 // been used once. Back-to-back rematches cost extra because a streak is what
 // players actually notice.
 const REPEAT_PARTNER_WEIGHT=1,REPEAT_OPPONENT_WEIGHT=0.6,CONSECUTIVE_OPPONENT_WEIGHT=3;
-const SKILL_COMPLEMENT_WEIGHT=0.1,SKILL_TEAM_BALANCE_WEIGHT=0.1,SKILL_SINGLES_WEIGHT=0.1;
+// SKILL_SINGLES_WEIGHT currently has no observable effect: getLayout() never
+// produces more than one singles court per round, so the singles pool handed
+// to greedyMatch below is always exactly 2 players -- no pairing choice to
+// influence. Kept for correctness in case that ever changes.
+const SKILL_COMPLEMENT_WEIGHT=1,SKILL_TEAM_BALANCE_WEIGHT=1,SKILL_SINGLES_WEIGHT=1;
 function pairKey(a,b){return a<b?`${a}|${b}`:`${b}|${a}`;}
 function createPairHistory(){return {partners:new Map(),opponents:new Map(),lastOpponents:new Set()};}
 function courtPairs(ct){

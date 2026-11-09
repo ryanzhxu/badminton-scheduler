@@ -232,9 +232,13 @@ function teamOk(t, conflictGroup) {
 const REPEAT_PARTNER_WEIGHT = 1;
 const REPEAT_OPPONENT_WEIGHT = 0.6;
 const CONSECUTIVE_OPPONENT_WEIGHT = 3;
-const SKILL_COMPLEMENT_WEIGHT = 0.1;
-const SKILL_TEAM_BALANCE_WEIGHT = 0.1;
-const SKILL_SINGLES_WEIGHT = 0.1;
+const SKILL_COMPLEMENT_WEIGHT = 1;
+const SKILL_TEAM_BALANCE_WEIGHT = 1;
+// SKILL_SINGLES_WEIGHT currently has no observable effect: getLayout() never
+// produces more than one singles court per round, so the singles pool handed
+// to greedyMatch below is always exactly 2 players -- no pairing choice to
+// influence. Kept for correctness in case that ever changes.
+const SKILL_SINGLES_WEIGHT = 1;
 function getSkill(playerSkills, name) {
   const v = playerSkills ? playerSkills[name] : undefined;
   return v === 1 || v === 2 || v === 3 ? v : 2;
