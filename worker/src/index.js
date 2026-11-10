@@ -738,7 +738,10 @@ async function saveDinnerRestaurants(env, list) {
 async function serpApiMapsSearch(env, query) {
   const url = `${SERPAPI_BASE_URL}?engine=google_maps&type=search&q=${encodeURIComponent(query)}&ll=@${BADMINTON_VANCOUVER_COORDS.lat},${BADMINTON_VANCOUVER_COORDS.lng},14z&api_key=${env.SERPAPI_KEY}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`SerpApi Maps search failed: HTTP ${res.status}`);
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => '');
+    throw new Error(`SerpApi Maps search failed: HTTP ${res.status} ${bodyText.slice(0, 300)}`);
+  }
   return res.json();
 }
 
@@ -747,7 +750,10 @@ async function serpApiDirections(env, destLat, destLng) {
   const destination = `${destLat},${destLng}`;
   const url = `${SERPAPI_BASE_URL}?engine=google_maps_directions&start_addr=${encodeURIComponent(origin)}&end_addr=${encodeURIComponent(destination)}&travel_mode=0&api_key=${env.SERPAPI_KEY}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`SerpApi Directions failed: HTTP ${res.status}`);
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => '');
+    throw new Error(`SerpApi Directions failed: HTTP ${res.status} ${bodyText.slice(0, 300)}`);
+  }
   return res.json();
 }
 
