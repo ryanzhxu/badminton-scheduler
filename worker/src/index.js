@@ -823,7 +823,8 @@ async function handleAddDinnerRestaurant(c) {
 async function handleListDinnerRestaurants(c) {
   if (isPublicMode(c.env)) return c.json({ error: 'Not available' }, 404);
   const list = await loadDinnerRestaurants(c.env);
-  return c.json({ restaurants: list.filter((r) => !r.visited) });
+  const wantVisited = c.req.query('visited') === '1';
+  return c.json({ restaurants: list.filter((r) => !!r.visited === wantVisited) });
 }
 
 async function handleCheckOffDinnerRestaurant(c) {

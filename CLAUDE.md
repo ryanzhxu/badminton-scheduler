@@ -190,7 +190,7 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 - `GET /api/sessions` — (Worker only) List schedule-index entries (date, code, player count), newest first — backs the Leaderboard tab's "Sessions" drill-down view
 - `GET /api/player/:name` — (Worker only) One canonical player's cross-session stats: sessions, games, sits, ranked partners/opponents, and `neverPartnered` (everyone they haven't been teamed with yet) — backs the Leaderboard tab's per-player drill-down view
 - `POST /api/watch/current` — (Worker only) Pin a schedule code to the permanent `/w/current` watch pointer ("Share to watch"); deliberately separate from the `current_schedule` key so the watch link doesn't follow in-progress generate/extend/edit activity. See "Multi-tenant group scoping" below for how `group` applies here.
-- `GET /api/dinner/restaurants` — (Worker only, Trulioo only — 404 under `isPublicMode`) List not-yet-visited restaurants near Badminton Vancouver, backing the Dinner tab
+- `GET /api/dinner/restaurants` — (Worker only, Trulioo only — 404 under `isPublicMode`) List restaurants near Badminton Vancouver, backing the Dinner tab; `?visited=1` returns the already-been-to list instead of the default not-yet-visited one
 - `POST /api/dinner/restaurants` — (Worker only, Trulioo only) `{ name, alreadyBeenHere }` — resolves the name via a SerpApi Maps lookup, rejects (400) if unresolvable or more than a 20-minute drive away, stores/updates the entry
 - `POST /api/dinner/restaurants/:id/visit` — (Worker only, Trulioo only) Mark a restaurant visited; 404 if the id isn't found
 - `GET /health`, `GET /api/health` — Health check (uptime monitoring)
@@ -244,8 +244,17 @@ open and new.
   already in KV — no live query on view.
 - Re-adding a restaurant already in the list (matched by SerpApi's place id)
   updates its `visited` flag instead of creating a duplicate row.
-- `POST /api/dinner/restaurants/:id/visit` flips an entry to visited; visited
-  entries drop off the active list permanently (no undo endpoint).
+- `POST /api/dinner/restaurants/:id/visit` flips an entry to visited (still no
+  undo endpoint — once visited, only `?visited=1` surfaces it again, read-only).
+- The Dinner tab has two views, toggled client-side (`setDinnerView('active'
+  |'visited')`, mirroring `setLeaderboardView`'s pattern): "not yet tried"
+  (default) and "already been" (`?visited=1`) — read-only, no check-off button.
+  Both render as `.dinner-row` stacked cards, not a `.stats-tbl` table, since a
+  5-column fixed-layout table squeezes unreadably on a phone; each row links
+  out to a Google Maps search built client-side from the stored name+address
+  (`https://www.google.com/maps/search/?api=1&query=...`) — no extra SerpApi
+  field or KV schema change needed for that, since name+address were already
+  stored for every entry.
 - All three endpoints 404 under `isPublicMode(env)` — Courtly never gets this
   data, same enforcement pattern as the Leaderboard/group-scoping above.
 - The SerpApi key is a Worker secret (`SERPAPI_KEY`, set via `wrangler secret
