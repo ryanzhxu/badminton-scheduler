@@ -847,6 +847,17 @@ async function handleCheckOffDinnerRestaurant(c) {
   return c.json({ restaurant: list[idx] });
 }
 
+async function handleUnvisitDinnerRestaurant(c) {
+  if (isPublicMode(c.env)) return c.json({ error: 'Not available' }, 404);
+  const id = c.req.param('id');
+  const list = await loadDinnerRestaurants(c.env);
+  const idx = list.findIndex((r) => r.id === id);
+  if (idx < 0) return c.json({ error: 'Restaurant not found' }, 404);
+  list[idx] = { ...list[idx], visited: false };
+  await saveDinnerRestaurants(c.env, list);
+  return c.json({ restaurant: list[idx] });
+}
+
 async function createQrDataUrl(text) {
   const svg = await QRCode.toString(text, { type: 'svg' });
   return `data:image/svg+xml;base64,${toBase64(svg)}`;
@@ -1791,6 +1802,7 @@ function createWorkerApp() {
   app.get('/api/dinner/restaurants', handleListDinnerRestaurants);
   app.post('/api/dinner/restaurants', handleAddDinnerRestaurant);
   app.post('/api/dinner/restaurants/:id/visit', handleCheckOffDinnerRestaurant);
+  app.post('/api/dinner/restaurants/:id/unvisit', handleUnvisitDinnerRestaurant);
   return app;
 }
 
