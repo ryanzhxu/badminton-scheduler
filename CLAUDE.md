@@ -257,7 +257,11 @@ open and new.
   out to a Google Maps search built client-side from the stored name+address
   (`https://www.google.com/maps/search/?api=1&query=...`) — no extra SerpApi
   field or KV schema change needed for that, since name+address were already
-  stored for every entry.
+  stored for every entry. A `#dinner-sort` select (distance/rating/name) sorts
+  client-side after fetching — the list is small enough (dozens of entries,
+  not hundreds) that there's no reason to push sorting server-side. Missing
+  ratings (SerpApi returned none) sort last under "rating", not first, since
+  `null` is treated as lower than any real rating, never as zero.
 - All three endpoints 404 under `isPublicMode(env)` — Courtly never gets this
   data, same enforcement pattern as the Leaderboard/group-scoping above.
 - The SerpApi key is a Worker secret (`SERPAPI_KEY`, set via `wrangler secret
