@@ -772,6 +772,8 @@ function parseMapsSearchResult(json) {
     cuisine: cuisine || '',
     lat: coords.latitude,
     lng: coords.longitude,
+    rating: typeof place.rating === 'number' ? place.rating : null,
+    reviews: typeof place.reviews === 'number' ? place.reviews : null,
   };
 }
 
@@ -809,10 +811,17 @@ async function handleAddDinnerRestaurant(c) {
     cuisine: place.cuisine,
     distanceMeters,
     driveMinutes,
+    rating: place.rating,
+    reviews: place.reviews,
     visited: !!alreadyBeenHere,
   };
   if (existingIdx >= 0) {
-    list[existingIdx] = { ...list[existingIdx], visited: list[existingIdx].visited || !!alreadyBeenHere };
+    list[existingIdx] = {
+      ...list[existingIdx],
+      rating: place.rating,
+      reviews: place.reviews,
+      visited: list[existingIdx].visited || !!alreadyBeenHere,
+    };
   } else {
     list.push(entry);
   }

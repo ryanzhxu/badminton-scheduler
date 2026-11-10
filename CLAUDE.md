@@ -233,7 +233,10 @@ Mitchell Rd, Richmond) the group hasn't tried yet, surfaced on a "Dinner" tab
 open and new.
 
 - `DINNER_RESTAURANTS_KEY` (`dinner:restaurants` in KV) holds the full list as
-  `{ id, name, address, cuisine, distanceMeters, driveMinutes, visited }`
+  `{ id, name, address, cuisine, distanceMeters, driveMinutes, rating, reviews, visited }`
+  (`rating`/`reviews` come straight from SerpApi's Maps search result and are
+  `null` if SerpApi didn't return them; re-adding an existing entry refreshes
+  them, same as it refreshes `visited`)
   entries — one flat array, no per-schedule scoping, since it's one list for
   the whole group regardless of which week's schedule is active.
 - Adding a restaurant (`POST /api/dinner/restaurants`) is the only place a
