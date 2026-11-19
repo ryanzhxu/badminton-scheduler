@@ -6,13 +6,17 @@
 // early — yet from round 6 on, the shared schedule dropped to seven players
 // (1 doubles + 1 singles + 1 sub). A single tap on a player's check-in chip had
 // flipped them to "left", which rebuilt every round from the one being played
-// onward and pushed the result to every phone holding the share link. The chip
-// was tappable on all of those phones, the tap needed no confirmation, and the
-// round that was actually in progress got rewritten along with the future ones.
+// onward and pushed the result to every phone holding the share link. The tap
+// needed no confirmation, and the round that was actually in progress got
+// rewritten along with the future ones.
 //
-// These tests pin the three properties that stop a repeat: viewers cannot mutate
-// check-in at all, the round in play is never rebuilt, and a roster-shrinking
-// change is confirmed before anything is touched.
+// Check-in stays open to everyone on the share link by design — a player marking
+// themselves as leaving is the whole point. So the two properties that stop a
+// repeat are the ones pinned here: the round in play is never rebuilt, and a
+// roster-shrinking change is confirmed, by name and round range, before any
+// state is touched. The confirm is the only thing between a stray tap and a
+// rewritten evening, which is exactly why it is tested from the viewer's seat
+// as well as the organizer's.
 
 const test = require('node:test');
 const assert = require('node:assert');
@@ -31,7 +35,6 @@ const SPA_SOURCE = readInlineScript(path.join(__dirname, '..', 'index.html'));
 // Check-in behaviour lives in the SPA only — the backends never see attendance.
 const CHECKIN_NAMES = [
   'ATTENDANCE_CYCLE',
-  'canEditCheckIn',
   'playingRoster',
   'syncAttendance',
   'setAttendance',
@@ -40,6 +43,7 @@ const CHECKIN_NAMES = [
   'addCheckinPlayer',
   'regenerateUpcomingRounds',
   'parseRawName',
+  'isEmail',
   'renderCheckIn',
   'computeDisplayNames',
   'escapeHtml',
@@ -155,31 +159,40 @@ function startSession({ seed = 7, sharedView = false, currentRound = 5 } = {}) {
 const roundRoster = (round) =>
   round.courts.reduce((acc, ct) => acc.concat(ct.a, ct.b), round.subs.slice());
 
-test('a viewer on a share link cannot change anyone\'s check-in status', () => {
-  const ctx = startSession({ sharedView: true });
-  const before = plain(ctx.schedule);
+test('a player on a share link can mark themselves as leaving', () => {
+  const ctx = startSession({ sharedView: true, currentRound: 5 });
 
   call(ctx, 'cycleAttendance', ['Paul']);
 
-  assert.strictEqual(ctx.attendance.Paul, 'playing', 'viewer tap must not mark a player as left');
-  assert.deepStrictEqual(plain(ctx.schedule), before, 'viewer tap must not rebuild any round');
-  assert.strictEqual(ctx.syncCount, 0, 'viewer tap must not publish a new schedule');
+  assert.strictEqual(ctx.attendance.Paul, 'left', 'a viewer must be able to check themselves out');
+  assert.ok(ctx.syncCount > 0, 'the change must be published so the group sees it');
+  assert.ok(
+    !roundRoster(plain(ctx.schedule)[6]).includes('Paul'),
+    'later rounds must be rebuilt without the departed player',
+  );
 });
 
-test('a viewer cannot regenerate the rotation through "everyone is here" or a late add', () => {
-  const ctx = startSession({ sharedView: true });
+test('a viewer tap is still gated by the confirm, and declining changes nothing', () => {
+  const ctx = startSession({ sharedView: true, currentRound: 5 });
   const before = plain(ctx.schedule);
-  ctx.attendance.Paul = 'not_arrived';
+  ctx.confirmReply = false;
 
-  call(ctx, 'everyoneHere', []);
-  assert.strictEqual(ctx.attendance.Paul, 'not_arrived', 'viewer must not flip attendance in bulk');
+  call(ctx, 'cycleAttendance', ['Paul']);
+
+  assert.strictEqual(ctx.confirmPrompts.length, 1, 'a viewer tap must still ask before rebuilding');
+  assert.strictEqual(ctx.attendance.Paul, 'playing', 'declining must leave attendance alone');
+  assert.deepStrictEqual(plain(ctx.schedule), before, 'declining must leave the schedule alone');
+  assert.strictEqual(ctx.syncCount, 0, 'declining must not publish anything');
+});
+
+test('a viewer can add a late arrival from their own phone', () => {
+  const ctx = startSession({ sharedView: true, currentRound: 5 });
 
   ctx.__elements['checkin-add-input'] = { value: 'Late Arrival', textContent: '', style: {} };
   call(ctx, 'addCheckinPlayer', []);
-  assert.deepStrictEqual(ctx.rawPlayers, PLAYERS, 'viewer must not add players to a shared roster');
 
-  assert.deepStrictEqual(plain(ctx.schedule), before, 'viewer actions must not rebuild any round');
-  assert.strictEqual(ctx.syncCount, 0, 'viewer actions must not publish a new schedule');
+  assert.ok(ctx.rawPlayers.includes('Late Arrival'), 'a late arrival must be able to add themselves');
+  assert.strictEqual(ctx.attendance['Late Arrival'], 'playing');
 });
 
 test('marking a player as left never rewrites the round being played', () => {
@@ -237,30 +250,18 @@ test('shrinking the roster is confirmed first, and declining changes nothing', (
   assert.strictEqual(ctx.syncCount, 0, 'declining must not publish anything');
 });
 
-test('a viewer is shown check-in status but nothing tappable', () => {
-  const ctx = startSession({ sharedView: true });
-  call(ctx, 'renderCheckIn', []);
+test('check-in chips are tappable whether or not you arrived via a share link', () => {
+  for (const sharedView of [true, false]) {
+    const ctx = startSession({ sharedView });
+    call(ctx, 'renderCheckIn', []);
 
-  const chips = ctx.__elements['checkin-chips'].innerHTML;
-  assert.ok(chips.includes('Paul'), 'viewers should still see who is checked in');
-  assert.ok(!chips.includes('onclick'), 'no check-in chip may be clickable for a viewer');
-  assert.strictEqual(ctx.__elements['checkin-actions'].style.display, 'none', '"everyone is here" / "edit names" must be hidden');
-  assert.strictEqual(ctx.__elements['checkin-add-row'].style.display, 'none', 'the add-player row must be hidden');
-  assert.strictEqual(
-    ctx.__elements['checkin-hint'].attributes['data-i18n'],
-    'checkInViewerHint',
-    'the hint must explain the tab is read-only rather than tell viewers to tap',
-  );
-});
-
-test('the organizer still gets tappable chips and the full action row', () => {
-  const ctx = startSession({ sharedView: false });
-  call(ctx, 'renderCheckIn', []);
-
-  const chips = ctx.__elements['checkin-chips'].innerHTML;
-  assert.match(chips, /onclick="cycleAttendance\('Paul'\)"/, 'the organizer must still be able to check players in');
-  assert.strictEqual(ctx.__elements['checkin-actions'].style.display, 'flex');
-  assert.strictEqual(ctx.__elements['checkin-add-row'].style.display, 'flex');
+    const chips = ctx.__elements['checkin-chips'].innerHTML;
+    assert.match(
+      chips,
+      /onclick="cycleAttendance\('Paul'\)"/,
+      `chips must stay tappable with isSharedView=${sharedView}`,
+    );
+  }
 });
 
 test('adding a player back does not ask for confirmation', () => {
