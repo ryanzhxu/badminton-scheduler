@@ -237,4 +237,11 @@ function loadImplementations() {
   ];
 }
 
-module.exports = { loadImplementations, mulberry32, REQUIRED_NAMES, readInlineScript, extractDeclaration };
+module.exports = {
+  loadImplementations,
+  mulberry32,
+  REQUIRED_NAMES,
+  readInlineScript,
+  extractDeclaration,
+  extractSchedulingCode,
+};

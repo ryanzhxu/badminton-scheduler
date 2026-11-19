@@ -79,7 +79,7 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 - Tab interface: Setup, Schedule, Check-in, Leaderboard
 - **Setup pane**: courts input, player management (add/bulk import/demo injection), conflict picker, generate button
 - **Schedule pane**: round navigation, court grid, sit-out banner, QR share card, constraint validation panel — kept deliberately minimal; per-player stats live only on the Leaderboard tab, not here
-- **Check-in pane**: per-player attendance status (Not arrived/Playing/Left), a global "Edit names" toggle covering every chip at once, an always-visible "+ Add player" row for late arrivals
+- **Check-in pane**: per-player attendance status (Not arrived/Playing/Left), a global "Edit names" toggle covering every chip at once, a "+ Add player" row for late arrivals — all of it **organizer-only** (`canEditCheckIn()`); see "Check-in is organizer-only" below
 - **Leaderboard pane**: cross-session stats table (games, sits, sessions, unique partners/opponents) per canonical player, backed by `GET /api/leaderboard`, plus a "Sessions" list and per-player drill-down view backed by `GET /api/sessions` and `GET /api/player/:name` (Worker only)
 - **Internationalization**: all user-facing text via `data-i18n` attributes; UI auto-translates on language switch
 
@@ -196,6 +196,32 @@ The app is a **single-file, self-contained SPA** with three integrated layers, p
 - `GET /health`, `GET /api/health` — Health check (uptime monitoring)
 - `GET /w/:code` — (Worker only) Watch view. Server-rendered, no JS, sized for a ~184px Apple Watch screen. `?r=N` picks a round (clamped); `?p=Name` gives one player their whole night, one line per round, matched case-insensitively against the roster and falling back to the round view if the name is not on it; `?fmt=txt` returns plain text for the watch Shortcuts app. Accepts the `current` pseudo-code under the same rule as `handleGetSchedule` — resolved on Trulioo, 404 on Courtly, where `saveCurrentSchedule` never writes the key. Deliberately absent from the SPA, so it is allowlisted in `UNCALLED_BY_SPA` in `tests/api-contract.test.js`.
 
+## Check-in is organizer-only
+
+A check-in change is not an annotation — it calls `regenerateUpcomingRounds()`,
+which rebuilds the remaining rounds and `syncShareQr()`s the result, so the
+Worker pushes it over SSE to every phone holding the share link. Three rules keep
+that power where it belongs; all three are pinned by `tests/check-in.test.js`:
+
+- **Viewers get a read-only tab.** `canEditCheckIn()` returns `!isSharedView`, and
+  every mutating entry point (`cycleAttendance`, `setAttendance`, `everyoneHere`,
+  `addCheckinPlayer`, `toggleCheckinEditMode`) returns early for a viewer.
+  `renderCheckIn()` also renders viewers inert `<span>` chips instead of buttons
+  and hides the action row and add-player row — but the function guards are the
+  real defense, since a stale render must not be able to slip a change through.
+  Consequence: a late arrival cannot add themselves; the organizer's device does it.
+- **The round in play is never rebuilt.** `keepCount` is `currentRound + 1`, not
+  `currentRound` — `currentRound` is the round on court *right now*, so rebuilding
+  it moves players mid-game.
+- **Shrinking the roster is confirmed first.** Marking someone as left prompts with
+  the player and the exact round range about to be rebuilt (`confirmPlayerLeft`),
+  and nothing is mutated until the answer comes back yes.
+
+This exists because of a real incident (BADM-33VE, 2026-11-18): eight players, two
+courts, nobody left early, but one stray tap on a chip — on a phone that had only
+scanned the QR — silently rebuilt rounds 6-15 as a seven-player rotation for the
+whole group, with no confirmation and no undo.
+
 ## Durable "current" share link
 
 `?scheduleCode=current` is a stable, reusable link that always shows whichever schedule is presently active — before Wednesday noon it's last week's, and once a manual share publishes a new one, the same link reflects it automatically, without regenerating a new QR/link each week:
@@ -305,6 +331,7 @@ open and new.
 
 - `tests/scheduling.test.js` asserts the invariants that matter: no pair gets stuck facing each other round after round, opponents/partners are spread across the roster, sit-out counts stay within one round of each other, conflict-group players never end up as teammates, every round covers every player exactly once, and pair history survives schedule extension.
 - Every test runs against **all three** implementations of the algorithm (the SPA's inline script, the Worker, and the Express server), plus an explicit check that identical seeds produce identical schedules in all three. This is what enforces the "keep the Node and Worker paths aligned" rule mechanically instead of by memory.
+- `tests/check-in.test.js` covers the check-in tab's power over a live rotation (see "Check-in is organizer-only"). It extracts the real `renderCheckIn`, so it asserts the rendered markup too, not just the state transitions.
 - `tests/helpers/load-scheduler.js` lifts the scheduling functions out of each source and runs them in a `node:vm` sandbox with a seeded PRNG. It extracts rather than imports because `index.html` is intentionally a self-contained single file with no build step, and importing the backends would pull in express/hono and start a listener. Extraction is strict: renaming or deleting a scheduling function fails the suite loudly rather than silently skipping coverage.
 - Failures are reproducible — assertion messages carry the seed and the offending numbers.
 - If you change the scoring weights, expect to re-measure; thresholds are set from observed behavior with margin, and are wide enough to distinguish real regressions from seed noise.
