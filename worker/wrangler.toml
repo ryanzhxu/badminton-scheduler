@@ -18,5 +18,9 @@ class_name = "ScheduleRoom"
 tag = "v2"
 new_sqlite_classes = ["ScheduleRoom"]
 
+[[routes]]
+pattern = "trulioo.courtly.ryanxu.dev"
+custom_domain = true
+
 [vars]
 SHOW_COUNTRY_LABELS = "false"
