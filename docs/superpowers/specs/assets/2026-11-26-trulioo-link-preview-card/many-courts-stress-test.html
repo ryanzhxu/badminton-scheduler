@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Link-preview card — many-courts stress test</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --p:#172D2D;--ph:#004C45;--ia:#128BA6;
+    --nav:#D5EBDB;--s0:#FFFFFF;--s1:#F2F2F2;--s2:#E5E5E5;
+    --bd:#D2D2D2;--bdm:#808080;
+    --tx:#121212;--txs:#666666;
+    --bls:#D3EDF6;--blb:#128BA6;
+  }
+  *{box-sizing:border-box;}
+  body{font-family:'Libre Franklin',sans-serif;background:#e9eaec;margin:0;padding:40px 24px 100px;}
+  h1{font-size:20px;color:#1c1c1e;text-align:center;margin:0 0 6px;}
+  .intro{text-align:center;color:#555;font-size:14px;max-width:700px;margin:0 auto 48px;line-height:1.5;}
+  .intro code{background:#ddd;padding:2px 6px;border-radius:4px;font-size:12px;}
+  .section{max-width:1240px;margin:0 auto 64px;}
+  .section-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;}
+  .section-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8e8e93;background:#fff;border:1px solid #ddd;border-radius:999px;padding:3px 10px;}
+  .section-title{font-size:19px;font-weight:700;color:#1c1c1e;}
+  .verdict{font-size:12.5px;font-weight:700;border-radius:6px;padding:4px 9px;display:inline-block;margin-bottom:2px;}
+  .verdict.good{background:#DFF3E6;color:#1a6b3c;}
+  .verdict.ok{background:#FFF3D6;color:#8a6500;}
+  .section-desc{font-size:13.5px;color:#636366;max-width:820px;line-height:1.5;margin:6px 0 20px;}
+  .row{display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap;}
+  .full-wrap,.thumb-wrap{flex:0 0 auto;}
+  .full-label,.thumb-label{font-size:11px;color:#8e8e93;margin-bottom:6px;text-align:center;}
+  .card-1200{width:600px;height:315px;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.12);position:relative;}
+  .thumb-frame{width:280px;border-radius:14px;background:#e9e9eb;padding:10px 10px 11px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+  .thumb-caption{padding:7px 10px 2px;}
+  .thumb-caption .t{font-weight:600;font-size:13px;color:#1c1c1e;}
+  .thumb-caption .u{font-size:10.5px;color:#8e8e93;margin-top:1px;}
+  .logo-row{display:flex;align-items:center;gap:8px;}
+  .logo-dot{width:9px;height:9px;border-radius:50%;background:#F7C11B;}
+  .brand{color:#fff;font-weight:800;font-size:15px;}
+
+  /* avatars */
+  .avatar{width:24px;height:24px;border-radius:50%;background:var(--nav);color:var(--ph);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff;box-shadow:0 0 0 1px #c9e3d1;}
+  .avatar.b{background:var(--bls);color:var(--blb);box-shadow:0 0 0 1px #a9d6e8;}
+  .avatar-more{width:24px;height:24px;border-radius:50%;background:#ddd;color:#555;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+
+  /* ===== A: lineup ticket, many courts ===== */
+  .A{display:flex;flex-direction:column;background:#fff;}
+  .A-top{background:var(--p);padding:20px 26px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .A-meta{color:#D5EBDB;font-size:11.5px;font-weight:600;}
+  .A-main{flex:1;display:flex;padding:16px 26px 8px;gap:20px;}
+  .A-court{flex:0 0 46%;background:#F6F8F7;border:1.5px solid #E2E8E5;border-radius:12px;padding:14px 16px;}
+  .A-court-label{font-size:10px;font-weight:700;color:var(--ia);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}
+  .A-team{font-size:17px;font-weight:700;color:var(--p);line-height:1.25;}
+  .A-vs{font-size:10px;color:#9aa6a2;font-weight:700;margin:3px 0;}
+  .A-other{flex:1;display:flex;flex-direction:column;gap:5px;justify-content:center;font-size:11.5px;color:#555;}
+  .A-other b{color:#222;}
+  .A-overflow{color:var(--ia);font-weight:700;}
+  .A-bottom{background:#F2F2F2;border-top:1px solid #e3e3e3;padding:9px 26px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .A-roster-label{font-size:10px;font-weight:700;color:#8a8a8a;text-transform:uppercase;letter-spacing:.06em;margin-right:2px;}
+
+  /* ===== B: scoreboard split, many courts ===== */
+  .B{display:flex;flex-direction:column;background:var(--p);color:#fff;}
+  .B-head{display:flex;justify-content:space-between;align-items:center;padding:16px 24px 0;}
+  .B-round{color:#F7C11B;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;}
+  .B-courts{flex:1;display:flex;padding:12px 18px;gap:10px;}
+  .B-court{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:10px 10px;display:flex;flex-direction:column;justify-content:center;min-width:0;}
+  .B-court-tag{font-size:9px;font-weight:700;color:#8fb8ae;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+  .B-name{font-size:12.5px;font-weight:700;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .B-vs{display:flex;align-items:center;gap:6px;margin:3px 0;}
+  .B-vs span{font-size:8.5px;font-weight:800;color:#F7C11B;}
+  .B-vs::before,.B-vs::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.18);}
+  .B-more-tile{flex:0 0 76px;background:rgba(255,255,255,.1);border:1px dashed rgba(255,255,255,.3);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#F7C11B;text-align:center;line-height:1.2;padding:0 6px;}
+  .B-foot{background:rgba(0,0,0,.22);padding:9px 18px;display:flex;align-items:center;justify-content:space-between;}
+  .B-foot-left{display:flex;}
+  .B-foot-left .avatar{margin-left:-6px;border:1.5px solid var(--p);}
+  .B-foot-left .avatar:first-child{margin-left:0;}
+  .B-foot-text{font-size:11px;color:#cfe3de;font-weight:600;}
+
+  /* ===== C: program sheet, many courts ===== */
+  .C{display:flex;background:#fff;}
+  .C-left{flex:0 0 38%;background:#F6F8F7;border-right:1.5px dashed #cdd8d4;padding:16px 18px;display:flex;flex-direction:column;}
+  .C-left-title{font-size:10px;font-weight:800;color:var(--ph);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+  .C-roster-grid{display:grid;grid-template-columns:1fr 1fr;gap:2.5px 8px;font-size:10px;color:#333;font-weight:500;flex:1;align-content:start;}
+  .C-roster-grid div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .C-right{flex:1;padding:14px 18px;display:flex;flex-direction:column;overflow:hidden;}
+  .C-right-title{font-size:10px;font-weight:800;color:var(--ia);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+  .C-court-row{display:flex;justify-content:space-between;align-items:baseline;padding:4.5px 0;border-bottom:1px solid #eee;font-size:10.5px;gap:10px;}
+  .C-court-row b{color:var(--p);font-weight:700;flex:0 0 52px;}
+  .C-court-row span{color:#555;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .C-brand{margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:6px;}
+  .C-brand b{color:var(--p);font-size:12px;}
+  .C-brand small{color:#999;font-size:10px;}
+</style>
+</head>
+<body>
+
+<h1>Same three options, now with 5 courts / 20 players</h1>
+<div class="intro">
+  The sample roster in the last round was small enough to be forgiving. Here's what happens at a more typical "full gym" night — <b>20 players, 5 courts, round 1 of 10</b> — and how each layout would need to adapt.
+</div>
+
+<!-- A -->
+<div class="section">
+  <div class="section-head">
+    <span class="section-label">Option A</span>
+    <span class="section-title">Lineup ticket</span>
+  </div>
+  <div class="verdict good">Holds up well</div>
+  <div class="section-desc">
+    Adaptation rule: Court 1 stays big and full-name (that slot never shrinks, regardless of court count). The side list caps at 2 more courts as short one-line rows, then collapses the rest into a plain count — "+2 more courts" — rather than cramming 5 matchups into a shrinking font. Roster avatars already had an overflow affordance ("+N"), so they don't need to change at all.
+  </div>
+  <div class="row">
+    <div class="full-wrap"><div class="full-label">Full size (scaled)</div>
+      <div class="card-1200 A">
+        <div class="A-top"><div class="logo-row"><span class="logo-dot"></span><span class="brand">Courtly</span></div><div class="A-meta">Round 1 of 10 · Sat Nov 28</div></div>
+        <div class="A-main">
+          <div class="A-court">
+            <div class="A-court-label">Court 1</div>
+            <div class="A-team">Maria &amp; James</div>
+            <div class="A-vs">vs</div>
+            <div class="A-team">Priya &amp; Noah</div>
+          </div>
+          <div class="A-other">
+            <div><b>Court 2:</b> Wei/Ana vs Leo/Sofia</div>
+            <div><b>Court 3:</b> Grace/Oscar vs Kai/Elin</div>
+            <div class="A-overflow">+2 more courts</div>
+          </div>
+        </div>
+        <div class="A-bottom">
+          <span class="A-roster-label">20 players</span>
+          <div class="avatar">M</div><div class="avatar b">J</div><div class="avatar">P</div><div class="avatar b">N</div><div class="avatar">W</div><div class="avatar b">A</div>
+          <div class="avatar-more">+14</div>
+        </div>
+      </div>
+    </div>
+    <div class="thumb-wrap"><div class="thumb-label">≈ iMessage size</div>
+      <div class="thumb-frame">
+        <div class="card-1200 A" style="transform:scale(0.433);width:600px;height:315px;border-radius:12px 12px 0 0;">
+          <div class="A-top"><div class="logo-row"><span class="logo-dot"></span><span class="brand">Courtly</span></div><div class="A-meta">Round 1 of 10 · Sat Nov 28</div></div>
+          <div class="A-main">
+            <div class="A-court">
+              <div class="A-court-label">Court 1</div>
+              <div class="A-team">Maria &amp; James</div>
+              <div class="A-vs">vs</div>
+              <div class="A-team">Priya &amp; Noah</div>
+            </div>
+            <div class="A-other">
+              <div><b>Court 2:</b> Wei/Ana vs Leo/Sofia</div>
+              <div><b>Court 3:</b> Grace/Oscar vs Kai/Elin</div>
+              <div class="A-overflow">+2 more courts</div>
+            </div>
+          </div>
+          <div class="A-bottom">
+            <span class="A-roster-label">20 players</span>
+            <div class="avatar">M</div><div class="avatar b">J</div><div class="avatar">P</div><div class="avatar b">N</div><div class="avatar">W</div><div class="avatar b">A</div>
+            <div class="avatar-more">+14</div>
+          </div>
+        </div>
+        <div class="thumb-caption"><div class="t">Courtly</div><div class="u">trulioo-badminton.onrender.com</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- B -->
+<div class="section">
+  <div class="section-head">
+    <span class="section-label">Option B</span>
+    <span class="section-title">Scoreboard split</span>
+  </div>
+  <div class="verdict ok">Needs a hard cap</div>
+  <div class="section-desc">
+    Adaptation rule: cap the side-by-side row at 3 court blocks, full stop — a 4th slot becomes a "+2 courts" tile instead of shrinking every block to fit. Shrinking the blocks to literally fit 5 courts was tried and rejected here: names drop below ~11px and the "glance at it" premise breaks. Capping preserves the bold, legible feel this option is for, at the cost of not showing every court.
+  </div>
+  <div class="row">
+    <div class="full-wrap"><div class="full-label">Full size (scaled)</div>
+      <div class="card-1200 B">
+        <div class="B-head"><div class="logo-row"><span class="logo-dot"></span><span class="brand">Courtly</span></div><div class="B-round">Round 1 of 10</div></div>
+        <div class="B-courts">
+          <div class="B-court"><div class="B-court-tag">Court 1</div><div class="B-name">Maria &amp; James</div><div class="B-vs"><span>VS</span></div><div class="B-name">Priya &amp; Noah</div></div>
+          <div class="B-court"><div class="B-court-tag">Court 2</div><div class="B-name">Wei &amp; Ana</div><div class="B-vs"><span>VS</span></div><div class="B-name">Leo &amp; Sofia</div></div>
+          <div class="B-court"><div class="B-court-tag">Court 3</div><div class="B-name">Grace &amp; Oscar</div><div class="B-vs"><span>VS</span></div><div class="B-name">Kai &amp; Elin</div></div>
+          <div class="B-more-tile">+2<br>courts</div>
+        </div>
+        <div class="B-foot">
+          <div class="B-foot-left"><div class="avatar">M</div><div class="avatar b">J</div><div class="avatar">P</div><div class="avatar b">N</div><div class="avatar-more">+16</div></div>
+          <div class="B-foot-text">20 playing tonight</div>
+        </div>
+      </div>
+    </div>
+    <div class="thumb-wrap"><div class="thumb-label">≈ iMessage size</div>
+      <div class="thumb-frame">
+        <div class="card-1200 B" style="transform:scale(0.433);width:600px;height:315px;border-radius:12px 12px 0 0;">
+          <div class="B-head"><div class="logo-row"><span class="logo-dot"></span><span class="brand">Courtly</span></div><div class="B-round">Round 1 of 10</div></div>
+          <div class="B-courts">
+            <div class="B-court"><div class="B-court-tag">Court 1</div><div class="B-name">Maria &amp; James</div><div class="B-vs"><span>VS</span></div><div class="B-name">Priya &amp; Noah</div></div>
+            <div class="B-court"><div class="B-court-tag">Court 2</div><div class="B-name">Wei &amp; Ana</div><div class="B-vs"><span>VS</span></div><div class="B-name">Leo &amp; Sofia</div></div>
+            <div class="B-court"><div class="B-court-tag">Court 3</div><div class="B-name">Grace &amp; Oscar</div><div class="B-vs"><span>VS</span></div><div class="B-name">Kai &amp; Elin</div></div>
+            <div class="B-more-tile">+2<br>courts</div>
+          </div>
+          <div class="B-foot">
+            <div class="B-foot-left"><div class="avatar">M</div><div class="avatar b">J</div><div class="avatar">P</div><div class="avatar b">N</div><div class="avatar-more">+16</div></div>
+            <div class="B-foot-text">20 playing tonight</div>
+          </div>
+        </div>
+        <div class="thumb-caption"><div class="t">Courtly</div><div class="u">trulioo-badminton.onrender.com</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- C -->
+<div class="section">
+  <div class="section-head">
+    <span class="section-label">Option C</span>
+    <span class="section-title">Program sheet</span>
+  </div>
+  <div class="verdict ok">Scales, but gets dense fast</div>
+  <div class="section-desc">
+    Adaptation rule: it's already just a list, so it naturally grows — 5 court rows fit by shrinking row height and font a bit further than the 2-court version. 20 names in the roster column already pushes two-column wrapping to its limit; past roughly 24 players it would need a third column or a "+N" cutoff like the other options use for roster. This is the option where "more courts" costs legibility gradually rather than hitting a hard wall, but it was already the least legible option at small size, and this makes that worse.
+  </div>
+  <div class="row">
+    <div class="full-wrap"><div class="full-label">Full size (scaled)</div>
+      <div class="card-1200 C">
+        <div class="C-left">
+          <div class="C-left-title">Roster · 20</div>
+          <div class="C-roster-grid">
+            <div>Maria T.</div><div>Noah K.</div>
+            <div>James P.</div><div>Sofia R.</div>
+            <div>Priya S.</div><div>Leo M.</div>
+            <div>Wei Z.</div><div>Grace H.</div>
+            <div>Ana V.</div><div>Oscar D.</div>
+            <div>Kai F.</div><div>Elin B.</div>
+            <div>Omar Q.</div><div>Ruth N.</div>
+            <div>Hugo L.</div><div>Ivy C.</div>
+            <div>Dev R.</div><div>Zoe P.</div>
+            <div>Finn O.</div><div>Mei L.</div>
+          </div>
+        </div>
+        <div class="C-right">
+          <div class="C-right-title">Round 1 of 10</div>
+          <div class="C-court-row"><b>Court 1</b><span>Maria/James vs Priya/Noah</span></div>
+          <div class="C-court-row"><b>Court 2</b><span>Wei/Ana vs Leo/Sofia</span></div>
+          <div class="C-court-row"><b>Court 3</b><span>Grace/Oscar vs Kai/Elin</span></div>
+          <div class="C-court-row"><b>Court 4</b><span>Omar/Ruth vs Hugo/Ivy</span></div>
+          <div class="C-court-row"><b>Court 5</b><span>Dev/Zoe vs Finn/Mei</span></div>
+          <div class="C-brand"><b>Courtly</b><small>trulioo-badminton.onrender.com</small></div>
+        </div>
+      </div>
+    </div>
+    <div class="thumb-wrap"><div class="thumb-label">≈ iMessage size</div>
+      <div class="thumb-frame">
+        <div class="card-1200 C" style="transform:scale(0.433);width:600px;height:315px;border-radius:12px 12px 0 0;">
+          <div class="C-left">
+            <div class="C-left-title">Roster · 20</div>
+            <div class="C-roster-grid">
+              <div>Maria T.</div><div>Noah K.</div>
+              <div>James P.</div><div>Sofia R.</div>
+              <div>Priya S.</div><div>Leo M.</div>
+              <div>Wei Z.</div><div>Grace H.</div>
+              <div>Ana V.</div><div>Oscar D.</div>
+              <div>Kai F.</div><div>Elin B.</div>
+              <div>Omar Q.</div><div>Ruth N.</div>
+              <div>Hugo L.</div><div>Ivy C.</div>
+              <div>Dev R.</div><div>Zoe P.</div>
+              <div>Finn O.</div><div>Mei L.</div>
+            </div>
+          </div>
+          <div class="C-right">
+            <div class="C-right-title">Round 1 of 10</div>
+            <div class="C-court-row"><b>Court 1</b><span>Maria/James vs Priya/Noah</span></div>
+            <div class="C-court-row"><b>Court 2</b><span>Wei/Ana vs Leo/Sofia</span></div>
+            <div class="C-court-row"><b>Court 3</b><span>Grace/Oscar vs Kai/Elin</span></div>
+            <div class="C-court-row"><b>Court 4</b><span>Omar/Ruth vs Hugo/Ivy</span></div>
+            <div class="C-court-row"><b>Court 5</b><span>Dev/Zoe vs Finn/Mei</span></div>
+            <div class="C-brand"><b>Courtly</b><small>trulioo-badminton.onrender.com</small></div>
+          </div>
+        </div>
+        <div class="thumb-caption"><div class="t">Courtly</div><div class="u">trulioo-badminton.onrender.com</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

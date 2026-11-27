@@ -14,6 +14,7 @@ const UNCALLED_BY_SPA = [
   'GET /api/health',
   'POST /api/profiles',       // server-side profile storage; the SPA never posts to it
   'GET /w/:code',             // watch view: opened directly on an Apple Watch, never by the SPA
+  'GET /api/schedule/:code/og.png', // dynamic OG image, linked from trulioo-entry.js's landing page meta tags, never fetched by the SPA's own JS
 ];
 
 function workerRoutes() {

@@ -28,11 +28,11 @@ function productionApiHosts() {
   return { courtly: m[1], trulioo: m[2] };
 }
 
-async function fetchWithTimeout(url, ms) {
+async function fetchWithTimeout(url, ms, init = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
-    return await fetch(url, { signal: controller.signal });
+    return await fetch(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -48,3 +48,41 @@ for (const [brand, base] of Object.entries(hosts)) {
     assert.strictEqual(body.ok, true, `${base}/health body was not {ok: true}: ${JSON.stringify(body)}`);
   });
 }
+
+// Generates a throwaway real schedule against production rather than
+// depending on a fixed code existing forever -- these two tests only pass
+// once the Trulioo dynamic-card work (Tasks 3-4 of the link-preview-card
+// plan) is actually deployed.
+async function generateThrowawaySchedule() {
+  const res = await fetchWithTimeout(`${hosts.trulioo}/api/schedule`, TIMEOUT_MS, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      players: ['Maria', 'James', 'Priya', 'Noah', 'Wei', 'Ana', 'Leo', 'Sofia'],
+      numCourts: 2,
+      sport: 'badminton',
+    }),
+  });
+  assert.strictEqual(res.status, 200, `schedule generation returned HTTP ${res.status}`);
+  const body = await res.json();
+  assert.ok(body.scheduleCode, 'schedule generation response had no scheduleCode');
+  return body.scheduleCode;
+}
+
+test('trulioo.courtly.ryanxu.dev serves a dynamic landing page for a real schedule code', async () => {
+  const scheduleCode = await generateThrowawaySchedule();
+  const pageRes = await fetchWithTimeout(`${hosts.trulioo}/?scheduleCode=${scheduleCode}`, TIMEOUT_MS);
+  assert.strictEqual(pageRes.status, 200, `landing page returned HTTP ${pageRes.status}`);
+  const html = await pageRes.text();
+  assert.match(html, /og:image/);
+  assert.match(html, new RegExp(`/api/schedule/${scheduleCode}/og\\.png`));
+});
+
+test('the generated og.png is a real PNG at 1200x630', async () => {
+  const scheduleCode = await generateThrowawaySchedule();
+  const imgRes = await fetchWithTimeout(`${hosts.trulioo}/api/schedule/${scheduleCode}/og.png`, TIMEOUT_MS);
+  assert.strictEqual(imgRes.status, 200, `og.png returned HTTP ${imgRes.status}`);
+  assert.strictEqual(imgRes.headers.get('content-type'), 'image/png');
+  const bytes = new Uint8Array(await imgRes.arrayBuffer());
+  assert.deepStrictEqual([...bytes.slice(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); // PNG magic bytes
+});

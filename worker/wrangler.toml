@@ -1,5 +1,5 @@
 name = "badminton-scheduler-api"
-main = "src/index.js"
+main = "src/trulioo-entry.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
