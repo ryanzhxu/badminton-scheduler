@@ -74,8 +74,17 @@ function sliceStatement(source, startIdx) {
 }
 
 function extractDeclaration(source, name) {
-  const fnIdx = source.indexOf(`function ${name}(`);
-  if (fnIdx !== -1) return sliceBalancedBraces(source, fnIdx);
+  let fnIdx = source.indexOf(`function ${name}(`);
+  if (fnIdx !== -1) {
+    // Include a preceding "async " in the slice -- indexOf matches "function"
+    // regardless of what comes before it, so an unextended slice would drop
+    // "async" and leave a syntactically broken function (await outside async).
+    const ASYNC_PREFIX = 'async ';
+    if (source.slice(Math.max(0, fnIdx - ASYNC_PREFIX.length), fnIdx) === ASYNC_PREFIX) {
+      fnIdx -= ASYNC_PREFIX.length;
+    }
+    return sliceBalancedBraces(source, fnIdx);
+  }
 
   // Also matches multi-name declarations like `const A=1,B=2;`, which the SPA uses.
   const constMatch = new RegExp(`const [^;\\n]*\\b${name}\\b\\s*=`).exec(source);

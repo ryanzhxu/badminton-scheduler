@@ -28,18 +28,25 @@ function formatDateLabel(generatedAt) {
   }).format(new Date(generatedAt));
 }
 
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
+// workers-og parses card HTML with Cloudflare's HTMLRewriter, which reads
+// text content verbatim and does not decode character references -- an
+// HTML-entity escape like "'" -> "&#39;" would rasterize that literal entity
+// text into the PNG instead of an apostrophe (real names like "O'Brien" are
+// exactly what this would corrupt). Only "<"/">" are unsafe here, since
+// HTMLRewriter does parse a literal "<...>" sequence as a real element, which
+// could inject an unstyled div and trip the display:flex rule above. So this
+// strips markup rather than escaping it, and is the single sanitizer for
+// every player-name-derived field in this module (team names, avatar
+// initials) -- not a second escaping layer, to avoid a double-escape trap.
+function stripMarkup(value) {
+  return String(value).replace(/[<>]/g, '');
 }
 
-// Each player name is escaped individually, then joined with a literal,
-// program-controlled ' & ' separator -- escaping the already-joined string
-// instead would also escape that trusted separator's own '&', breaking the
-// display string for every doubles team (any 2-player team name contains one).
+// Each player name is sanitized individually, then joined with a literal,
+// program-controlled ' & ' separator -- sanitizing the already-joined string
+// instead would risk mangling that trusted separator too.
 function joinTeamNames(names) {
-  return names.map(escapeHtml).join(' & ');
+  return names.map(stripMarkup).join(' & ');
 }
 
 export function buildOgCardData(schedule) {
@@ -53,7 +60,7 @@ export function buildOgCardData(schedule) {
   const overflowCourtCount = Math.max(0, roundCourts.length - MAX_COURTS_SHOWN);
 
   const avatars = schedule.players.slice(0, MAX_AVATARS_SHOWN).map((name, index) => ({
-    initial: escapeHtml(name.trim()[0].toUpperCase()),
+    initial: stripMarkup(name.trim()[0].toUpperCase()),
     color: index % 2 === 0 ? 'green' : 'blue',
   }));
   const overflowPlayerCount = Math.max(0, schedule.players.length - MAX_AVATARS_SHOWN);
@@ -94,9 +101,9 @@ function formatMetaDateStr(generatedAt) {
 // the actual count, so it fires for every div here, not just ones that
 // visually need flex layout. Confirmed by bisecting down to a two-node repro
 // during Task 3. <span> is not subject to this and needs no such declaration.
-function renderCourtBlock(court) {
+function renderCourtBlock(court, index) {
   return `<div style="flex:1;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.14);border-radius:20px;padding:24px;display:flex;flex-direction:column;justify-content:center;min-width:0">`
-    + `<div style="display:flex;font-size:19px;font-weight:700;color:#8fb8ae;text-transform:uppercase;letter-spacing:.05em;margin-bottom:16px">COURT</div>`
+    + `<div style="display:flex;font-size:19px;font-weight:700;color:#8fb8ae;text-transform:uppercase;letter-spacing:.05em;margin-bottom:16px">COURT ${index + 1}</div>`
     + `<div style="display:flex;font-size:29px;font-weight:700;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${court.teamA}</div>`
     + `<div style="display:flex;align-items:center;gap:14px;margin:8px 0">`
       + `<div style="display:flex;flex:1;height:2px;background:rgba(255,255,255,.18)"></div>`
@@ -138,8 +145,8 @@ export function renderOgCardHtml(cardData) {
         + `<div style="display:flex;color:#fff;font-weight:800;font-size:30px">Courtly</div>`
       + `</div>`
       + `<div style="display:flex;flex-direction:column;align-items:flex-end;text-align:right">`
-        + `<div style="display:flex;color:#F7C11B;font-size:24px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;line-height:1.3">${escapeHtml(cardData.roundLabel)}</div>`
-        + `<div style="display:flex;color:#9fc2b9;font-size:22px;font-weight:600;margin-top:4px">${escapeHtml(cardData.dateLabel)}</div>`
+        + `<div style="display:flex;color:#F7C11B;font-size:24px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;line-height:1.3">${stripMarkup(cardData.roundLabel)}</div>`
+        + `<div style="display:flex;color:#9fc2b9;font-size:22px;font-weight:600;margin-top:4px">${stripMarkup(cardData.dateLabel)}</div>`
       + `</div>`
     + `</div>`
     + `<div style="flex:1;display:flex;padding:28px 40px;gap:24px">${courtBlocks}${overflowCourtTile}</div>`

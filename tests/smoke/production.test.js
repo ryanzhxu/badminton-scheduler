@@ -49,38 +49,26 @@ for (const [brand, base] of Object.entries(hosts)) {
   });
 }
 
-// Generates a throwaway real schedule against production rather than
-// depending on a fixed code existing forever -- these two tests only pass
-// once the Trulioo dynamic-card work (Tasks 3-4 of the link-preview-card
-// plan) is actually deployed.
-async function generateThrowawaySchedule() {
-  const res = await fetchWithTimeout(`${hosts.trulioo}/api/schedule`, TIMEOUT_MS, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      players: ['Maria', 'James', 'Priya', 'Noah', 'Wei', 'Ana', 'Leo', 'Sofia'],
-      numCourts: 2,
-      sport: 'badminton',
-    }),
-  });
-  assert.strictEqual(res.status, 200, `schedule generation returned HTTP ${res.status}`);
-  const body = await res.json();
-  assert.ok(body.scheduleCode, 'schedule generation response had no scheduleCode');
-  return body.scheduleCode;
-}
+// Uses the durable "current" pseudo-code rather than generating a throwaway
+// schedule: POSTing /api/schedule writes to Trulioo's current_schedule KV key
+// unconditionally (saveCurrentSchedule only skips that write in public mode,
+// which Trulioo isn't), so a generate-per-test-run here would overwrite the
+// group's real durable link on every CI run -- exactly the link Review Focus
+// #2 calls "the standing link meant to be reused forever" -- and burn KV
+// writes against a quota that's already been exhausted once. "current" always
+// resolves to whatever schedule is really active in production, so this is a
+// true zero-write live check and incidentally covers Review Focus #2 itself.
 
-test('trulioo.courtly.ryanxu.dev serves a dynamic landing page for a real schedule code', async () => {
-  const scheduleCode = await generateThrowawaySchedule();
-  const pageRes = await fetchWithTimeout(`${hosts.trulioo}/?scheduleCode=${scheduleCode}`, TIMEOUT_MS);
+test('trulioo.courtly.ryanxu.dev serves a dynamic landing page for the current schedule', async () => {
+  const pageRes = await fetchWithTimeout(`${hosts.trulioo}/?scheduleCode=current`, TIMEOUT_MS);
   assert.strictEqual(pageRes.status, 200, `landing page returned HTTP ${pageRes.status}`);
   const html = await pageRes.text();
   assert.match(html, /og:image/);
-  assert.match(html, new RegExp(`/api/schedule/${scheduleCode}/og\\.png`));
+  assert.match(html, /\/api\/schedule\/current\/og\.png/);
 });
 
-test('the generated og.png is a real PNG at 1200x630', async () => {
-  const scheduleCode = await generateThrowawaySchedule();
-  const imgRes = await fetchWithTimeout(`${hosts.trulioo}/api/schedule/${scheduleCode}/og.png`, TIMEOUT_MS);
+test('the current schedule\'s og.png is a real PNG at 1200x630', async () => {
+  const imgRes = await fetchWithTimeout(`${hosts.trulioo}/api/schedule/current/og.png`, TIMEOUT_MS);
   assert.strictEqual(imgRes.status, 200, `og.png returned HTTP ${imgRes.status}`);
   assert.strictEqual(imgRes.headers.get('content-type'), 'image/png');
   const bytes = new Uint8Array(await imgRes.arrayBuffer());
