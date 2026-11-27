@@ -11,5 +11,8 @@
   },
   "devDependencies": {
     "wrangler": "^3.80.0"
+  },
+  "dependencies": {
+    "workers-og": "^0.0.27"
   }
 }

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Option B + date — final check</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --p:#172D2D;--ph:#004C45;--ia:#128BA6;
+    --nav:#D5EBDB;--bls:#D3EDF6;--blb:#128BA6;
+  }
+  *{box-sizing:border-box;}
+  body{font-family:'Libre Franklin',sans-serif;background:#e9eaec;margin:0;padding:40px 24px 100px;}
+  h1{font-size:20px;color:#1c1c1e;text-align:center;margin:0 0 6px;}
+  .intro{text-align:center;color:#555;font-size:14px;max-width:700px;margin:0 auto 48px;line-height:1.5;}
+  .section{max-width:1240px;margin:0 auto 64px;}
+  .section-head{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;}
+  .section-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8e8e93;background:#fff;border:1px solid #ddd;border-radius:999px;padding:3px 10px;}
+  .section-title{font-size:17px;font-weight:700;color:#1c1c1e;}
+  .row{display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap;}
+  .full-label,.thumb-label{font-size:11px;color:#8e8e93;margin-bottom:6px;text-align:center;}
+  .card-1200{width:600px;height:315px;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.12);position:relative;}
+  .thumb-frame{width:280px;border-radius:14px;background:#e9e9eb;padding:10px 10px 11px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+  .thumb-caption{padding:7px 10px 2px;}
+  .thumb-caption .t{font-weight:600;font-size:13px;color:#1c1c1e;}
+  .thumb-caption .u{font-size:10.5px;color:#8e8e93;margin-top:1px;}
+  .logo-row{display:flex;align-items:center;gap:8px;}
+  .logo-dot{width:9px;height:9px;border-radius:50%;background:#F7C11B;}
+  .brand{color:#fff;font-weight:800;font-size:15px;}
+
+  .avatar{width:24px;height:24px;border-radius:50%;background:var(--nav);color:var(--ph);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff;box-shadow:0 0 0 1px #c9e3d1;}
+  .avatar.b{background:var(--bls);color:var(--blb);box-shadow:0 0 0 1px #a9d6e8;}
+  .avatar-more{width:24px;height:24px;border-radius:50%;background:#ddd;color:#555;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+
+  .B{display:flex;flex-direction:column;background:var(--p);color:#fff;}
+  .B-head{display:flex;justify-content:space-between;align-items:flex-start;padding:16px 24px 0;}
+  .B-head-right{text-align:right;}
+  .B-round{color:#F7C11B;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;line-height:1.3;}
+  .B-date{color:#9fc2b9;font-size:11px;font-weight:600;margin-top:2px;}
+  .B-courts{flex:1;display:flex;padding:14px 20px;gap:12px;}
+  .B-court{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:12px 12px;display:flex;flex-direction:column;justify-content:center;min-width:0;}
+  .B-court-tag{font-size:9.5px;font-weight:700;color:#8fb8ae;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+  .B-name{font-size:14.5px;font-weight:700;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .B-vs{display:flex;align-items:center;gap:7px;margin:4px 0;}
+  .B-vs span{font-size:9px;font-weight:800;color:#F7C11B;}
+  .B-vs::before,.B-vs::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.18);}
+  .B-more-tile{flex:0 0 76px;background:rgba(255,255,255,.1);border:1px dashed rgba(255,255,255,.3);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#F7C11B;text-align:center;line-height:1.2;padding:0 6px;}
+  .B-foot{background:rgba(0,0,0,.22);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;}
+  .B-foot-left{display:flex;}
+  .B-foot-left .avatar{margin-left:-6px;border:1.5px solid var(--p);}
+  .B-foot-left .avatar:first-child{margin-left:0;}
+  .B-foot-text{font-size:11.5px;color:#cfe3de;font-weight:600;}
+</style>
+</head>
+<body>
+
+<h1>Option B, with the date added top-right (like Option A had)</h1>
+<div class="intro">
+  Right side of the header now stacks the round badge and the date, same corner Option A used — rest of B unchanged. Shown at both court counts to confirm it doesn't crowd the 5-court capped layout.
+</div>
+
+<div class="section">
+  <div class="section-head"><span class="section-label">2 courts</span><span class="section-title">Baseline</span></div>
+  <div class="row">
+    <div><div class="full-label">Full size (scaled)</div>
+      <div class="card-1200 B">
+        <div class="B-head">
+          <div class="logo-row"><span class="logo-dot"></span><span class="brand">Courtly</span></div>
+          <div class="B-head-right"><div class="B-round">Round 1 of 8</div><div class="B-date">Sat Nov 28</div></div>
+        </div>
+        <div class="B-courts">
+          <div class="B-court"><div class="B-court-tag">Court 1</div><div class="B-name">Maria &amp; James</div><div class="B-vs"><span>VS</span></div><div class="B-name">Priya &amp; Noah</div></div>
+          <div class="B-court"><div class="B-court-tag">Court 2</div><div class="B-name">Wei &amp; Ana</div><div class="B-vs"><span>VS</span></div><div class="B-name">Leo &amp; Sofia</div></div>
+        </div>
+        <div class="B-foot">
+          <div class="B-foot-left"><div class="avatar">M</div><div class="avatar b">J</div><div class="avatar">P</div><div class="avatar b">N</div><div class="avatar">W</div><div class="avatar-more">+5</div></div>
+          <div class="B-foot-text">10 playing tonight</div>
+        </div>
+      </div>
+    </div>
+    <div><div class="thumb-label">≈ iMessage size</div>
+      <div class="thumb-frame">
+        <div class="card-1200 B" style="transform:scale(0.433);width:600px;height:315px;border-radius:12px 12px 0 0;">
+          <div class="B-head">
+            <div class="logo-row"><span class="logo-dot"></span><span class="brand">Courtly</span></div>
+            <div class="B-head-right"><div class="B-round">Round 1 of 8</div><div class="B-date">Sat Nov 28</div></div>
+          </div>
+          <div class="B-courts">
+            <div class="B-court"><div class="B-court-tag">Court 1</div><div class="B-name">Maria &amp; James</div><div class="B-vs"><span>VS</span></div><div class="B-name">Priya &amp; Noah</div></div>
+            <div class="B-court"><div class="B-court-tag">Court 2</div><div class="B-name">Wei &amp; Ana</div><div class="B-vs"><span>VS</span></div><div class="B-name">Leo &amp; Sofia</div></div>
+          </div>
+          <div class="B-foot">
+            <div class="B-foot-left"><div class="avatar">M</div><div class="avatar b">J</div><div class="avatar">P</div><div class="avatar b">N</div><div class="avatar">W</div><div class="avatar-more">+5</div></div>
+            <div class="B-foot-text">10 playing tonight</div>
+          </div>
+        </div>
+        <div class="thumb-caption"><div class="t">Courtly</div><div class="u">trulioo-badminton.onrender.com</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-head"><span class="section-label">5 courts</span><span class="section-title">Capped at 3 + overflow tile</span></div>
+  <div class="row">
+    <div><div class="full-label">Full size (scaled)</div>
+      <div class="card-1200 B">
+        <div class="B-head">
+          <div class="logo-row"><span class="logo-dot"></span><span class="brand">Courtly</span></div>
+          <div class="B-head-right"><div class="B-round">Round 1 of 10</div><div class="B-date">Sat Nov 28</div></div>
+        </div>
+        <div class="B-courts">
+          <div class="B-court"><div class="B-court-tag">Court 1</div><div class="B-name">Maria &amp; James</div><div class="B-vs"><span>VS</span></div><div class="B-name">Priya &amp; Noah</div></div>
+          <div class="B-court"><div class="B-court-tag">Court 2</div><div class="B-name">Wei &amp; Ana</div><div class="B-vs"><span>VS</span></div><div class="B-name">Leo &amp; Sofia</div></div>
+          <div class="B-court"><div class="B-court-tag">Court 3</div><div class="B-name">Grace &amp; Oscar</div><div class="B-vs"><span>VS</span></div><div class="B-name">Kai &amp; Elin</div></div>
+          <div class="B-more-tile">+2<br>courts</div>
+        </div>
+        <div class="B-foot">
+          <div class="B-foot-left"><div class="avatar">M</div><div class="avatar b">J</div><div class="avatar">P</div><div class="avatar b">N</div><div class="avatar-more">+16</div></div>
+          <div class="B-foot-text">20 playing tonight</div>
+        </div>
+      </div>
+    </div>
+    <div><div class="thumb-label">≈ iMessage size</div>
+      <div class="thumb-frame">
+        <div class="card-1200 B" style="transform:scale(0.433);width:600px;height:315px;border-radius:12px 12px 0 0;">
+          <div class="B-head">
+            <div class="logo-row"><span class="logo-dot"></span><span class="brand">Courtly</span></div>
+            <div class="B-head-right"><div class="B-round">Round 1 of 10</div><div class="B-date">Sat Nov 28</div></div>
+          </div>
+          <div class="B-courts">
+            <div class="B-court"><div class="B-court-tag">Court 1</div><div class="B-name">Maria &amp; James</div><div class="B-vs"><span>VS</span></div><div class="B-name">Priya &amp; Noah</div></div>
+            <div class="B-court"><div class="B-court-tag">Court 2</div><div class="B-name">Wei &amp; Ana</div><div class="B-vs"><span>VS</span></div><div class="B-name">Leo &amp; Sofia</div></div>
+            <div class="B-court"><div class="B-court-tag">Court 3</div><div class="B-name">Grace &amp; Oscar</div><div class="B-vs"><span>VS</span></div><div class="B-name">Kai &amp; Elin</div></div>
+            <div class="B-more-tile">+2<br>courts</div>
+          </div>
+          <div class="B-foot">
+            <div class="B-foot-left"><div class="avatar">M</div><div class="avatar b">J</div><div class="avatar">P</div><div class="avatar b">N</div><div class="avatar-more">+16</div></div>
+            <div class="B-foot-text">20 playing tonight</div>
+          </div>
+        </div>
+        <div class="thumb-caption"><div class="t">Courtly</div><div class="u">trulioo-badminton.onrender.com</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
