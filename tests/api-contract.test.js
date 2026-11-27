@@ -89,6 +89,43 @@ test('UNCALLED_BY_SPA has no stale entries', () => {
   }
 });
 
+// A `[[routes]]` custom-domain entry in a wrangler config silently retires
+// that Worker's workers.dev subdomain (wrangler disables workers_dev by
+// default once routes are present). index.html's API_BASE is a plain string
+// literal with no way to pick that up automatically, so it has to be checked
+// against the declared route by hand. This caught a real outage on
+// 2026-11-26: worker/wrangler.toml gained a custom-domain route for Trulioo,
+// retiring badminton-scheduler-api.rxlab.workers.dev, but index.html kept
+// pointing at the dead workers.dev host until this drifted far enough to
+// break every API call in production.
+const WRANGLER_CONFIG_FOR_BRAND = {
+  courtly: 'wrangler.courtly.toml',
+  trulioo: 'wrangler.toml',
+};
+
+function apiBaseByBrand() {
+  const html = fs.readFileSync(path.join(REPO_ROOT, 'index.html'), 'utf8');
+  const m = /IS_COURTLY\?\s*'([^']+)'\s*:\s*'([^']+)'/.exec(html);
+  assert.ok(m, 'could not find the `IS_COURTLY ? <courtly-url> : <trulioo-url>` API_BASE ternary in index.html');
+  return { courtly: m[1], trulioo: m[2] };
+}
+
+test('index.html API_BASE matches each wrangler config\'s custom domain route', () => {
+  const apiBase = apiBaseByBrand();
+  for (const [brand, file] of Object.entries(WRANGLER_CONFIG_FOR_BRAND)) {
+    const toml = fs.readFileSync(path.join(REPO_ROOT, 'worker', file), 'utf8');
+    const routeMatch = /\[\[routes\]\]\s*\npattern\s*=\s*"([^"]+)"/.exec(toml);
+    if (!routeMatch) continue; // no custom domain declared; the workers.dev subdomain is presumably still live
+    const expected = `https://${routeMatch[1]}`;
+    assert.strictEqual(
+      apiBase[brand],
+      expected,
+      `worker/${file} declares custom domain route "${routeMatch[1]}", which retires its workers.dev subdomain, ` +
+        `but index.html's ${brand} API_BASE is still "${apiBase[brand]}"`,
+    );
+  }
+});
+
 test('the three version numbers agree', () => {
   const html = fs.readFileSync(path.join(REPO_ROOT, 'index.html'), 'utf8');
   const appVersion = /const APP_VERSION\s*=\s*'([^']+)'/.exec(html)[1];

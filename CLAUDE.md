@@ -370,7 +370,7 @@ The app shows its version in a small label under the header title ("Internal Too
 
 ## Deployment Targets
 
-- The repo has a deployed static site (frontend) and a separate production API. Confirm which backend is actually live before assuming `server.js`/Render is authoritative — as of this writing the frontend's `API_BASE` points at the Cloudflare Worker (`https://badminton-scheduler-api.rxlab.workers.dev`), not the Render-hosted `server.js`. Keep `worker/wrangler.toml` and `worker/src/index.js` aligned with live behavior.
+- The repo has a deployed static site (frontend) and a separate production API. Confirm which backend is actually live before assuming `server.js`/Render is authoritative — as of this writing the frontend's `API_BASE` points at the Cloudflare Worker, not the Render-hosted `server.js`. The Trulioo build reaches it at `https://trulioo.courtly.ryanxu.dev` (a custom domain added 2026-11-22; this retired the old `badminton-scheduler-api.rxlab.workers.dev` subdomain — a branch that changed `worker/wrangler.toml` for this landed without a matching `index.html`/`API_BASE` update, which broke every Trulioo API call until caught and fixed 2026-11-26). Keep `worker/wrangler.toml` and `worker/src/index.js` aligned with live behavior, and remember `API_BASE` in `index.html` is the other half of that contract — see REFACTOR.md.
 - If the app is meant to use `server.js` in production instead, deploy it as a Render web service rather than a static site.
 - If only the UI is being published, keep the frontend host aligned with `index.html` and the repo root.
 - If deploying the Worker, watch for Durable Object migration format issues (the free plan requires `new_sqlite_classes` rather than the default classes migration).

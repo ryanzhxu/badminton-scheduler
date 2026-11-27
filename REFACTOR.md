@@ -20,7 +20,7 @@ configured in this repo, so neither is visible from the source tree.
 | Half | Host | Trigger | URL |
 | --- | --- | --- | --- |
 | Frontend (`index.html`) | Render static site `trulioo-badminton` | push to `main` | `https://trulioo-badminton.onrender.com` |
-| API (`worker/src/index.js`) | Cloudflare Workers Builds | push to `main` | `https://badminton-scheduler-api.rxlab.workers.dev` |
+| API (`worker/src/index.js`) | Cloudflare Workers Builds | push to `main` | `https://trulioo.courtly.ryanxu.dev` (workers.dev subdomain retired 2026-11-22) |
 
 Two consequences:
 

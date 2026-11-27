@@ -25,3 +25,11 @@ jobs:
 
       - name: Scheduler regression tests
         run: npm test
+
+      # Hits the live production hosts hardcoded into index.html's API_BASE.
+      # Added after a 2026-11-26 outage where a Worker custom-domain route
+      # retired the old workers.dev subdomain but index.html kept pointing at
+      # it, and nothing in CI caught it until a user reported every API call
+      # failing. Separate from `npm test`, which is deliberately network-free.
+      - name: Production smoke test
+        run: npm run test:smoke
