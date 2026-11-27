@@ -71,6 +71,45 @@ test('buildCardMetaText: returns null for an unrenderable schedule', async () =>
   assert.equal(buildCardMetaText({ players: [], rounds: [] }), null);
 });
 
+test('buildOgCardData: a name with an apostrophe is not HTML-entity-escaped', async () => {
+  // workers-og parses this HTML with Cloudflare's HTMLRewriter, which does not
+  // decode character references in text content -- escaping "'" to "&#39;"
+  // would rasterize that literal entity text into the PNG instead of an
+  // apostrophe. Only "<"/">" are unsafe here (they can open a real element).
+  const { buildOgCardData } = await loadOgCard();
+  const schedule = {
+    players: ["O'Brien", 'Dee'],
+    numCourts: 1,
+    sport: 'badminton',
+    generatedAt: '2026-11-28T18:00:00.000Z',
+    rounds: [{ subs: [], courts: [{ a: ["O'Brien"], b: ['Dee'], singles: true }] }],
+  };
+  const data = buildOgCardData(schedule);
+  assert.equal(data.courts[0].teamA, "O'Brien");
+  assert.equal(data.avatars[0].initial, 'O');
+});
+
+test('buildOgCardData: "<"/">" are stripped from a player name to prevent element injection', async () => {
+  const { buildOgCardData } = await loadOgCard();
+  const schedule = {
+    players: ['<div>X</div>', 'Dee'],
+    numCourts: 1,
+    sport: 'badminton',
+    generatedAt: '2026-11-28T18:00:00.000Z',
+    rounds: [{ subs: [], courts: [{ a: ['<div>X</div>'], b: ['Dee'], singles: true }] }],
+  };
+  const data = buildOgCardData(schedule);
+  assert.equal(data.courts[0].teamA, 'divX/div');
+});
+
+test('renderOgCardHtml: numbers each court block so a multi-court card is readable', async () => {
+  const { buildOgCardData, renderOgCardHtml } = await loadOgCard();
+  const data = buildOgCardData(makeSchedule({ courts: 2, players: 8 }));
+  const html = renderOgCardHtml(data);
+  assert.match(html, /COURT 1/);
+  assert.match(html, /COURT 2/);
+});
+
 test('renderOgCardHtml: embeds every court matchup, the overflow tile, and the avatar/overflow footer', async () => {
   const { buildOgCardData, renderOgCardHtml } = await loadOgCard();
   const data = buildOgCardData(makeSchedule({ courts: 5, players: 20 }));

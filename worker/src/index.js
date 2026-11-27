@@ -1045,9 +1045,18 @@ async function handleScheduleOgImage(c) {
     if (!cardData) {
       return Response.redirect(OG_FALLBACK_IMAGE_URL, 302);
     }
-    const response = new ImageResponse(renderOgCardHtml(cardData), { width: 1200, height: 630 });
-    response.headers.set('Cache-Control', 'public, max-age=300');
-    return response;
+    // ImageResponse renders lazily inside a ReadableStream's start() callback,
+    // which runs after the Response it returns is already constructed -- a
+    // render failure there (e.g. a future <div> missing display:flex, see the
+    // comment on renderCourtBlock above) would throw outside this try/catch
+    // and ship as a truncated 200 instead of falling back below. Buffering the
+    // body here forces that render to finish (and to throw, if it's going to)
+    // while still inside the try.
+    const image = new ImageResponse(renderOgCardHtml(cardData), { width: 1200, height: 630 });
+    const bytes = await image.arrayBuffer();
+    return new Response(bytes, {
+      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=300' },
+    });
   } catch (_err) {
     return Response.redirect(OG_FALLBACK_IMAGE_URL, 302);
   }

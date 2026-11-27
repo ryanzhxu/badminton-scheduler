@@ -20,7 +20,7 @@ configured in this repo, so neither is visible from the source tree.
 | Half | Host | Trigger | URL |
 | --- | --- | --- | --- |
 | Frontend (`index.html`) | Render static site `trulioo-badminton` | push to `main` | `https://trulioo-badminton.onrender.com` |
-| API (`worker/src/index.js`) | Cloudflare Workers Builds | push to `main` | `https://trulioo.courtly.ryanxu.dev` (workers.dev subdomain retired 2026-11-22) |
+| API (`worker/src/trulioo-entry.js`, a thin wrapper around `worker/src/index.js` — `main` in `worker/wrangler.toml` since 2026-11-27) | Cloudflare Workers Builds | push to `main` | `https://trulioo.courtly.ryanxu.dev` (workers.dev subdomain retired 2026-11-22) |
 
 Two consequences:
 
@@ -30,6 +30,17 @@ Two consequences:
    live at `20:54:12` and the Cloudflare build finished at `20:54:34`. For those
    22 seconds the new frontend talked to the old Worker. A commit that changes
    the API contract on both sides at once is a brief outage.
+
+A third thing worth knowing, since it's surprising if you don't: since
+2026-11-27, **the link a Trulioo user actually forwards is not either of the
+URLs above.** `getShareBaseUrl()` in `index.html` hands out
+`https://trulioo.courtly.ryanxu.dev/?scheduleCode=X` — the Worker's own
+domain, same path/query shape as the frontend's, but a different host than
+either the app runs on (Render) or than Trulioo's API traditionally lived at
+before this. `trulioo-entry.js` serves a schedule-aware link-preview card at
+that URL for crawlers, then bounces real browsers on to the real Render app.
+See `docs/superpowers/specs/2026-11-26-trulioo-link-preview-card-design.md`
+for why (Render is static, so it can never serve a dynamic card itself).
 
 ## Frozen: the production URL
 
@@ -59,9 +70,14 @@ A refactor breaks the two halves apart only if it touches one of these.
    cron, which had no browser origin to read; the cron and the whole cal.com
    integration are gone, and the constant was deleted with them. Every share URL
    is built from the browser's own origin, passed in as `shareBaseUrl`.
-4. **The API surface.** Eleven routes, registered at `worker/src/index.js`
-   lines 1320-1330, called from eight sites in `index.html`. There is no build
-   step and no type checker, so a rename fails only at runtime.
+4. **The API surface.** 19 routes, registered in `createWorkerApp()` in
+   `worker/src/index.js` (line numbers drift as the file grows — search for
+   `function createWorkerApp`). `tests/api-contract.test.js` checks every
+   route against the SPA's calls (or an explicit `UNCALLED_BY_SPA`
+   allowlist) mechanically, so this count doesn't need to stay hand-updated
+   in sync with every route addition — only the behavior does. There is no
+   build step and no type checker, so a rename fails only at runtime
+   (outside what that test catches).
 5. **Version alignment.** `APP_VERSION`, `package.json` and
    `worker/package.json` must be bumped together and always match.
 
