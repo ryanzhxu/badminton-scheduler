@@ -1,4 +1,6 @@
 import QRCode from './qrcode-svg.js';
+import { ImageResponse } from 'workers-og';
+import { buildOgCardData, renderOgCardHtml } from './og-card.js';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -1033,6 +1035,24 @@ async function handleGetSchedule(c) {
   return c.json({ schedule });
 }
 
+const OG_FALLBACK_IMAGE_URL = 'https://trulioo-badminton.onrender.com/og-trulioo.png';
+
+async function handleScheduleOgImage(c) {
+  const code = c.req.param('code');
+  try {
+    const schedule = code === 'current' ? await loadCurrentSchedule(c.env) : await loadSchedule(c.env, code);
+    const cardData = schedule ? buildOgCardData(schedule) : null;
+    if (!cardData) {
+      return Response.redirect(OG_FALLBACK_IMAGE_URL, 302);
+    }
+    const response = new ImageResponse(renderOgCardHtml(cardData), { width: 1200, height: 630 });
+    response.headers.set('Cache-Control', 'public, max-age=300');
+    return response;
+  } catch (_err) {
+    return Response.redirect(OG_FALLBACK_IMAGE_URL, 302);
+  }
+}
+
 async function handleScheduleStream(c) {
   const code = c.req.param('code');
   if (code === 'current') {
@@ -1789,6 +1809,7 @@ function createWorkerApp() {
   app.get('/api/health', (c) => c.json(healthPayload()));
   app.post('/api/schedule', handleGenerateSchedule);
   app.get('/api/schedule/:code', handleGetSchedule);
+  app.get('/api/schedule/:code/og.png', handleScheduleOgImage);
   app.get('/api/schedule/:code/stream', handleScheduleStream);
   app.post('/api/schedule/:code/extend', handleExtendSchedule);
   app.post('/api/schedule/share', handleShareSchedule);
